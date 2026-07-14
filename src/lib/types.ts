@@ -1,6 +1,18 @@
+// A director's note on an AI-read line, compiled into delivery parameters.
+// rate/pitch are multipliers on the line's base delivery; pauses are ms;
+// cutoff makes this line barge in before the user finishes their previous line.
+export interface Delivery {
+  note: string;
+  rate: number;
+  pitch: number;
+  pauseBeforeMs: number;
+  pauseAfterMs: number;
+  cutoff: boolean;
+}
+
 export type ScriptElement =
   | { type: 'direction'; text: string }
-  | { type: 'line'; character: string; text: string; mine?: boolean };
+  | { type: 'line'; character: string; text: string; mine?: boolean; delivery?: Delivery };
 
 export interface FartScript {
   id: string;

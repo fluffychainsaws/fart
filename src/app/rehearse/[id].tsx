@@ -1,8 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 
-import { getScript } from '@/lib/storage';
+import { interpretDirection } from '@/lib/director';
+import { getScript, saveScript } from '@/lib/storage';
 import { useTheme, type Theme } from '@/lib/theme';
 import type { FartScript } from '@/lib/types';
 import { useRehearsal } from '@/lib/useRehearsal';
@@ -12,6 +21,9 @@ export default function RehearseScreen() {
   const t = useTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
   const [script, setScript] = useState<FartScript | null>(null);
+  const [noteTarget, setNoteTarget] = useState<number | null>(null);
+  const [noteText, setNoteText] = useState('');
+  const [noteBusy, setNoteBusy] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
   const positions = useRef<Record<number, number>>({});
@@ -22,6 +34,39 @@ export default function RehearseScreen() {
   useEffect(() => {
     getScript(id).then(setScript);
   }, [id]);
+
+  const openNote = (i: number) => {
+    if (!script) return;
+    const el = script.elements[i];
+    if (el.type !== 'line' || el.mine) return;
+    engine.pause();
+    setNoteText(el.delivery?.note ?? '');
+    setNoteTarget(i);
+  };
+
+  const applyNote = async (raw: string) => {
+    if (!script || noteTarget == null) return;
+    const el = script.elements[noteTarget];
+    if (el.type !== 'line') return;
+    const trimmed = raw.trim();
+    setNoteBusy(true);
+    try {
+      const delivery = trimmed ? await interpretDirection(trimmed, el) : undefined;
+      const next = {
+        ...script,
+        elements: script.elements.map((e, i) => {
+          if (i !== noteTarget || e.type !== 'line') return e;
+          const { delivery: _drop, ...rest } = e;
+          return delivery ? { ...rest, delivery } : rest;
+        }),
+      };
+      setScript(next);
+      await saveScript(next);
+      setNoteTarget(null);
+    } finally {
+      setNoteBusy(false);
+    }
+  };
 
   useEffect(() => {
     const y = positions.current[idx];
@@ -76,7 +121,9 @@ export default function RehearseScreen() {
               onLayout={(e) => {
                 positions.current[i] = e.nativeEvent.layout.y;
               }}
-              onPress={() => engine.play(i)}>
+              onPress={() => engine.play(i)}
+              onLongPress={() => openNote(i)}
+              delayLongPress={350}>
               {el.type === 'direction' ? (
                 <Text style={[styles.direction, isCurrent && styles.currentDirection]}>{el.text}</Text>
               ) : (
@@ -86,12 +133,15 @@ export default function RehearseScreen() {
                     {el.mine ? '  ← you' : ''}
                   </Text>
                   <Text style={styles.lineText}>{el.text}</Text>
+                  {el.delivery && <Text style={styles.noteBadge}>🎬 {el.delivery.note}</Text>}
                 </View>
               )}
             </Pressable>
           );
         })}
-        <Text style={styles.tapHint}>Tap any line to play from there.</Text>
+        <Text style={styles.tapHint}>
+          Tap any line to play from there. Hold a reader&apos;s line to direct it.
+        </Text>
       </ScrollView>
 
       {status === 'waiting' && current?.type === 'line' && (
@@ -114,6 +164,65 @@ export default function RehearseScreen() {
             <Text style={styles.continueButtonText}>↻ Run it back</Text>
           </Pressable>
         </View>
+      )}
+
+      {/* Conditionally mounted: react-native-web's fading Modal can linger in
+          the DOM after visible flips false, so we unmount it outright. */}
+      {noteTarget != null && (
+      <Modal
+        visible
+        transparent
+        animationType="none"
+        onRequestClose={() => setNoteTarget(null)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>🎬 Direct this line</Text>
+            {noteTarget != null && script.elements[noteTarget]?.type === 'line' && (
+              <Text style={styles.modalLine} numberOfLines={3}>
+                {(script.elements[noteTarget] as { character: string; text: string }).character}:{' '}
+                {(script.elements[noteTarget] as { character: string; text: string }).text}
+              </Text>
+            )}
+            <TextInput
+              style={styles.modalInput}
+              value={noteText}
+              onChangeText={setNoteText}
+              placeholder="angrier · pause 2 seconds first · cut me off"
+              placeholderTextColor={t.inkSoft}
+              multiline
+              autoFocus
+              editable={!noteBusy}
+            />
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={styles.modalGhostButton}
+                disabled={noteBusy}
+                onPress={() => setNoteTarget(null)}>
+                <Text style={styles.modalGhostText}>Cancel</Text>
+              </Pressable>
+              {noteTarget != null &&
+                script.elements[noteTarget]?.type === 'line' &&
+                (script.elements[noteTarget] as { delivery?: unknown }).delivery != null && (
+                  <Pressable
+                    style={styles.modalGhostButton}
+                    disabled={noteBusy}
+                    onPress={() => applyNote('')}>
+                    <Text style={styles.modalGhostText}>Remove note</Text>
+                  </Pressable>
+                )}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.modalSaveButton,
+                  (pressed || noteBusy) && styles.pressed,
+                ]}
+                disabled={noteBusy || noteText.trim().length === 0}
+                onPress={() => applyNote(noteText)}>
+                <Text style={styles.modalSaveText}>{noteBusy ? 'Directing…' : 'Save note'}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
       )}
     </View>
   );
@@ -214,5 +323,56 @@ const makeStyles = (t: Theme) =>
       marginTop: 10,
     },
     continueButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+    noteBadge: { fontSize: 12, color: t.inkSoft, fontStyle: 'italic', marginTop: 6 },
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 24,
+    },
+    modalCard: {
+      backgroundColor: t.card,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: t.border,
+      padding: 18,
+      width: '100%',
+      maxWidth: 480,
+    },
+    modalTitle: { fontSize: 17, fontWeight: '800', color: t.ink },
+    modalLine: { fontSize: 13, color: t.inkSoft, marginTop: 8, lineHeight: 19 },
+    modalInput: {
+      backgroundColor: t.bg,
+      borderWidth: 1,
+      borderColor: t.border,
+      borderRadius: 12,
+      padding: 12,
+      minHeight: 72,
+      marginTop: 12,
+      fontSize: 15,
+      color: t.ink,
+      textAlignVertical: 'top',
+    },
+    modalButtons: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: 8,
+      marginTop: 14,
+      flexWrap: 'wrap',
+    },
+    modalGhostButton: {
+      paddingVertical: 11,
+      paddingHorizontal: 14,
+      borderRadius: 12,
+    },
+    modalGhostText: { color: t.inkSoft, fontSize: 14, fontWeight: '700' },
+    modalSaveButton: {
+      backgroundColor: t.accent,
+      borderRadius: 12,
+      paddingVertical: 11,
+      paddingHorizontal: 20,
+    },
+    modalSaveText: { color: '#fff', fontSize: 14, fontWeight: '700' },
     pressed: { opacity: 0.7 },
   });

@@ -68,8 +68,13 @@ export function useRehearsal(elements: ScriptElement[], options: RehearsalOption
 
     if (el.mine) {
       setStatus('waiting');
-      if (autoAdvanceRef.current) {
-        const ms = Math.max(1800, el.text.trim().split(/\s+/).length * 380);
+      // If the next reader line is directed to cut the user off, barge in
+      // partway through their line — even when auto-continue is off.
+      const nextLine = els.slice(i + 1).find((e) => e.type === 'line' && !e.mine);
+      const cutoff = nextLine?.type === 'line' && nextLine.delivery?.cutoff;
+      if (autoAdvanceRef.current || cutoff) {
+        const estimate = Math.max(1800, el.text.trim().split(/\s+/).length * 380);
+        const ms = cutoff ? Math.max(1000, estimate * 0.45) : estimate;
         await new Promise((r) => setTimeout(r, ms));
         if (run === runId.current) {
           setStatus('playing');
@@ -79,8 +84,23 @@ export function useRehearsal(elements: ScriptElement[], options: RehearsalOption
       return;
     }
 
-    await speakOnce(el.text, { rate: rateRef.current, ...voiceOptsFor(el.character) });
-    if (run === runId.current) return step(i + 1, run);
+    const d = el.delivery;
+    if (d && d.pauseBeforeMs > 0) {
+      await new Promise((r) => setTimeout(r, d.pauseBeforeMs));
+      if (run !== runId.current) return;
+    }
+    const voice = voiceOptsFor(el.character);
+    await speakOnce(el.text, {
+      rate: rateRef.current * (d?.rate ?? 1),
+      voice: voice.voice,
+      pitch: (voice.pitch ?? 1) * (d?.pitch ?? 1),
+    });
+    if (run !== runId.current) return;
+    if (d && d.pauseAfterMs > 0) {
+      await new Promise((r) => setTimeout(r, d.pauseAfterMs));
+      if (run !== runId.current) return;
+    }
+    return step(i + 1, run);
   }
 
   const play = (from?: number) => {
