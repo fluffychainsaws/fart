@@ -3,13 +3,14 @@ import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 
-import { parseScriptPhotos } from '@/lib/parser';
+import { hasApiKey, parseScriptPhotos } from '@/lib/parser';
 import { newId, saveScript } from '@/lib/storage';
 import { theme } from '@/lib/theme';
 
 interface Page {
   uri: string;
   base64: string;
+  mimeType: string | null;
 }
 
 const LOADING_LINES = [
@@ -43,7 +44,7 @@ export default function CaptureScreen() {
     if (result.canceled) return;
     const added = (result.assets ?? [])
       .filter((a) => a.base64)
-      .map((a) => ({ uri: a.uri, base64: a.base64 as string }));
+      .map((a) => ({ uri: a.uri, base64: a.base64 as string, mimeType: a.mimeType ?? null }));
     setPages((prev) => [...prev, ...added]);
     setError(null);
   };
@@ -80,7 +81,9 @@ export default function CaptureScreen() {
     setBusy(true);
     setError(null);
     try {
-      const { title, elements } = await parseScriptPhotos(pages.map((p) => p.base64));
+      const { title, elements } = await parseScriptPhotos(
+        pages.map((p) => ({ base64: p.base64, mimeType: p.mimeType })),
+      );
       const script = { id: newId(), title, createdAt: Date.now(), myCharacter: null, elements };
       await saveScript(script);
       router.replace({ pathname: '/assign/[id]', params: { id: script.id } });
@@ -97,6 +100,15 @@ export default function CaptureScreen() {
         Snap each page of your sides in order (or pull them from your photos). FART turns them into a
         script it can read with you.
       </Text>
+
+      {!hasApiKey() && (
+        <View style={styles.keyWarning}>
+          <Text style={styles.keyWarningText}>
+            🔑 No API key set yet, so FART can't read photos. Add EXPO_PUBLIC_ANTHROPIC_API_KEY to
+            the .env file and restart the dev server.
+          </Text>
+        </View>
+      )}
 
       {busy ? (
         <LoadingCard />
@@ -212,5 +224,12 @@ const styles = StyleSheet.create({
   },
   loadingText: { marginTop: 16, fontSize: 15, fontWeight: '600', color: theme.ink },
   error: { color: theme.danger, fontSize: 14, marginTop: 16, lineHeight: 20 },
+  keyWarning: {
+    backgroundColor: theme.highlight,
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 16,
+  },
+  keyWarningText: { fontSize: 13, color: theme.ink, lineHeight: 19 },
   pressed: { opacity: 0.7 },
 });

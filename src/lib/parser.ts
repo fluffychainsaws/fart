@@ -4,6 +4,19 @@ import type { ScriptElement } from './types';
 
 const MODEL = 'claude-opus-4-8';
 
+export const hasApiKey = () => Boolean(process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY);
+
+export interface ScriptPhoto {
+  base64: string;
+  mimeType: string | null;
+}
+
+type ApiMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+const API_MEDIA_TYPES: ApiMediaType[] = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+const toMediaType = (mimeType: string | null): ApiMediaType =>
+  API_MEDIA_TYPES.find((t) => t === mimeType) ?? 'image/jpeg';
+
 // Structured-output schema: the API guarantees the response is valid JSON
 // matching this shape, so no fragile "please reply with JSON" parsing.
 const SCRIPT_SCHEMA = {
@@ -42,7 +55,7 @@ Transcribe the script faithfully into structured elements:
 Ignore page numbers, watermarks, and handwritten notes. Preserve the original wording exactly — do not paraphrase.`;
 
 export async function parseScriptPhotos(
-  base64Jpegs: string[],
+  photos: ScriptPhoto[],
 ): Promise<{ title: string; elements: ScriptElement[] }> {
   const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -65,9 +78,14 @@ export async function parseScriptPhotos(
       {
         role: 'user',
         content: [
-          ...base64Jpegs.map((data) => ({
+          ...photos.map((photo) => ({
             type: 'image' as const,
-            source: { type: 'base64' as const, media_type: 'image/jpeg' as const, data },
+            source: {
+              type: 'base64' as const,
+              media_type: toMediaType(photo.mimeType),
+              // Web can hand back a full data URL; the API wants bare base64.
+              data: photo.base64.replace(/^data:image\/\w+;base64,/, ''),
+            },
           })),
           { type: 'text' as const, text: INSTRUCTIONS },
         ],
