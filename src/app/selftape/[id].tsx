@@ -9,6 +9,20 @@ import { useTheme, type Theme } from '@/lib/theme';
 import type { FartScript } from '@/lib/types';
 import { useRehearsal } from '@/lib/useRehearsal';
 
+// Voice commands need a native speech-recognition module that Expo Go doesn't
+// ship. Lazy require: present in dev builds, null in Expo Go (buttons only).
+let SpeechRec: typeof import('expo-speech-recognition') | null = null;
+try {
+  SpeechRec = require('expo-speech-recognition');
+} catch {
+  SpeechRec = null;
+}
+
+// "FART start" / "FART cut", with the recognizer's most common mishearings of
+// "fart" accepted so the command still lands from across the room.
+const START_CMD = /\b(fart|fart's|far|part|art|heart|bart|fort|fought)\W{0,3}(start|starts|go)\b/;
+const CUT_CMD = /\b(fart|fart's|far|part|art|heart|bart|fort|fought)\W{0,3}(cut|cuts|caught|stop)\b/;
+
 type RecState = 'idle' | 'countdown' | 'recording' | 'saving' | 'saved';
 
 export default function SelfTapeScreen() {
@@ -38,6 +52,13 @@ export default function SelfTapeScreen() {
     },
   });
 
+  const [voiceOn, setVoiceOn] = useState(Boolean(SpeechRec));
+  const recStateRef = useRef<RecState>('idle');
+  recStateRef.current = recState;
+  const countdownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const voiceCooldownUntil = useRef(0);
+  const voiceErrors = useRef(0);
+
   useEffect(() => {
     getScript(id).then(setScript);
   }, [id]);
@@ -49,45 +70,19 @@ export default function SelfTapeScreen() {
     return () => clearInterval(timer);
   }, [recState]);
 
-  const needsPermissions = !camPerm?.granted || !micPerm?.granted || !libPerm?.granted;
-  if (needsPermissions) {
-    return (
-      <View style={themed.infoScreen}>
-        <Text style={themed.infoEmoji}>🎬</Text>
-        <Text style={themed.infoTitle}>Lights, camera…</Text>
-        <Text style={themed.infoText}>
-          Self-tape mode records video with sound and saves takes to your camera roll, so FART needs
-          the camera, the microphone, and photo-library access.
-        </Text>
-        <Pressable
-          style={({ pressed }) => [themed.infoButton, pressed && styles.pressed]}
-          onPress={async () => {
-            if (!camPerm?.granted) await requestCamPerm();
-            if (!micPerm?.granted) await requestMicPerm();
-            if (!libPerm?.granted) await requestLibPerm();
-          }}>
-          <Text style={themed.infoButtonText}>Allow access</Text>
-        </Pressable>
-      </View>
-    );
-  }
-
-  if (!script) return <View style={themed.infoScreen} />;
-
-  const current = script.elements[engine.idx];
-
-  const startTake = () => {
+  const startTake = (seconds: number) => {
     setSaveError(null);
     setRecState('countdown');
-    setCountdown(3);
-    let n = 3;
-    const tick = setInterval(() => {
+    setCountdown(seconds);
+    let n = seconds;
+    countdownTimer.current = setInterval(() => {
       n -= 1;
       if (n > 0) {
         setCountdown(n);
         return;
       }
-      clearInterval(tick);
+      if (countdownTimer.current) clearInterval(countdownTimer.current);
+      countdownTimer.current = null;
       setRecState('recording');
       cameraRef.current
         ?.recordAsync()
@@ -115,6 +110,12 @@ export default function SelfTapeScreen() {
     }, 1000);
   };
 
+  const cancelTake = () => {
+    if (countdownTimer.current) clearInterval(countdownTimer.current);
+    countdownTimer.current = null;
+    setRecState('idle');
+  };
+
   const stopTake = () => {
     engine.pause();
     cameraRef.current?.stopRecording();
@@ -124,6 +125,106 @@ export default function SelfTapeScreen() {
     engine.restart();
     setRecState('idle');
   };
+
+  // The recognition listener lives across renders; give it fresh handlers.
+  const actionsRef = useRef({ startTake, cancelTake, stopTake });
+  actionsRef.current = { startTake, cancelTake, stopTake };
+
+  const permsGranted = Boolean(camPerm?.granted && micPerm?.granted && libPerm?.granted);
+
+  useEffect(() => {
+    if (!SpeechRec || !voiceOn || !permsGranted) return;
+    const Module = SpeechRec.ExpoSpeechRecognitionModule;
+    let cancelled = false;
+
+    const startListening = async () => {
+      try {
+        const perm = await Module.requestPermissionsAsync();
+        if (!perm.granted || cancelled) return;
+        Module.start({
+          lang: 'en-US',
+          interimResults: true,
+          continuous: true,
+          contextualStrings: ['FART', 'FART start', 'FART cut'],
+        });
+      } catch {
+        voiceErrors.current = 99;
+      }
+    };
+
+    const resultSub = Module.addListener('result', (event) => {
+      const transcript = (event.results?.[0]?.transcript ?? '').toLowerCase();
+      if (!transcript) return;
+      voiceErrors.current = 0;
+      if (Date.now() < voiceCooldownUntil.current) return;
+      const state = recStateRef.current;
+      if (state === 'idle' && START_CMD.test(transcript)) {
+        voiceCooldownUntil.current = Date.now() + 4000;
+        actionsRef.current.startTake(5);
+      } else if ((state === 'recording' || state === 'countdown') && CUT_CMD.test(transcript)) {
+        voiceCooldownUntil.current = Date.now() + 4000;
+        if (state === 'countdown') actionsRef.current.cancelTake();
+        else actionsRef.current.stopTake();
+      }
+    });
+    // Native sessions end on their own (Android segments them); reopen the ear
+    // unless errors say the service is unavailable on this device.
+    const endSub = Module.addListener('end', () => {
+      if (cancelled || voiceErrors.current > 4) return;
+      setTimeout(() => {
+        if (!cancelled) startListening();
+      }, 600);
+    });
+    const errSub = Module.addListener('error', (event) => {
+      voiceErrors.current += 1;
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        voiceErrors.current = 99;
+      }
+    });
+
+    startListening();
+    return () => {
+      cancelled = true;
+      resultSub.remove();
+      endSub.remove();
+      errSub.remove();
+      try {
+        Module.abort();
+      } catch {
+        // recognizer was not running
+      }
+    };
+  }, [voiceOn, permsGranted]);
+
+  const needsPermissions = !permsGranted;
+  if (needsPermissions) {
+    return (
+      <View style={themed.infoScreen}>
+        <Text style={themed.infoEmoji}>🎬</Text>
+        <Text style={themed.infoTitle}>Lights, camera…</Text>
+        <Text style={themed.infoText}>
+          Self-tape mode records video with sound and saves takes to your camera roll, so FART needs
+          the camera, the microphone, and photo-library access.
+        </Text>
+        <Pressable
+          style={({ pressed }) => [themed.infoButton, pressed && styles.pressed]}
+          onPress={async () => {
+            if (!camPerm?.granted) await requestCamPerm();
+            if (!micPerm?.granted) await requestMicPerm();
+            if (!libPerm?.granted) await requestLibPerm();
+            if (SpeechRec) {
+              await SpeechRec.ExpoSpeechRecognitionModule.requestPermissionsAsync().catch(() => {});
+            }
+          }}>
+          <Text style={themed.infoButtonText}>Allow access</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (!script) return <View style={themed.infoScreen} />;
+
+  const current = script.elements[engine.idx];
 
   const mmss = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`;
 
@@ -176,15 +277,27 @@ export default function SelfTapeScreen() {
             </View>
           )}
           {saveError && <Text style={styles.error}>{saveError}</Text>}
+          {SpeechRec != null && voiceOn && (recState === 'idle' || recState === 'recording') && (
+            <Text style={styles.voiceHint}>
+              {recState === 'idle' ? 'Say “FART start” to roll' : 'Say “FART cut” to end the take'}
+            </Text>
+          )}
           <View style={styles.controlsRow}>
             <Pressable
               style={[styles.autoToggle, engine.autoAdvance && styles.autoToggleOn]}
               onPress={engine.toggleAuto}>
               <Text style={styles.autoToggleText}>⏱ Auto</Text>
             </Pressable>
+            {SpeechRec != null && (
+              <Pressable
+                style={[styles.autoToggle, voiceOn && styles.autoToggleOn]}
+                onPress={() => setVoiceOn((v) => !v)}>
+                <Text style={styles.autoToggleText}>🎙 Voice</Text>
+              </Pressable>
+            )}
 
             {recState === 'idle' && (
-              <Pressable style={styles.recordButton} onPress={startTake}>
+              <Pressable style={styles.recordButton} onPress={() => startTake(3)}>
                 <View style={styles.recordButtonInner} />
               </Pressable>
             )}
@@ -276,6 +389,16 @@ const styles = StyleSheet.create({
   recDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#FF4B3E' },
   recTime: { color: '#fff', fontSize: 13, fontWeight: '700', fontVariant: ['tabular-nums'] },
   error: { color: '#FFB4A8', fontSize: 13, fontWeight: '600' },
+  voiceHint: {
+    color: '#E8E4DA',
+    fontSize: 12,
+    fontWeight: '600',
+    backgroundColor: 'rgba(12, 12, 16, 0.6)',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    overflow: 'hidden',
+  },
   controlsRow: { flexDirection: 'row', alignItems: 'center', gap: 24, paddingBottom: 12 },
   autoToggle: {
     backgroundColor: 'rgba(12, 12, 16, 0.7)',

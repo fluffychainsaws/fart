@@ -54,7 +54,14 @@
           "savePhotosPermission": "FART saves your self-tape videos to your photo library."
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "FART uses the microphone to hear voice commands like 'FART start'.",
+          "speechRecognitionPermission": "FART uses speech recognition for hands-free recording commands."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
