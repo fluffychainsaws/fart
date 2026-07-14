@@ -20,6 +20,9 @@ export interface FartScript {
   createdAt: number;
   myCharacter: string | null;
   elements: ScriptElement[];
+  // Per-character voice choices: "openai:coral" or "device:<identifier>".
+  // Characters not in the map get an automatic voice.
+  voices?: Record<string, string>;
 }
 
 export function charactersIn(elements: ScriptElement[]): string[] {

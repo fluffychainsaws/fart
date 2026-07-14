@@ -42,9 +42,16 @@ export function pitchFor(character: string): number {
   return 0.85 + (hash(character) % 7) * 0.05; // 0.85 .. 1.15
 }
 
+// The loaded device-voice pool, for voice-picker UIs. Call loadVoices() first.
+export function getVoicePool(): Speech.Voice[] {
+  return pool;
+}
+
 // Pick a stable, distinct voice per character: hash into the pool, then
-// linear-probe past voices other characters already took.
-export function voiceOptsFor(character: string): { voice?: string; pitch?: number } {
+// linear-probe past voices other characters already took. An explicit
+// override (from the script's voice picker) wins outright.
+export function voiceOptsFor(character: string, override?: string): { voice?: string; pitch?: number } {
+  if (override) return { voice: override };
   if (pool.length === 0) return { pitch: pitchFor(character) };
   const existing = assigned.get(character);
   if (existing) return { voice: existing };

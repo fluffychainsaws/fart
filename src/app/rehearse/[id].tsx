@@ -10,12 +10,31 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 
-import { cloudVoiceActive, hasCloudVoice, setCloudVoiceEnabled } from '@/lib/cloudVoice';
+import {
+  cloudVoiceActive,
+  hasCloudVoice,
+  OPENAI_VOICES,
+  setCloudVoiceEnabled,
+  speakCloud,
+} from '@/lib/cloudVoice';
 import { interpretDirection } from '@/lib/director';
+import { getVoicePool, loadVoices, speakOnce, stopSpeaking, voiceOptsFor } from '@/lib/speech';
 import { getScript, saveScript } from '@/lib/storage';
 import { useTheme, type Theme } from '@/lib/theme';
 import type { FartScript } from '@/lib/types';
 import { useRehearsal } from '@/lib/useRehearsal';
+
+const prettyVoice = (id: string | undefined, deviceNames: Record<string, string>): string => {
+  if (!id) return 'Auto';
+  if (id.startsWith('openai:')) {
+    const name = id.slice('openai:'.length);
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  }
+  if (id.startsWith('device:')) {
+    return deviceNames[id.slice('device:'.length)] ?? 'Device voice';
+  }
+  return 'Auto';
+};
 
 export default function RehearseScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -26,16 +45,65 @@ export default function RehearseScreen() {
   const [noteText, setNoteText] = useState('');
   const [noteBusy, setNoteBusy] = useState(false);
   const [cloudOn, setCloudOn] = useState(cloudVoiceActive());
+  const [pickerChar, setPickerChar] = useState<string | null>(null);
+  const [deviceVoices, setDeviceVoices] = useState<{ identifier: string; name: string; quality?: string }[]>([]);
 
   const scrollRef = useRef<ScrollView>(null);
   const positions = useRef<Record<number, number>>({});
 
-  const engine = useRehearsal(script?.elements ?? []);
+  const engine = useRehearsal(script?.elements ?? [], { voices: script?.voices });
   const { idx, status } = engine;
 
   useEffect(() => {
     getScript(id).then(setScript);
+    loadVoices().then(() => setDeviceVoices(getVoicePool()));
   }, [id]);
+
+  // Characters the reader performs (anyone with a line that isn't yours).
+  const readerChars = useMemo(() => {
+    const seen: string[] = [];
+    for (const el of script?.elements ?? []) {
+      if (el.type === 'line' && !el.mine && !seen.includes(el.character)) seen.push(el.character);
+    }
+    return seen;
+  }, [script?.elements]);
+
+  const deviceNames = useMemo(
+    () => Object.fromEntries(deviceVoices.map((v) => [v.identifier, v.name])),
+    [deviceVoices],
+  );
+
+  const previewVoice = (character: string, voiceId: string | null) => {
+    const firstLine = script?.elements.find(
+      (el) => el.type === 'line' && el.character === character,
+    );
+    const sample =
+      firstLine?.type === 'line' ? firstLine.text.slice(0, 120) : "Hello! I'm your reader.";
+    stopSpeaking();
+    if (cloudVoiceActive() && (voiceId == null || voiceId.startsWith('openai:'))) {
+      speakCloud({
+        text: sample,
+        character,
+        voice: voiceId?.startsWith('openai:') ? voiceId.slice('openai:'.length) : undefined,
+      }).then((ok) => {
+        if (!ok) speakOnce(sample, voiceOptsFor(character));
+      });
+      return;
+    }
+    const override = voiceId?.startsWith('device:') ? voiceId.slice('device:'.length) : undefined;
+    speakOnce(sample, voiceOptsFor(character, override));
+  };
+
+  const chooseVoice = (character: string, voiceId: string | null) => {
+    if (!script) return;
+    const voices = { ...(script.voices ?? {}) };
+    if (voiceId) voices[character] = voiceId;
+    else delete voices[character];
+    const next = { ...script, voices };
+    setScript(next);
+    saveScript(next);
+    previewVoice(character, voiceId);
+  };
 
   const openNote = (i: number) => {
     if (!script) return;
@@ -82,6 +150,28 @@ export default function RehearseScreen() {
 
   return (
     <View style={styles.screen}>
+      {readerChars.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.castRow}
+          contentContainerStyle={styles.castRowContent}>
+          {readerChars.map((name) => (
+            <Pressable
+              key={name}
+              style={styles.castChip}
+              onPress={() => {
+                engine.pause();
+                setPickerChar(name);
+              }}>
+              <Text style={styles.castChipName}>{name}</Text>
+              <Text style={styles.castChipVoice}>
+                🔊 {prettyVoice(script.voices?.[name], deviceNames)} ▾
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
       <View style={styles.controls}>
         <Pressable
           style={({ pressed }) => [styles.playButton, pressed && styles.pressed]}
@@ -177,6 +267,60 @@ export default function RehearseScreen() {
             <Text style={styles.continueButtonText}>↻ Run it back</Text>
           </Pressable>
         </View>
+      )}
+
+      {/* Conditionally mounted like the note modal below (react-native-web
+          fading modals can linger in the DOM). */}
+      {pickerChar != null && (
+        <Modal visible transparent animationType="none" onRequestClose={() => setPickerChar(null)}>
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>🔊 Voice for {pickerChar}</Text>
+              <Text style={styles.modalLine}>
+                {cloudVoiceActive()
+                  ? 'ChatGPT voices — tap one to hear it'
+                  : 'Device voices — tap one to hear it'}
+              </Text>
+              <ScrollView style={styles.voiceList}>
+                {[
+                  { id: null as string | null, label: '✨ Auto (pick for me)' },
+                  ...(cloudVoiceActive()
+                    ? OPENAI_VOICES.map((v) => ({
+                        id: `openai:${v}` as string | null,
+                        label: v.charAt(0).toUpperCase() + v.slice(1),
+                      }))
+                    : deviceVoices.map((v) => ({
+                        id: `device:${v.identifier}` as string | null,
+                        label: v.quality === 'Enhanced' ? `${v.name} ★` : v.name,
+                      }))),
+                ].map((option) => {
+                  const selected = (script.voices?.[pickerChar] ?? null) === option.id;
+                  return (
+                    <Pressable
+                      key={option.id ?? 'auto'}
+                      style={[styles.voiceRow, selected && styles.voiceRowSelected]}
+                      onPress={() => chooseVoice(pickerChar, option.id)}>
+                      <Text style={[styles.voiceRowText, selected && styles.voiceRowTextSelected]}>
+                        {option.label}
+                        {selected ? '  ✓' : ''}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+              <View style={styles.modalButtons}>
+                <Pressable
+                  style={({ pressed }) => [styles.modalSaveButton, pressed && styles.pressed]}
+                  onPress={() => {
+                    stopSpeaking();
+                    setPickerChar(null);
+                  }}>
+                  <Text style={styles.modalSaveText}>Done</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
       )}
 
       {/* Conditionally mounted: react-native-web's fading Modal can linger in
@@ -337,6 +481,29 @@ const makeStyles = (t: Theme) =>
     },
     continueButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
     noteBadge: { fontSize: 12, color: t.inkSoft, fontStyle: 'italic', marginTop: 6 },
+    castRow: { flexGrow: 0, marginTop: 8 },
+    castRowContent: { paddingHorizontal: 20, gap: 8 },
+    castChip: {
+      backgroundColor: t.card,
+      borderWidth: 1,
+      borderColor: t.border,
+      borderRadius: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+    },
+    castChipName: { fontSize: 12, fontWeight: '800', color: t.accent, letterSpacing: 0.5 },
+    castChipVoice: { fontSize: 12, fontWeight: '600', color: t.inkSoft, marginTop: 2 },
+    voiceList: { maxHeight: 320, marginTop: 12 },
+    voiceRow: {
+      borderRadius: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
+    voiceRowSelected: { backgroundColor: t.accentSoft, borderColor: t.accent },
+    voiceRowText: { fontSize: 15, color: t.ink, fontWeight: '600' },
+    voiceRowTextSelected: { color: t.accent },
     modalBackdrop: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.45)',

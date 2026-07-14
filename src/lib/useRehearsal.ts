@@ -11,7 +11,19 @@ export const RATES = [0.8, 1, 1.2];
 export interface RehearsalOptions {
   defaultAutoAdvance?: boolean;
   onDone?: () => void;
+  // Per-character voice choices ("openai:coral" / "device:<id>") from the script.
+  voices?: Record<string, string>;
 }
+
+const cloudVoiceOf = (voices: Record<string, string> | undefined, character: string) => {
+  const v = voices?.[character];
+  return v?.startsWith('openai:') ? v.slice('openai:'.length) : undefined;
+};
+
+const deviceVoiceOf = (voices: Record<string, string> | undefined, character: string) => {
+  const v = voices?.[character];
+  return v?.startsWith('device:') ? v.slice('device:'.length) : undefined;
+};
 
 // The shared line-reading engine behind the rehearsal and self-tape screens.
 // It walks the elements: speaks other characters' lines, skips or reads stage
@@ -32,8 +44,10 @@ export function useRehearsal(elements: ScriptElement[], options: RehearsalOption
   const autoAdvanceRef = useRef(options.defaultAutoAdvance ?? false);
   const elementsRef = useRef<ScriptElement[]>(elements);
   const onDoneRef = useRef(options.onDone);
+  const voicesRef = useRef(options.voices);
   elementsRef.current = elements;
   onDoneRef.current = options.onDone;
+  voicesRef.current = options.voices;
 
   useEffect(() => {
     loadVoices();
@@ -68,6 +82,7 @@ export function useRehearsal(elements: ScriptElement[], options: RehearsalOption
         character: upcoming.character,
         note: upcoming.delivery?.note,
         rate: rateRef.current * (upcoming.delivery?.rate ?? 1),
+        voice: cloudVoiceOf(voicesRef.current, upcoming.character),
       });
     }
 
@@ -114,10 +129,11 @@ export function useRehearsal(elements: ScriptElement[], options: RehearsalOption
         character: el.character,
         note: d?.note,
         rate: lineRate,
+        voice: cloudVoiceOf(voicesRef.current, el.character),
       }));
     if (run !== runId.current) return;
     if (!spoken) {
-      const voice = voiceOptsFor(el.character);
+      const voice = voiceOptsFor(el.character, deviceVoiceOf(voicesRef.current, el.character));
       await speakOnce(el.text, {
         rate: lineRate,
         voice: voice.voice,

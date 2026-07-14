@@ -46,6 +46,7 @@ export default function SelfTapeScreen() {
   // reach over and tap the phone after every line.
   const engine = useRehearsal(script?.elements ?? [], {
     defaultAutoAdvance: true,
+    voices: script?.voices,
     onDone: () => {
       // Leave a beat of air after the last line, then stop the take.
       setTimeout(() => cameraRef.current?.stopRecording(), 1200);

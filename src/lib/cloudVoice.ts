@@ -6,7 +6,7 @@ import { Platform } from 'react-native';
 // to device speech on failure so rehearsal never stalls. The model takes
 // plain-English acting instructions, so director notes become real delivery.
 
-const OPENAI_VOICES = [
+export const OPENAI_VOICES = [
   'alloy',
   'ash',
   'ballad',
@@ -145,9 +145,10 @@ export function prefetchCloudLine(opts: {
   character?: string;
   note?: string;
   rate?: number;
+  voice?: string;
 }) {
   if (!cloudVoiceActive()) return;
-  const voice = opts.character ? voiceFor(opts.character) : NARRATOR_VOICE;
+  const voice = opts.voice ?? (opts.character ? voiceFor(opts.character) : NARRATOR_VOICE);
   synthesize(opts.text, voice, buildInstructions(opts)).catch(() => {});
 }
 
@@ -178,9 +179,10 @@ export async function speakCloud(opts: {
   character?: string;
   note?: string;
   rate?: number;
+  voice?: string;
 }): Promise<boolean> {
   try {
-    const voice = opts.character ? voiceFor(opts.character) : NARRATOR_VOICE;
+    const voice = opts.voice ?? (opts.character ? voiceFor(opts.character) : NARRATOR_VOICE);
     const uri = await synthesize(opts.text, voice, buildInstructions(opts));
     if (!audioModeSet) {
       audioModeSet = true;
