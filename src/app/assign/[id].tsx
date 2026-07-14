@@ -1,13 +1,15 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
 import { getScript, saveScript } from '@/lib/storage';
-import { theme } from '@/lib/theme';
+import { useTheme, type Theme } from '@/lib/theme';
 import { charactersIn, myLineCount, type FartScript } from '@/lib/types';
 
 export default function AssignScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const t = useTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const [script, setScript] = useState<FartScript | null>(null);
 
   useFocusEffect(
@@ -102,52 +104,60 @@ export default function AssignScreen() {
             {mineCount === 0 ? 'Highlight your lines to start' : `▶ Start rehearsing (${mineCount} lines)`}
           </Text>
         </Pressable>
+        {mineCount > 0 && (
+          <Pressable
+            style={({ pressed }) => [styles.selfTapeButton, pressed && styles.pressed]}
+            onPress={() => router.push({ pathname: '/selftape/[id]', params: { id: script.id } })}>
+            <Text style={styles.selfTapeButtonText}>🎥 Record a self-tape</Text>
+          </Pressable>
+        )}
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.bg },
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+  screen: { flex: 1, backgroundColor: t.bg },
   content: { padding: 20, paddingBottom: 120, maxWidth: 700, width: '100%', alignSelf: 'center' },
-  title: { fontSize: 20, fontWeight: '800', color: theme.ink },
-  question: { fontSize: 15, fontWeight: '700', color: theme.ink, marginTop: 18 },
+  title: { fontSize: 20, fontWeight: '800', color: t.ink },
+  question: { fontSize: 15, fontWeight: '700', color: t.ink, marginTop: 18 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   chip: {
-    backgroundColor: theme.card,
+    backgroundColor: t.card,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: t.border,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 9,
   },
-  chipSelected: { backgroundColor: theme.accent, borderColor: theme.accent },
-  chipText: { fontSize: 14, fontWeight: '700', color: theme.ink },
+  chipSelected: { backgroundColor: t.accent, borderColor: t.accent },
+  chipText: { fontSize: 14, fontWeight: '700', color: t.ink },
   chipTextSelected: { color: '#fff' },
-  hint: { fontSize: 13, color: theme.inkSoft, marginTop: 14, lineHeight: 19 },
+  hint: { fontSize: 13, color: t.inkSoft, marginTop: 14, lineHeight: 19 },
   scriptCard: {
-    backgroundColor: theme.card,
+    backgroundColor: t.card,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: t.border,
     padding: 16,
     marginTop: 16,
   },
   direction: {
     fontSize: 13,
     fontStyle: 'italic',
-    color: theme.inkSoft,
+    color: t.inkSoft,
     marginVertical: 8,
     lineHeight: 19,
   },
   line: { borderRadius: 10, padding: 10, marginVertical: 2 },
   lineMine: {
-    backgroundColor: theme.highlight,
+    backgroundColor: t.highlight,
     borderWidth: 1,
-    borderColor: theme.highlightBorder,
+    borderColor: t.highlightBorder,
   },
-  lineCharacter: { fontSize: 12, fontWeight: '800', color: theme.accent, letterSpacing: 0.5 },
-  lineText: { fontSize: 15, color: theme.ink, marginTop: 2, lineHeight: 21 },
+  lineCharacter: { fontSize: 12, fontWeight: '800', color: t.accent, letterSpacing: 0.5 },
+  lineText: { fontSize: 15, color: t.ink, marginTop: 2, lineHeight: 21 },
   footer: {
     position: 'absolute',
     left: 0,
@@ -155,12 +165,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     padding: 16,
     paddingBottom: 28,
-    backgroundColor: theme.bg,
+    backgroundColor: t.bg,
     borderTopWidth: 1,
-    borderTopColor: theme.border,
+    borderTopColor: t.border,
   },
   startButton: {
-    backgroundColor: theme.accent,
+    backgroundColor: t.accent,
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
@@ -168,7 +178,18 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
   },
-  startButtonDisabled: { backgroundColor: theme.border },
+  startButtonDisabled: { backgroundColor: t.border },
   startButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  selfTapeButton: {
+    backgroundColor: t.accentSoft,
+    borderRadius: 16,
+    paddingVertical: 13,
+    alignItems: 'center',
+    maxWidth: 700,
+    width: '100%',
+    alignSelf: 'center',
+    marginTop: 8,
+  },
+  selfTapeButtonText: { color: t.accent, fontSize: 15, fontWeight: '700' },
   pressed: { opacity: 0.7 },
 });

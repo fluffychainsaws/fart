@@ -1,0 +1,348 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
+import * as MediaLibrary from 'expo-media-library';
+import { useLocalSearchParams } from 'expo-router';
+
+import { getScript } from '@/lib/storage';
+import { useTheme, type Theme } from '@/lib/theme';
+import type { FartScript } from '@/lib/types';
+import { useRehearsal } from '@/lib/useRehearsal';
+
+type RecState = 'idle' | 'countdown' | 'recording' | 'saving' | 'saved';
+
+export default function SelfTapeScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const t = useTheme();
+  const themed = useMemo(() => makeThemedStyles(t), [t]);
+  const [script, setScript] = useState<FartScript | null>(null);
+
+  const cameraRef = useRef<CameraView>(null);
+  const [facing, setFacing] = useState<'front' | 'back'>('front');
+  const [recState, setRecState] = useState<RecState>('idle');
+  const [countdown, setCountdown] = useState(3);
+  const [elapsed, setElapsed] = useState(0);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const [camPerm, requestCamPerm] = useCameraPermissions();
+  const [micPerm, requestMicPerm] = useMicrophonePermissions();
+  const [libPerm, requestLibPerm] = MediaLibrary.usePermissions({ writeOnly: true });
+
+  // Auto-continue defaults ON here: when you're on camera you don't want to
+  // reach over and tap the phone after every line.
+  const engine = useRehearsal(script?.elements ?? [], {
+    defaultAutoAdvance: true,
+    onDone: () => {
+      // Leave a beat of air after the last line, then stop the take.
+      setTimeout(() => cameraRef.current?.stopRecording(), 1200);
+    },
+  });
+
+  useEffect(() => {
+    getScript(id).then(setScript);
+  }, [id]);
+
+  useEffect(() => {
+    if (recState !== 'recording') return;
+    setElapsed(0);
+    const timer = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(timer);
+  }, [recState]);
+
+  const needsPermissions = !camPerm?.granted || !micPerm?.granted || !libPerm?.granted;
+  if (needsPermissions) {
+    return (
+      <View style={themed.infoScreen}>
+        <Text style={themed.infoEmoji}>🎬</Text>
+        <Text style={themed.infoTitle}>Lights, camera…</Text>
+        <Text style={themed.infoText}>
+          Self-tape mode records video with sound and saves takes to your camera roll, so FART needs
+          the camera, the microphone, and photo-library access.
+        </Text>
+        <Pressable
+          style={({ pressed }) => [themed.infoButton, pressed && styles.pressed]}
+          onPress={async () => {
+            if (!camPerm?.granted) await requestCamPerm();
+            if (!micPerm?.granted) await requestMicPerm();
+            if (!libPerm?.granted) await requestLibPerm();
+          }}>
+          <Text style={themed.infoButtonText}>Allow access</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (!script) return <View style={themed.infoScreen} />;
+
+  const current = script.elements[engine.idx];
+
+  const startTake = () => {
+    setSaveError(null);
+    setRecState('countdown');
+    setCountdown(3);
+    let n = 3;
+    const tick = setInterval(() => {
+      n -= 1;
+      if (n > 0) {
+        setCountdown(n);
+        return;
+      }
+      clearInterval(tick);
+      setRecState('recording');
+      cameraRef.current
+        ?.recordAsync()
+        .then(async (video) => {
+          engine.pause();
+          if (!video?.uri) {
+            setRecState('idle');
+            return;
+          }
+          setRecState('saving');
+          try {
+            await MediaLibrary.saveToLibraryAsync(video.uri);
+            setRecState('saved');
+          } catch {
+            setSaveError("Couldn't save to your camera roll.");
+            setRecState('idle');
+          }
+        })
+        .catch(() => {
+          engine.pause();
+          setSaveError('Recording failed. Try again.');
+          setRecState('idle');
+        });
+      engine.play(0);
+    }, 1000);
+  };
+
+  const stopTake = () => {
+    engine.pause();
+    cameraRef.current?.stopRecording();
+  };
+
+  const newTake = () => {
+    engine.restart();
+    setRecState('idle');
+  };
+
+  const mmss = `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`;
+
+  return (
+    <View style={styles.screen}>
+      <CameraView ref={cameraRef} style={styles.camera} mode="video" facing={facing} videoQuality="1080p" />
+
+      {/* Teleprompter overlay */}
+      <View style={styles.overlay} pointerEvents="box-none">
+        {current && recState !== 'saved' && (
+          <View style={[styles.prompt, current.type === 'line' && current.mine && styles.promptMine]}>
+            {current.type === 'direction' ? (
+              <Text style={styles.promptDirection}>{current.text}</Text>
+            ) : (
+              <>
+                <Text style={styles.promptCharacter}>
+                  {current.character}
+                  {current.mine ? ' — YOUR LINE' : ''}
+                </Text>
+                <Text style={styles.promptText}>{current.text}</Text>
+              </>
+            )}
+            {engine.status === 'waiting' && !engine.autoAdvance && (
+              <Pressable style={styles.promptContinue} onPress={engine.continueMyLine}>
+                <Text style={styles.promptContinueText}>Said it — continue ▶</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
+
+        {recState === 'countdown' && (
+          <View style={styles.countdownWrap} pointerEvents="none">
+            <Text style={styles.countdownText}>{countdown}</Text>
+          </View>
+        )}
+
+        {recState === 'saved' && (
+          <View style={styles.savedCard}>
+            <Text style={styles.savedTitle}>🎬 That&apos;s a take!</Text>
+            <Text style={styles.savedText}>Saved to your camera roll.</Text>
+          </View>
+        )}
+
+        {/* Bottom controls */}
+        <View style={styles.bottomBar}>
+          {recState === 'recording' && (
+            <View style={styles.recPill}>
+              <View style={styles.recDot} />
+              <Text style={styles.recTime}>{mmss}</Text>
+            </View>
+          )}
+          {saveError && <Text style={styles.error}>{saveError}</Text>}
+          <View style={styles.controlsRow}>
+            <Pressable
+              style={[styles.autoToggle, engine.autoAdvance && styles.autoToggleOn]}
+              onPress={engine.toggleAuto}>
+              <Text style={styles.autoToggleText}>⏱ Auto</Text>
+            </Pressable>
+
+            {recState === 'idle' && (
+              <Pressable style={styles.recordButton} onPress={startTake}>
+                <View style={styles.recordButtonInner} />
+              </Pressable>
+            )}
+            {recState === 'recording' && (
+              <Pressable style={styles.recordButton} onPress={stopTake}>
+                <View style={styles.stopButtonInner} />
+              </Pressable>
+            )}
+            {(recState === 'countdown' || recState === 'saving') && (
+              <View style={[styles.recordButton, styles.recordButtonBusy]}>
+                <View style={styles.recordButtonInner} />
+              </View>
+            )}
+            {recState === 'saved' && (
+              <Pressable style={styles.newTakeButton} onPress={newTake}>
+                <Text style={styles.newTakeText}>↻ New take</Text>
+              </Pressable>
+            )}
+
+            <Pressable
+              style={styles.flipButton}
+              onPress={() => setFacing((f) => (f === 'front' ? 'back' : 'front'))}>
+              <Text style={styles.flipText}>🔄</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// Camera overlay styles are intentionally fixed dark glass — they sit on live
+// video, not on the app background, so they don't follow light/dark theme.
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: '#000' },
+  camera: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  overlay: { flex: 1, justifyContent: 'space-between', padding: 16 },
+  prompt: {
+    backgroundColor: 'rgba(12, 12, 16, 0.78)',
+    borderRadius: 16,
+    padding: 14,
+    marginTop: 4,
+  },
+  promptMine: {
+    backgroundColor: 'rgba(58, 48, 8, 0.85)',
+    borderWidth: 1,
+    borderColor: '#F0CE5A',
+  },
+  promptDirection: { color: '#C9C4B8', fontSize: 14, fontStyle: 'italic', lineHeight: 20 },
+  promptCharacter: { color: '#7FE0C0', fontSize: 12, fontWeight: '800', letterSpacing: 0.6 },
+  promptText: { color: '#FFFFFF', fontSize: 17, lineHeight: 24, marginTop: 4, fontWeight: '600' },
+  promptContinue: {
+    backgroundColor: '#0FA47A',
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  promptContinueText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  countdownWrap: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countdownText: { fontSize: 120, fontWeight: '800', color: '#FFFFFF', textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 16 },
+  savedCard: {
+    backgroundColor: 'rgba(12, 12, 16, 0.85)',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  savedTitle: { color: '#fff', fontSize: 19, fontWeight: '800' },
+  savedText: { color: '#C9C4B8', fontSize: 14, marginTop: 4 },
+  bottomBar: { alignItems: 'center', gap: 10 },
+  recPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(12, 12, 16, 0.7)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  recDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#FF4B3E' },
+  recTime: { color: '#fff', fontSize: 13, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  error: { color: '#FFB4A8', fontSize: 13, fontWeight: '600' },
+  controlsRow: { flexDirection: 'row', alignItems: 'center', gap: 24, paddingBottom: 12 },
+  autoToggle: {
+    backgroundColor: 'rgba(12, 12, 16, 0.7)',
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  autoToggleOn: { borderColor: '#7FE0C0' },
+  autoToggleText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  recordButton: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    borderWidth: 4,
+    borderColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recordButtonBusy: { opacity: 0.5 },
+  recordButtonInner: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#FF4B3E' },
+  stopButtonInner: { width: 30, height: 30, borderRadius: 6, backgroundColor: '#FF4B3E' },
+  newTakeButton: {
+    backgroundColor: '#0FA47A',
+    borderRadius: 34,
+    paddingHorizontal: 26,
+    paddingVertical: 20,
+  },
+  newTakeText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  flipButton: {
+    backgroundColor: 'rgba(12, 12, 16, 0.7)',
+    borderRadius: 22,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flipText: { fontSize: 20 },
+  pressed: { opacity: 0.7 },
+});
+
+const makeThemedStyles = (t: Theme) =>
+  StyleSheet.create({
+    infoScreen: {
+      flex: 1,
+      backgroundColor: t.bg,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 32,
+    },
+    infoEmoji: { fontSize: 44 },
+    infoTitle: { fontSize: 20, fontWeight: '800', color: t.ink, marginTop: 12 },
+    infoText: {
+      fontSize: 15,
+      color: t.inkSoft,
+      textAlign: 'center',
+      lineHeight: 22,
+      marginTop: 8,
+      maxWidth: 420,
+    },
+    infoButton: {
+      backgroundColor: t.accent,
+      borderRadius: 14,
+      paddingVertical: 13,
+      paddingHorizontal: 28,
+      marginTop: 20,
+    },
+    infoButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  });

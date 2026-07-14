@@ -1,13 +1,15 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Alert, FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 
 import { makeDemoScript } from '@/lib/demo';
 import { deleteScript, listScripts, saveScript } from '@/lib/storage';
-import { theme } from '@/lib/theme';
+import { useTheme, type Theme } from '@/lib/theme';
 import { charactersIn, myLineCount, type FartScript } from '@/lib/types';
 
 export default function HomeScreen() {
+  const t = useTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const [scripts, setScripts] = useState<FartScript[]>([]);
 
   useFocusEffect(
@@ -98,42 +100,43 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.bg },
-  listContent: { padding: 20, paddingBottom: 40, maxWidth: 700, width: '100%', alignSelf: 'center' },
-  tagline: { fontSize: 15, fontWeight: '700', color: theme.accent, letterSpacing: 0.5 },
-  blurb: { fontSize: 15, color: theme.inkSoft, marginTop: 6, lineHeight: 21 },
-  primaryButton: {
-    backgroundColor: theme.accent,
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
-  secondaryButton: {
-    backgroundColor: theme.accentSoft,
-    borderRadius: 16,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  secondaryButtonText: { color: theme.accent, fontSize: 15, fontWeight: '700' },
-  sectionTitle: { fontSize: 13, fontWeight: '700', color: theme.inkSoft, marginTop: 28, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 },
-  empty: { color: theme.inkSoft, fontSize: 14, marginTop: 28, textAlign: 'center' },
-  card: {
-    backgroundColor: theme.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: theme.border,
-    padding: 16,
-    marginBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  cardBody: { flex: 1, marginRight: 12 },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: theme.ink },
-  cardMeta: { fontSize: 13, color: theme.inkSoft, marginTop: 4 },
-  trash: { fontSize: 18 },
-  pressed: { opacity: 0.7 },
-});
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+    screen: { flex: 1, backgroundColor: t.bg },
+    listContent: { padding: 20, paddingBottom: 40, maxWidth: 700, width: '100%', alignSelf: 'center' },
+    tagline: { fontSize: 15, fontWeight: '700', color: t.accent, letterSpacing: 0.5 },
+    blurb: { fontSize: 15, color: t.inkSoft, marginTop: 6, lineHeight: 21 },
+    primaryButton: {
+      backgroundColor: t.accent,
+      borderRadius: 16,
+      paddingVertical: 16,
+      alignItems: 'center',
+      marginTop: 20,
+    },
+    primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+    secondaryButton: {
+      backgroundColor: t.accentSoft,
+      borderRadius: 16,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 10,
+    },
+    secondaryButtonText: { color: t.accent, fontSize: 15, fontWeight: '700' },
+    sectionTitle: { fontSize: 13, fontWeight: '700', color: t.inkSoft, marginTop: 28, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 },
+    empty: { color: t.inkSoft, fontSize: 14, marginTop: 28, textAlign: 'center' },
+    card: {
+      backgroundColor: t.card,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: t.border,
+      padding: 16,
+      marginBottom: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    cardBody: { flex: 1, marginRight: 12 },
+    cardTitle: { fontSize: 16, fontWeight: '700', color: t.ink },
+    cardMeta: { fontSize: 13, color: t.inkSoft, marginTop: 4 },
+    trash: { fontSize: 18 },
+    pressed: { opacity: 0.7 },
+  });

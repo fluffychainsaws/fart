@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 
 import { hasApiKey, parseScriptPhotos } from '@/lib/parser';
 import { newId, saveScript } from '@/lib/storage';
-import { theme } from '@/lib/theme';
+import { useTheme, type Theme } from '@/lib/theme';
 
 interface Page {
   uri: string;
@@ -22,20 +22,24 @@ const LOADING_LINES = [
 ];
 
 function LoadingCard() {
+  const t = useTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const [i, setI] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setI((n) => (n + 1) % LOADING_LINES.length), 2200);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setI((n) => (n + 1) % LOADING_LINES.length), 2200);
+    return () => clearInterval(timer);
   }, []);
   return (
     <View style={styles.loadingCard}>
-      <ActivityIndicator size="large" color={theme.accent} />
+      <ActivityIndicator size="large" color={t.accent} />
       <Text style={styles.loadingText}>{LOADING_LINES[i]}</Text>
     </View>
   );
 }
 
 export default function CaptureScreen() {
+  const t = useTheme();
+  const styles = useMemo(() => makeStyles(t), [t]);
   const [pages, setPages] = useState<Page[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -160,31 +164,32 @@ export default function CaptureScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.bg },
+const makeStyles = (t: Theme) =>
+  StyleSheet.create({
+  screen: { flex: 1, backgroundColor: t.bg },
   content: { padding: 20, paddingBottom: 40, maxWidth: 700, width: '100%', alignSelf: 'center' },
-  blurb: { fontSize: 15, color: theme.inkSoft, lineHeight: 21 },
+  blurb: { fontSize: 15, color: t.inkSoft, lineHeight: 21 },
   buttonRow: { flexDirection: 'row', gap: 10, marginTop: 20 },
   pickButton: {
     flex: 1,
-    backgroundColor: theme.card,
+    backgroundColor: t.card,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: t.border,
     alignItems: 'center',
     paddingVertical: 22,
   },
   pickEmoji: { fontSize: 30 },
-  pickLabel: { fontSize: 14, fontWeight: '700', color: theme.ink, marginTop: 6 },
-  sectionTitle: { fontSize: 13, fontWeight: '700', color: theme.inkSoft, marginTop: 24, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 },
+  pickLabel: { fontSize: 14, fontWeight: '700', color: t.ink, marginTop: 6 },
+  sectionTitle: { fontSize: 13, fontWeight: '700', color: t.inkSoft, marginTop: 24, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 },
   thumbGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   thumbWrap: { width: 90 },
-  thumb: { width: 90, height: 120, borderRadius: 10, backgroundColor: theme.border },
+  thumb: { width: 90, height: 120, borderRadius: 10, backgroundColor: t.border },
   thumbIndex: {
     position: 'absolute',
     bottom: 6,
     left: 6,
-    backgroundColor: theme.ink,
+    backgroundColor: t.ink,
     color: '#fff',
     fontSize: 11,
     fontWeight: '700',
@@ -197,7 +202,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -6,
     right: -6,
-    backgroundColor: theme.danger,
+    backgroundColor: t.danger,
     borderRadius: 10,
     width: 20,
     height: 20,
@@ -206,7 +211,7 @@ const styles = StyleSheet.create({
   },
   thumbRemoveText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   primaryButton: {
-    backgroundColor: theme.accent,
+    backgroundColor: t.accent,
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',
@@ -214,22 +219,22 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
   loadingCard: {
-    backgroundColor: theme.card,
+    backgroundColor: t.card,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: theme.border,
+    borderColor: t.border,
     alignItems: 'center',
     padding: 36,
     marginTop: 24,
   },
-  loadingText: { marginTop: 16, fontSize: 15, fontWeight: '600', color: theme.ink },
-  error: { color: theme.danger, fontSize: 14, marginTop: 16, lineHeight: 20 },
+  loadingText: { marginTop: 16, fontSize: 15, fontWeight: '600', color: t.ink },
+  error: { color: t.danger, fontSize: 14, marginTop: 16, lineHeight: 20 },
   keyWarning: {
-    backgroundColor: theme.highlight,
+    backgroundColor: t.highlight,
     borderRadius: 12,
     padding: 14,
     marginTop: 16,
   },
-  keyWarningText: { fontSize: 13, color: theme.ink, lineHeight: 19 },
+  keyWarningText: { fontSize: 13, color: t.ink, lineHeight: 19 },
   pressed: { opacity: 0.7 },
 });
