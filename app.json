@@ -53,7 +53,8 @@
         {
           "savePhotosPermission": "FART saves your self-tape videos to your photo library."
         }
-      ]
+      ],
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true,

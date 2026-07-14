@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { cloudVoiceActive, prefetchCloudLine, speakCloud } from './cloudVoice';
 import { loadVoices, speakOnce, stopSpeaking, voiceOptsFor } from './speech';
 import type { ScriptElement } from './types';
 
@@ -58,9 +59,25 @@ export function useRehearsal(elements: ScriptElement[], options: RehearsalOption
     setPosition(i);
     const el = els[i];
 
+    // Warm the cloud-voice cache for the next reader line so it starts
+    // instantly, even while the user is still saying their own line.
+    const upcoming = els.slice(i + 1).find((e) => e.type === 'line' && !e.mine);
+    if (upcoming?.type === 'line') {
+      prefetchCloudLine({
+        text: upcoming.text,
+        character: upcoming.character,
+        note: upcoming.delivery?.note,
+        rate: rateRef.current * (upcoming.delivery?.rate ?? 1),
+      });
+    }
+
     if (el.type === 'direction') {
       if (readDirectionsRef.current) {
-        await speakOnce(el.text, { rate: rateRef.current, pitch: 0.95 });
+        const spoken =
+          cloudVoiceActive() && (await speakCloud({ text: el.text, rate: rateRef.current }));
+        if (!spoken && run === runId.current) {
+          await speakOnce(el.text, { rate: rateRef.current, pitch: 0.95 });
+        }
       }
       if (run === runId.current) return step(i + 1, run);
       return;
@@ -89,13 +106,25 @@ export function useRehearsal(elements: ScriptElement[], options: RehearsalOption
       await new Promise((r) => setTimeout(r, d.pauseBeforeMs));
       if (run !== runId.current) return;
     }
-    const voice = voiceOptsFor(el.character);
-    await speakOnce(el.text, {
-      rate: rateRef.current * (d?.rate ?? 1),
-      voice: voice.voice,
-      pitch: (voice.pitch ?? 1) * (d?.pitch ?? 1),
-    });
+    const lineRate = rateRef.current * (d?.rate ?? 1);
+    const spoken =
+      cloudVoiceActive() &&
+      (await speakCloud({
+        text: el.text,
+        character: el.character,
+        note: d?.note,
+        rate: lineRate,
+      }));
     if (run !== runId.current) return;
+    if (!spoken) {
+      const voice = voiceOptsFor(el.character);
+      await speakOnce(el.text, {
+        rate: lineRate,
+        voice: voice.voice,
+        pitch: (voice.pitch ?? 1) * (d?.pitch ?? 1),
+      });
+      if (run !== runId.current) return;
+    }
     if (d && d.pauseAfterMs > 0) {
       await new Promise((r) => setTimeout(r, d.pauseAfterMs));
       if (run !== runId.current) return;

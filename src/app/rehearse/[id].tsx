@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 
+import { cloudVoiceActive, hasCloudVoice, setCloudVoiceEnabled } from '@/lib/cloudVoice';
 import { interpretDirection } from '@/lib/director';
 import { getScript, saveScript } from '@/lib/storage';
 import { useTheme, type Theme } from '@/lib/theme';
@@ -24,6 +25,7 @@ export default function RehearseScreen() {
   const [noteTarget, setNoteTarget] = useState<number | null>(null);
   const [noteText, setNoteText] = useState('');
   const [noteBusy, setNoteBusy] = useState(false);
+  const [cloudOn, setCloudOn] = useState(cloudVoiceActive());
 
   const scrollRef = useRef<ScrollView>(null);
   const positions = useRef<Record<number, number>>({});
@@ -110,6 +112,17 @@ export default function RehearseScreen() {
             ⏱ Auto-continue my lines
           </Text>
         </Pressable>
+        {hasCloudVoice() && (
+          <Pressable
+            style={[styles.toggle, cloudOn && styles.toggleOn]}
+            onPress={() => {
+              const next = !cloudOn;
+              setCloudVoiceEnabled(next);
+              setCloudOn(next);
+            }}>
+            <Text style={[styles.toggleText, cloudOn && styles.toggleTextOn]}>✨ ChatGPT voice</Text>
+          </Pressable>
+        )}
       </View>
 
       <ScrollView ref={scrollRef} style={styles.script} contentContainerStyle={styles.scriptContent}>

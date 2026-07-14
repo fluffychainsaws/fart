@@ -1,5 +1,7 @@
 import * as Speech from 'expo-speech';
 
+import { stopCloudSpeech } from './cloudVoice';
+
 // ---- Voice pool ------------------------------------------------------------
 // Instead of pitch-shifting one robotic default voice, we pick real voices
 // from the device. iOS ships neural "Enhanced" voices and Android's Google
@@ -92,4 +94,5 @@ export function speakOnce(
 
 export function stopSpeaking() {
   Speech.stop();
+  stopCloudSpeech();
 }
