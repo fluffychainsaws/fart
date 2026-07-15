@@ -59,7 +59,7 @@ export default function HomeScreen() {
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <View>
-            <Text style={styles.tagline}>Friendly AI Reader To-go</Text>
+            <Text style={styles.tagline}>Friendly Ai reader To-go!</Text>
             <Text style={styles.blurb}>
               Snap a photo of your sides, highlight your lines, and FART reads everyone else&apos;s —
               so you can rehearse anywhere.
