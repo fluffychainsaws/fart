@@ -4,17 +4,21 @@ import { router, useFocusEffect } from 'expo-router';
 
 import { makeDemoScript } from '@/lib/demo';
 import { deleteScript, listScripts, saveScript } from '@/lib/storage';
+import { getTier } from '@/lib/subscription';
 import { useTheme, type Theme } from '@/lib/theme';
 import { charactersIn, myLineCount, type FartScript } from '@/lib/types';
+import { getUsageStatus, type UsageStatus } from '@/lib/usage';
 
 export default function HomeScreen() {
   const t = useTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
   const [scripts, setScripts] = useState<FartScript[]>([]);
+  const [usage, setUsage] = useState<UsageStatus | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       listScripts().then(setScripts);
+      getUsageStatus().then(setUsage);
     }, []),
   );
 
@@ -58,6 +62,14 @@ export default function HomeScreen() {
               Snap a photo of your sides, highlight your lines, and FART reads everyone else&apos;s —
               so you can rehearse anywhere.
             </Text>
+            <Pressable
+              style={({ pressed }) => [styles.planPill, pressed && styles.pressed]}
+              onPress={() => router.push('/account')}>
+              <Text style={styles.planPillText}>
+                {usage ? `${getTier(usage.tier).name} · ${usage.auditionsUsed}/${usage.auditionsPerMonth} auditions` : 'Your plan'}
+              </Text>
+              <Text style={styles.planPillArrow}>›</Text>
+            </Pressable>
             <Pressable
               style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
               onPress={() => router.push('/capture')}>
@@ -106,6 +118,20 @@ const makeStyles = (t: Theme) =>
     listContent: { padding: 20, paddingBottom: 40, maxWidth: 700, width: '100%', alignSelf: 'center' },
     tagline: { fontSize: 15, fontWeight: '700', color: t.accent, letterSpacing: 0.5 },
     blurb: { fontSize: 15, color: t.inkSoft, marginTop: 6, lineHeight: 21 },
+    planPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: t.card,
+      borderWidth: 1,
+      borderColor: t.border,
+      borderRadius: 14,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      marginTop: 14,
+    },
+    planPillText: { fontSize: 13, fontWeight: '700', color: t.ink },
+    planPillArrow: { fontSize: 16, color: t.inkSoft },
     primaryButton: {
       backgroundColor: t.accent,
       borderRadius: 16,

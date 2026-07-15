@@ -23,6 +23,7 @@ export default function RootLayout() {
         <Stack.Screen name="assign/[id]" options={{ title: 'Highlight your lines' }} />
         <Stack.Screen name="rehearse/[id]" options={{ title: 'Rehearsal' }} />
         <Stack.Screen name="selftape/[id]" options={{ title: 'Self-tape' }} />
+        <Stack.Screen name="account" options={{ title: 'Your plan' }} />
       </Stack>
     </>
   );

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,7 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 import {
   cloudVoiceActive,
@@ -20,9 +22,11 @@ import {
 import { interpretDirection } from '@/lib/director';
 import { getVoicePool, loadVoices, speakOnce, stopSpeaking, voiceOptsFor } from '@/lib/speech';
 import { getScript, saveScript } from '@/lib/storage';
+import { getTier } from '@/lib/subscription';
 import { useTheme, type Theme } from '@/lib/theme';
 import type { FartScript } from '@/lib/types';
 import { useRehearsal } from '@/lib/useRehearsal';
+import { directorNoteCount, getUsageStatus, type UsageStatus } from '@/lib/usage';
 
 const prettyVoice = (id: string | undefined, deviceNames: Record<string, string>): string => {
   if (!id) return 'Auto';
@@ -47,16 +51,25 @@ export default function RehearseScreen() {
   const [cloudOn, setCloudOn] = useState(cloudVoiceActive());
   const [pickerChar, setPickerChar] = useState<string | null>(null);
   const [deviceVoices, setDeviceVoices] = useState<{ identifier: string; name: string; quality?: string }[]>([]);
+  const [usage, setUsage] = useState<UsageStatus | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
   const positions = useRef<Record<number, number>>({});
 
-  const engine = useRehearsal(script?.elements ?? [], { voices: script?.voices });
+  const tier = usage ? getTier(usage.tier) : null;
+  const aiVoicesAllowed = tier ? tier.aiVoiceCount > 0 : false;
+  const allowedOpenAiVoices = tier ? OPENAI_VOICES.slice(0, tier.aiVoiceCount) : [];
+
+  const engine = useRehearsal(script?.elements ?? [], {
+    voices: script?.voices,
+    cloudVoiceAllowed: aiVoicesAllowed,
+  });
   const { idx, status } = engine;
 
   useEffect(() => {
     getScript(id).then(setScript);
     loadVoices().then(() => setDeviceVoices(getVoicePool()));
+    getUsageStatus().then(setUsage);
   }, [id]);
 
   // Characters the reader performs (anyone with a line that isn't yours).
@@ -80,7 +93,7 @@ export default function RehearseScreen() {
     const sample =
       firstLine?.type === 'line' ? firstLine.text.slice(0, 120) : "Hello! I'm your reader.";
     stopSpeaking();
-    if (cloudVoiceActive() && (voiceId == null || voiceId.startsWith('openai:'))) {
+    if (cloudVoiceActive() && aiVoicesAllowed && (voiceId == null || voiceId.startsWith('openai:'))) {
       speakCloud({
         text: sample,
         character,
@@ -105,10 +118,27 @@ export default function RehearseScreen() {
     previewVoice(character, voiceId);
   };
 
+  const warnNoteLimit = (message: string) => {
+    if (Platform.OS === 'web') {
+      window.alert(message);
+      return;
+    }
+    Alert.alert('Director notes', message);
+  };
+
   const openNote = (i: number) => {
-    if (!script) return;
+    if (!script || !tier) return;
     const el = script.elements[i];
     if (el.type !== 'line' || el.mine) return;
+    const hasExistingNote = Boolean(el.delivery?.note);
+    if (!hasExistingNote && directorNoteCount(script) >= tier.directorNotesPerAudition) {
+      warnNoteLimit(
+        tier.directorNotesPerAudition === 0
+          ? "Director notes aren't included in your plan — upgrade to direct the reader."
+          : `Your plan allows ${tier.directorNotesPerAudition} director note${tier.directorNotesPerAudition === 1 ? '' : 's'} per script. Remove one or upgrade for more.`,
+      );
+      return;
+    }
     engine.pause();
     setNoteText(el.delivery?.note ?? '');
     setNoteTarget(i);
@@ -202,7 +232,7 @@ export default function RehearseScreen() {
             ⏱ Auto-continue my lines
           </Text>
         </Pressable>
-        {hasCloudVoice() && (
+        {hasCloudVoice() && aiVoicesAllowed && (
           <Pressable
             style={[styles.toggle, cloudOn && styles.toggleOn]}
             onPress={() => {
@@ -277,15 +307,22 @@ export default function RehearseScreen() {
             <View style={styles.modalCard}>
               <Text style={styles.modalTitle}>🔊 Voice for {pickerChar}</Text>
               <Text style={styles.modalLine}>
-                {cloudVoiceActive()
+                {cloudVoiceActive() && aiVoicesAllowed
                   ? 'ChatGPT voices — tap one to hear it'
                   : 'Device voices — tap one to hear it'}
               </Text>
+              {cloudVoiceActive() && !aiVoicesAllowed && (
+                <Pressable onPress={() => router.push('/account')}>
+                  <Text style={styles.upgradeHint}>
+                    Your plan doesn&apos;t include AI voices — upgrade to unlock them ›
+                  </Text>
+                </Pressable>
+              )}
               <ScrollView style={styles.voiceList}>
                 {[
                   { id: null as string | null, label: '✨ Auto (pick for me)' },
-                  ...(cloudVoiceActive()
-                    ? OPENAI_VOICES.map((v) => ({
+                  ...(cloudVoiceActive() && aiVoicesAllowed
+                    ? allowedOpenAiVoices.map((v) => ({
                         id: `openai:${v}` as string | null,
                         label: v.charAt(0).toUpperCase() + v.slice(1),
                       }))
@@ -522,6 +559,7 @@ const makeStyles = (t: Theme) =>
     },
     modalTitle: { fontSize: 17, fontWeight: '800', color: t.ink },
     modalLine: { fontSize: 13, color: t.inkSoft, marginTop: 8, lineHeight: 19 },
+    upgradeHint: { fontSize: 13, color: t.accent, fontWeight: '700', marginTop: 8 },
     modalInput: {
       backgroundColor: t.bg,
       borderWidth: 1,

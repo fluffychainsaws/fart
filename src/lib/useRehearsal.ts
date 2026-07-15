@@ -13,6 +13,9 @@ export interface RehearsalOptions {
   onDone?: () => void;
   // Per-character voice choices ("openai:coral" / "device:<id>") from the script.
   voices?: Record<string, string>;
+  // Gates cloud (OpenAI) voice playback by subscription tier — false forces
+  // device voices even when a cloud API key is configured. Defaults to true.
+  cloudVoiceAllowed?: boolean;
 }
 
 const cloudVoiceOf = (voices: Record<string, string> | undefined, character: string) => {
@@ -45,9 +48,13 @@ export function useRehearsal(elements: ScriptElement[], options: RehearsalOption
   const elementsRef = useRef<ScriptElement[]>(elements);
   const onDoneRef = useRef(options.onDone);
   const voicesRef = useRef(options.voices);
+  const cloudAllowedRef = useRef(options.cloudVoiceAllowed ?? true);
   elementsRef.current = elements;
   onDoneRef.current = options.onDone;
   voicesRef.current = options.voices;
+  cloudAllowedRef.current = options.cloudVoiceAllowed ?? true;
+
+  const cloudAllowed = () => cloudVoiceActive() && cloudAllowedRef.current;
 
   useEffect(() => {
     loadVoices();
@@ -76,7 +83,7 @@ export function useRehearsal(elements: ScriptElement[], options: RehearsalOption
     // Warm the cloud-voice cache for the next reader line so it starts
     // instantly, even while the user is still saying their own line.
     const upcoming = els.slice(i + 1).find((e) => e.type === 'line' && !e.mine);
-    if (upcoming?.type === 'line') {
+    if (upcoming?.type === 'line' && cloudAllowed()) {
       prefetchCloudLine({
         text: upcoming.text,
         character: upcoming.character,
@@ -88,8 +95,7 @@ export function useRehearsal(elements: ScriptElement[], options: RehearsalOption
 
     if (el.type === 'direction') {
       if (readDirectionsRef.current) {
-        const spoken =
-          cloudVoiceActive() && (await speakCloud({ text: el.text, rate: rateRef.current }));
+        const spoken = cloudAllowed() && (await speakCloud({ text: el.text, rate: rateRef.current }));
         if (!spoken && run === runId.current) {
           await speakOnce(el.text, { rate: rateRef.current, pitch: 0.95 });
         }
@@ -123,7 +129,7 @@ export function useRehearsal(elements: ScriptElement[], options: RehearsalOption
     }
     const lineRate = rateRef.current * (d?.rate ?? 1);
     const spoken =
-      cloudVoiceActive() &&
+      cloudAllowed() &&
       (await speakCloud({
         text: el.text,
         character: el.character,

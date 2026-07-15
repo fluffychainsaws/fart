@@ -2,12 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import * as MediaLibrary from 'expo-media-library';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 import { getScript } from '@/lib/storage';
+import { getTier } from '@/lib/subscription';
 import { useTheme, type Theme } from '@/lib/theme';
 import type { FartScript } from '@/lib/types';
 import { useRehearsal } from '@/lib/useRehearsal';
+import { getUsageStatus, recordAuditionCompleted, type UsageStatus } from '@/lib/usage';
 
 // Voice commands need a native speech-recognition module that Expo Go doesn't
 // ship. Lazy require: present in dev builds, null in Expo Go (buttons only).
@@ -37,6 +39,9 @@ export default function SelfTapeScreen() {
   const [countdown, setCountdown] = useState(3);
   const [elapsed, setElapsed] = useState(0);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [usage, setUsage] = useState<UsageStatus | null>(null);
+
+  const refreshUsage = () => getUsageStatus().then(setUsage);
 
   const [camPerm, requestCamPerm] = useCameraPermissions();
   const [micPerm, requestMicPerm] = useMicrophonePermissions();
@@ -47,12 +52,14 @@ export default function SelfTapeScreen() {
   const engine = useRehearsal(script?.elements ?? [], {
     defaultAutoAdvance: true,
     voices: script?.voices,
+    cloudVoiceAllowed: Boolean(usage && getTier(usage.tier).aiVoiceCount > 0),
     onDone: () => {
       // Leave a beat of air after the last line, then stop the take.
       setTimeout(() => cameraRef.current?.stopRecording(), 1200);
     },
   });
 
+  const voiceCommandsAllowed = Boolean(usage && getTier(usage.tier).voiceCommands);
   const [voiceOn, setVoiceOn] = useState(Boolean(SpeechRec));
   const recStateRef = useRef<RecState>('idle');
   recStateRef.current = recState;
@@ -62,6 +69,7 @@ export default function SelfTapeScreen() {
 
   useEffect(() => {
     getScript(id).then(setScript);
+    refreshUsage();
   }, [id]);
 
   useEffect(() => {
@@ -72,6 +80,10 @@ export default function SelfTapeScreen() {
   }, [recState]);
 
   const startTake = (seconds: number) => {
+    if (usage && usage.auditionsRemaining <= 0) {
+      setSaveError("You're out of auditions this month — upgrade your plan to keep recording.");
+      return;
+    }
     setSaveError(null);
     setRecState('countdown');
     setCountdown(seconds);
@@ -96,6 +108,8 @@ export default function SelfTapeScreen() {
           setRecState('saving');
           try {
             await MediaLibrary.saveToLibraryAsync(video.uri);
+            await recordAuditionCompleted();
+            refreshUsage();
             setRecState('saved');
           } catch {
             setSaveError("Couldn't save to your camera roll.");
@@ -134,7 +148,7 @@ export default function SelfTapeScreen() {
   const permsGranted = Boolean(camPerm?.granted && micPerm?.granted && libPerm?.granted);
 
   useEffect(() => {
-    if (!SpeechRec || !voiceOn || !permsGranted) return;
+    if (!SpeechRec || !voiceOn || !permsGranted || !voiceCommandsAllowed) return;
     const Module = SpeechRec.ExpoSpeechRecognitionModule;
     let cancelled = false;
 
@@ -195,7 +209,7 @@ export default function SelfTapeScreen() {
         // recognizer was not running
       }
     };
-  }, [voiceOn, permsGranted]);
+  }, [voiceOn, permsGranted, voiceCommandsAllowed]);
 
   const needsPermissions = !permsGranted;
   if (needsPermissions) {
@@ -235,6 +249,13 @@ export default function SelfTapeScreen() {
 
       {/* Teleprompter overlay */}
       <View style={styles.overlay} pointerEvents="box-none">
+        {usage && recState === 'idle' && (
+          <Pressable style={styles.quotaPill} onPress={() => router.push('/account')}>
+            <Text style={styles.quotaPillText}>
+              {usage.auditionsRemaining} of {usage.auditionsPerMonth} auditions left
+            </Text>
+          </Pressable>
+        )}
         {current && recState !== 'saved' && (
           <View style={[styles.prompt, current.type === 'line' && current.mine && styles.promptMine]}>
             {current.type === 'direction' ? (
@@ -278,7 +299,7 @@ export default function SelfTapeScreen() {
             </View>
           )}
           {saveError && <Text style={styles.error}>{saveError}</Text>}
-          {SpeechRec != null && voiceOn && (recState === 'idle' || recState === 'recording') && (
+          {SpeechRec != null && voiceOn && voiceCommandsAllowed && (recState === 'idle' || recState === 'recording') && (
             <Text style={styles.voiceHint}>
               {recState === 'idle' ? 'Say “FART start” to roll' : 'Say “FART cut” to end the take'}
             </Text>
@@ -289,7 +310,7 @@ export default function SelfTapeScreen() {
               onPress={engine.toggleAuto}>
               <Text style={styles.autoToggleText}>⏱ Auto</Text>
             </Pressable>
-            {SpeechRec != null && (
+            {SpeechRec != null && voiceCommandsAllowed && (
               <Pressable
                 style={[styles.autoToggle, voiceOn && styles.autoToggleOn]}
                 onPress={() => setVoiceOn((v) => !v)}>
@@ -297,7 +318,12 @@ export default function SelfTapeScreen() {
               </Pressable>
             )}
 
-            {recState === 'idle' && (
+            {recState === 'idle' && usage && usage.auditionsRemaining <= 0 && (
+              <Pressable style={styles.newTakeButton} onPress={() => router.push('/account')}>
+                <Text style={styles.newTakeText}>⭐ Upgrade to keep recording</Text>
+              </Pressable>
+            )}
+            {recState === 'idle' && (!usage || usage.auditionsRemaining > 0) && (
               <Pressable style={styles.recordButton} onPress={() => startTake(3)}>
                 <View style={styles.recordButtonInner} />
               </Pressable>
@@ -336,6 +362,14 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#000' },
   camera: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   overlay: { flex: 1, justifyContent: 'space-between', padding: 16 },
+  quotaPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(12, 12, 16, 0.7)',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  quotaPillText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   prompt: {
     backgroundColor: 'rgba(12, 12, 16, 0.78)',
     borderRadius: 16,
