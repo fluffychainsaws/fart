@@ -118,7 +118,7 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.bg },
     listContent: { padding: 20, paddingBottom: 40, maxWidth: 700, width: '100%', alignSelf: 'center' },
-    tagline: { fontSize: 15, fontWeight: '700', color: t.accent, letterSpacing: 0.5 },
+    tagline: { fontSize: 15, fontWeight: '700', color: t.accent, letterSpacing: 0.5, textAlign: 'center' },
     blurb: { fontSize: 15, color: t.inkSoft, marginTop: 6, lineHeight: 21 },
     planPill: {
       flexDirection: 'row',

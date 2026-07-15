@@ -44,7 +44,7 @@ export default function RootLayout() {
           headerTitleStyle: { fontWeight: '700', fontFamily: 'Inter_700Bold' },
           contentStyle: { backgroundColor: t.bg },
         }}>
-        <Stack.Screen name="index" options={{ title: 'F.A.R.T.' }} />
+        <Stack.Screen name="index" options={{ title: 'F.A.R.T.', headerTitleAlign: 'center' }} />
         <Stack.Screen name="capture" options={{ title: 'New script' }} />
         <Stack.Screen name="assign/[id]" options={{ title: 'Highlight your lines' }} />
         <Stack.Screen name="rehearse/[id]" options={{ title: 'Rehearsal' }} />
