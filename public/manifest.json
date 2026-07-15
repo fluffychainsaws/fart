@@ -1,0 +1,15 @@
+{
+  "name": "FART — Friendly AI Reader To-go",
+  "short_name": "FART",
+  "description": "Snap a photo of your sides, highlight your lines, and FART reads everyone else's.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FDF8F1",
+  "theme_color": "#0FA47A",
+  "icons": [
+    { "src": "icon-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" },
+    { "src": "icon-1024.png", "sizes": "1024x1024", "type": "image/png", "purpose": "maskable" }
+  ]
+}
