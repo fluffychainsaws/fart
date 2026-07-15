@@ -10,6 +10,7 @@ import { useTheme, type Theme } from '@/lib/theme';
 import type { FartScript } from '@/lib/types';
 import { useRehearsal } from '@/lib/useRehearsal';
 import { getUsageStatus, recordAuditionCompleted, type UsageStatus } from '@/lib/usage';
+import { CUT_CMD, START_CMD } from '@/lib/voiceCommands';
 
 // Voice commands need a native speech-recognition module that Expo Go doesn't
 // ship. Lazy require: present in dev builds, null in Expo Go (buttons only).
@@ -19,11 +20,6 @@ try {
 } catch {
   SpeechRec = null;
 }
-
-// "FART start" / "FART cut", with the recognizer's most common mishearings of
-// "fart" accepted so the command still lands from across the room.
-const START_CMD = /\b(fart|fart's|far|part|art|heart|bart|fort|fought)\W{0,3}(start|starts|go)\b/;
-const CUT_CMD = /\b(fart|fart's|far|part|art|heart|bart|fort|fought)\W{0,3}(cut|cuts|caught|stop)\b/;
 
 type RecState = 'idle' | 'countdown' | 'recording' | 'saving' | 'saved';
 
