@@ -16,6 +16,11 @@ const DEVICE_ID_KEY = 'fart.deviceId.v1';
 const TIER_KEY = 'fart.tier.v1';
 const USAGE_KEY = 'fart.usage.v1';
 
+// Temporary override, per explicit request: unlimited auditions for everyone
+// regardless of tier, until told otherwise. Flip back to false (or delete
+// this block) to restore the normal per-tier monthly quota.
+const UNLIMITED_AUDITIONS = true;
+
 interface UsageRecord {
   month: string; // "YYYY-MM"
   auditionsUsed: number;
@@ -75,6 +80,7 @@ export interface UsageStatus {
   auditionsUsed: number;
   auditionsPerMonth: number;
   auditionsRemaining: number;
+  unlimited: boolean;
 }
 
 export async function getUsageStatus(): Promise<UsageStatus> {
@@ -84,11 +90,13 @@ export async function getUsageStatus(): Promise<UsageStatus> {
     tier,
     auditionsUsed: usage.auditionsUsed,
     auditionsPerMonth: limit,
-    auditionsRemaining: Math.max(0, limit - usage.auditionsUsed),
+    auditionsRemaining: UNLIMITED_AUDITIONS ? Infinity : Math.max(0, limit - usage.auditionsUsed),
+    unlimited: UNLIMITED_AUDITIONS,
   };
 }
 
 export async function canRecordAudition(): Promise<boolean> {
+  if (UNLIMITED_AUDITIONS) return true;
   const status = await getUsageStatus();
   return status.auditionsRemaining > 0;
 }

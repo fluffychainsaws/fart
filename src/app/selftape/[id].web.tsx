@@ -223,7 +223,9 @@ export default function SelfTapeScreen() {
         {usage && (
           <Pressable style={styles.quotaPill} onPress={() => router.push('/account')}>
             <Text style={styles.quotaPillText}>
-              {usage.auditionsRemaining} of {usage.auditionsPerMonth} auditions left
+              {usage.unlimited
+                ? 'Unlimited auditions'
+                : `${usage.auditionsRemaining} of ${usage.auditionsPerMonth} auditions left`}
             </Text>
           </Pressable>
         )}

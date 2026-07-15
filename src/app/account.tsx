@@ -44,7 +44,9 @@ export default function AccountScreen() {
       <View style={styles.usageCard}>
         <Text style={styles.usageTier}>{getTier(status.tier).name}</Text>
         <Text style={styles.usageCount}>
-          {status.auditionsUsed} / {status.auditionsPerMonth} auditions used this month
+          {status.unlimited
+            ? `${status.auditionsUsed} auditions this month · Unlimited`
+            : `${status.auditionsUsed} / ${status.auditionsPerMonth} auditions used this month`}
         </Text>
         <View style={styles.progressTrack}>
           <View
@@ -52,8 +54,8 @@ export default function AccountScreen() {
               styles.progressFill,
               {
                 width: `${
-                  status.auditionsPerMonth === 0
-                    ? 0
+                  status.unlimited || status.auditionsPerMonth === 0
+                    ? 100
                     : Math.min(100, (status.auditionsUsed / status.auditionsPerMonth) * 100)
                 }%`,
               },

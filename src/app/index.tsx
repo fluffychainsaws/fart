@@ -68,7 +68,9 @@ export default function HomeScreen() {
               style={({ pressed }) => [styles.planPill, pressed && styles.pressed]}
               onPress={() => router.push('/account')}>
               <Text style={styles.planPillText}>
-                {usage ? `${getTier(usage.tier).name} · ${usage.auditionsUsed}/${usage.auditionsPerMonth} auditions` : 'Your plan'}
+                {usage
+                  ? `${getTier(usage.tier).name} · ${usage.unlimited ? 'Unlimited auditions' : `${usage.auditionsUsed}/${usage.auditionsPerMonth} auditions`}`
+                  : 'Your plan'}
               </Text>
               <Text style={styles.planPillArrow}>›</Text>
             </Pressable>
