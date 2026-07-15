@@ -1,15 +1,17 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
+import { Text } from '@/lib/AppText';
 import { getScript, saveScript } from '@/lib/storage';
-import { useTheme, type Theme } from '@/lib/theme';
+import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 import { charactersIn, myLineCount, type FartScript } from '@/lib/types';
 
 export default function AssignScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const t = useTheme();
-  const styles = useMemo(() => makeStyles(t), [t]);
+  const shadow = useCardShadow();
+  const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   const [script, setScript] = useState<FartScript | null>(null);
 
   useFocusEffect(
@@ -116,7 +118,7 @@ export default function AssignScreen() {
   );
 }
 
-const makeStyles = (t: Theme) =>
+const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
   StyleSheet.create({
   screen: { flex: 1, backgroundColor: t.bg },
   content: { padding: 20, paddingBottom: 120, maxWidth: 700, width: '100%', alignSelf: 'center' },
@@ -142,6 +144,7 @@ const makeStyles = (t: Theme) =>
     borderColor: t.border,
     padding: 16,
     marginTop: 16,
+    ...shadow,
   },
   direction: {
     fontSize: 13,
@@ -177,6 +180,7 @@ const makeStyles = (t: Theme) =>
     maxWidth: 700,
     width: '100%',
     alignSelf: 'center',
+    ...shadow,
   },
   startButtonDisabled: { backgroundColor: t.border },
   startButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },

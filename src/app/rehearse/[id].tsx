@@ -6,12 +6,12 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   View,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
+import { Text } from '@/lib/AppText';
 import {
   cloudVoiceActive,
   hasCloudVoice,
@@ -23,7 +23,7 @@ import { interpretDirection } from '@/lib/director';
 import { getVoicePool, loadVoices, speakOnce, stopSpeaking, voiceOptsFor } from '@/lib/speech';
 import { getScript, saveScript } from '@/lib/storage';
 import { getTier } from '@/lib/subscription';
-import { useTheme, type Theme } from '@/lib/theme';
+import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 import type { FartScript } from '@/lib/types';
 import { useRehearsal } from '@/lib/useRehearsal';
 import { directorNoteCount, getUsageStatus, type UsageStatus } from '@/lib/usage';
@@ -43,7 +43,8 @@ const prettyVoice = (id: string | undefined, deviceNames: Record<string, string>
 export default function RehearseScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const t = useTheme();
-  const styles = useMemo(() => makeStyles(t), [t]);
+  const shadow = useCardShadow();
+  const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   const [script, setScript] = useState<FartScript | null>(null);
   const [noteTarget, setNoteTarget] = useState<number | null>(null);
   const [noteText, setNoteText] = useState('');
@@ -422,7 +423,7 @@ export default function RehearseScreen() {
   );
 }
 
-const makeStyles = (t: Theme) =>
+const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.bg },
     controls: {
@@ -440,6 +441,7 @@ const makeStyles = (t: Theme) =>
       borderRadius: 14,
       paddingVertical: 13,
       alignItems: 'center',
+      ...shadow,
     },
     playButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
     smallButton: {
@@ -556,6 +558,7 @@ const makeStyles = (t: Theme) =>
       padding: 18,
       width: '100%',
       maxWidth: 480,
+      ...shadow,
     },
     modalTitle: { fontSize: 17, fontWeight: '800', color: t.ink },
     modalLine: { fontSize: 13, color: t.inkSoft, marginTop: 8, lineHeight: 19 },

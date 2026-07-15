@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import * as MediaLibrary from 'expo-media-library';
 import { router, useLocalSearchParams } from 'expo-router';
 
+import { Text } from '@/lib/AppText';
 import { getScript } from '@/lib/storage';
 import { getTier } from '@/lib/subscription';
 import { useTheme, type Theme } from '@/lib/theme';

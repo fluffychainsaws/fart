@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
+import { Text } from '@/lib/AppText';
 import { getScript } from '@/lib/storage';
 import { getTier } from '@/lib/subscription';
-import { useTheme, type Theme } from '@/lib/theme';
+import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 import type { FartScript } from '@/lib/types';
 import { useRehearsal } from '@/lib/useRehearsal';
 import { getUsageStatus, recordAuditionCompleted, type UsageStatus } from '@/lib/usage';
@@ -41,7 +42,8 @@ type RunState = 'idle' | 'countdown' | 'running' | 'done';
 export default function SelfTapeScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const t = useTheme();
-  const styles = useMemo(() => makeStyles(t), [t]);
+  const shadow = useCardShadow();
+  const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   const [script, setScript] = useState<FartScript | null>(null);
   const [usage, setUsage] = useState<UsageStatus | null>(null);
   const [runState, setRunState] = useState<RunState>('idle');
@@ -265,7 +267,7 @@ export default function SelfTapeScreen() {
   );
 }
 
-const makeStyles = (t: Theme) =>
+const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.bg },
     content: { padding: 20, paddingBottom: 48, maxWidth: 620, width: '100%', alignSelf: 'center', gap: 14 },
@@ -297,13 +299,14 @@ const makeStyles = (t: Theme) =>
       padding: 18,
       minHeight: 140,
       justifyContent: 'center',
+      ...shadow,
     },
     promptMine: { backgroundColor: t.highlight, borderColor: t.highlightBorder },
     promptDirection: { color: t.inkSoft, fontSize: 15, fontStyle: 'italic', lineHeight: 22 },
     promptCharacter: { color: t.accent, fontSize: 13, fontWeight: '800', letterSpacing: 0.6 },
     promptText: { color: t.ink, fontSize: 20, lineHeight: 28, marginTop: 6, fontWeight: '600' },
     countdownText: { fontSize: 72, fontWeight: '800', color: t.accent, textAlign: 'center' },
-    doneCard: { backgroundColor: t.card, borderRadius: 16, padding: 20, alignItems: 'center' },
+    doneCard: { backgroundColor: t.card, borderRadius: 16, padding: 20, alignItems: 'center', ...shadow },
     doneTitle: { fontSize: 19, fontWeight: '800', color: t.ink },
     doneText: { fontSize: 14, color: t.inkSoft, marginTop: 4, textAlign: 'center' },
     error: { color: t.danger, fontSize: 13, fontWeight: '600', textAlign: 'center' },
@@ -324,6 +327,7 @@ const makeStyles = (t: Theme) =>
       borderRadius: 16,
       paddingVertical: 14,
       paddingHorizontal: 28,
+      ...shadow,
     },
     primaryButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
     ghostButton: { paddingVertical: 14, paddingHorizontal: 20 },

@@ -1,17 +1,19 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 
+import { Text } from '@/lib/AppText';
 import { makeDemoScript } from '@/lib/demo';
 import { deleteScript, listScripts, saveScript } from '@/lib/storage';
 import { getTier } from '@/lib/subscription';
-import { useTheme, type Theme } from '@/lib/theme';
+import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 import { charactersIn, myLineCount, type FartScript } from '@/lib/types';
 import { getUsageStatus, type UsageStatus } from '@/lib/usage';
 
 export default function HomeScreen() {
   const t = useTheme();
-  const styles = useMemo(() => makeStyles(t), [t]);
+  const shadow = useCardShadow();
+  const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   const [scripts, setScripts] = useState<FartScript[]>([]);
   const [usage, setUsage] = useState<UsageStatus | null>(null);
 
@@ -112,7 +114,7 @@ export default function HomeScreen() {
   );
 }
 
-const makeStyles = (t: Theme) =>
+const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.bg },
     listContent: { padding: 20, paddingBottom: 40, maxWidth: 700, width: '100%', alignSelf: 'center' },
@@ -138,6 +140,7 @@ const makeStyles = (t: Theme) =>
       paddingVertical: 16,
       alignItems: 'center',
       marginTop: 20,
+      ...shadow,
     },
     primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
     secondaryButton: {
@@ -159,6 +162,7 @@ const makeStyles = (t: Theme) =>
       marginBottom: 10,
       flexDirection: 'row',
       alignItems: 'center',
+      ...shadow,
     },
     cardBody: { flex: 1, marginRight: 12 },
     cardTitle: { fontSize: 16, fontWeight: '700', color: t.ink },

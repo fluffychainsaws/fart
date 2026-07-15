@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 
+import { Text } from '@/lib/AppText';
 import { hasApiKey, parseScriptPhotos } from '@/lib/parser';
 import { newId, saveScript } from '@/lib/storage';
-import { useTheme, type Theme } from '@/lib/theme';
+import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 
 interface Page {
   uri: string;
@@ -23,7 +24,8 @@ const LOADING_LINES = [
 
 function LoadingCard() {
   const t = useTheme();
-  const styles = useMemo(() => makeStyles(t), [t]);
+  const shadow = useCardShadow();
+  const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   const [i, setI] = useState(0);
   useEffect(() => {
     const timer = setInterval(() => setI((n) => (n + 1) % LOADING_LINES.length), 2200);
@@ -39,7 +41,8 @@ function LoadingCard() {
 
 export default function CaptureScreen() {
   const t = useTheme();
-  const styles = useMemo(() => makeStyles(t), [t]);
+  const shadow = useCardShadow();
+  const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   const [pages, setPages] = useState<Page[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -164,7 +167,7 @@ export default function CaptureScreen() {
   );
 }
 
-const makeStyles = (t: Theme) =>
+const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
   StyleSheet.create({
   screen: { flex: 1, backgroundColor: t.bg },
   content: { padding: 20, paddingBottom: 40, maxWidth: 700, width: '100%', alignSelf: 'center' },
@@ -178,6 +181,7 @@ const makeStyles = (t: Theme) =>
     borderColor: t.border,
     alignItems: 'center',
     paddingVertical: 22,
+    ...shadow,
   },
   pickEmoji: { fontSize: 30 },
   pickLabel: { fontSize: 14, fontWeight: '700', color: t.ink, marginTop: 6 },
@@ -216,6 +220,7 @@ const makeStyles = (t: Theme) =>
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 20,
+    ...shadow,
   },
   primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
   loadingCard: {
@@ -226,6 +231,7 @@ const makeStyles = (t: Theme) =>
     alignItems: 'center',
     padding: 36,
     marginTop: 24,
+    ...shadow,
   },
   loadingText: { marginTop: 16, fontSize: 15, fontWeight: '600', color: t.ink },
   error: { color: t.danger, fontSize: 14, marginTop: 16, lineHeight: 20 },

@@ -1,14 +1,16 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 
+import { Text } from '@/lib/AppText';
 import { getTier, TIER_ORDER, type Tier } from '@/lib/subscription';
-import { useTheme, type Theme } from '@/lib/theme';
+import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 import { getUsageStatus, setCurrentTier, type UsageStatus } from '@/lib/usage';
 
 export default function AccountScreen() {
   const t = useTheme();
-  const styles = useMemo(() => makeStyles(t), [t]);
+  const shadow = useCardShadow();
+  const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   const [status, setStatus] = useState<UsageStatus | null>(null);
 
   const refresh = useCallback(() => {
@@ -106,7 +108,7 @@ export default function AccountScreen() {
   );
 }
 
-const makeStyles = (t: Theme) =>
+const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.bg },
     content: { padding: 20, paddingBottom: 48, maxWidth: 700, width: '100%', alignSelf: 'center' },
@@ -116,6 +118,7 @@ const makeStyles = (t: Theme) =>
       borderWidth: 1,
       borderColor: t.border,
       padding: 18,
+      ...shadow,
     },
     usageTier: { fontSize: 13, fontWeight: '800', color: t.accent, letterSpacing: 0.5, textTransform: 'uppercase' },
     usageCount: { fontSize: 16, fontWeight: '700', color: t.ink, marginTop: 6 },
@@ -143,6 +146,7 @@ const makeStyles = (t: Theme) =>
       borderColor: t.border,
       padding: 16,
       marginBottom: 12,
+      ...shadow,
     },
     planCardActive: { borderColor: t.accent, borderWidth: 2 },
     planHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

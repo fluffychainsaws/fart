@@ -33,3 +33,25 @@ export type Theme = { [K in keyof typeof light]: string };
 export function useTheme(): Theme {
   return useColorScheme() === 'dark' ? dark : light;
 }
+
+// Soft elevation for cards, buttons, and modals — subtle on the cream light
+// background, a touch stronger on dark so surfaces still read as lifted.
+export const cardShadow = {
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 3 },
+  shadowOpacity: 0.08,
+  shadowRadius: 10,
+  elevation: 3,
+} as const;
+
+export const cardShadowDark = {
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 3 },
+  shadowOpacity: 0.35,
+  shadowRadius: 10,
+  elevation: 3,
+} as const;
+
+export function useCardShadow() {
+  return useColorScheme() === 'dark' ? cardShadowDark : cardShadow;
+}
