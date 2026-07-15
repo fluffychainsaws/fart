@@ -48,7 +48,11 @@ export default function SelfTapeScreen() {
   const [usage, setUsage] = useState<UsageStatus | null>(null);
   const [runState, setRunState] = useState<RunState>('idle');
   const [countdown, setCountdown] = useState(3);
-  const [voiceOn, setVoiceOn] = useState(true);
+  // Off by default: mic access has to be requested from a direct tap (a real
+  // user gesture), not automatically on mount, or the browser's permission
+  // prompt may never reliably appear and recognition just silently fails.
+  const [voiceOn, setVoiceOn] = useState(false);
+  const [micError, setMicError] = useState<string | null>(null);
   const [blockedMsg, setBlockedMsg] = useState<string | null>(null);
 
   const countdownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -122,6 +126,31 @@ export default function SelfTapeScreen() {
   const actionsRef = useRef({ startRun, cancelCountdown, stopRun });
   actionsRef.current = { startRun, cancelCountdown, stopRun };
 
+  // Requesting mic access from this direct tap is what makes the browser's
+  // permission prompt reliably appear (and lets us tell the user clearly if
+  // they deny or already blocked it, instead of failing silently).
+  const toggleVoice = async () => {
+    if (voiceOn) {
+      setVoiceOn(false);
+      return;
+    }
+    setMicError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+      setVoiceOn(true);
+    } catch (e) {
+      const name = e instanceof Error ? e.name : '';
+      if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+        setMicError("No microphone found on this device.");
+      } else {
+        setMicError(
+          "Microphone access is blocked. Allow it for this site in your browser's settings, then try again.",
+        );
+      }
+    }
+  };
+
   // Hands-free control via the browser's Web Speech API — gated to the tier
   // that includes voice commands, and only where the browser implements it
   // (solid in Chrome/Edge; Safari and Firefox largely don't).
@@ -131,6 +160,7 @@ export default function SelfTapeScreen() {
     if (!Ctor) return;
     let cancelled = false;
     let recognizer: SpeechRecognitionLike | null = null;
+    let consecutiveErrors = 0;
 
     const startListening = () => {
       recognizer = new Ctor();
@@ -140,6 +170,7 @@ export default function SelfTapeScreen() {
       recognizer.onresult = (event) => {
         const transcript = (event.results?.[0]?.[0]?.transcript ?? '').toLowerCase();
         if (!transcript || Date.now() < voiceCooldownUntil.current) return;
+        consecutiveErrors = 0;
         const state = runStateRef.current;
         if (state === 'idle' && START_CMD.test(transcript)) {
           voiceCooldownUntil.current = Date.now() + 4000;
@@ -151,10 +182,22 @@ export default function SelfTapeScreen() {
         }
       };
       recognizer.onend = () => {
-        if (!cancelled) setTimeout(startListening, 600);
+        if (cancelled || consecutiveErrors > 4) return;
+        setTimeout(startListening, 600);
       };
-      recognizer.onerror = () => {
-        // onend fires right after and restarts the listener.
+      recognizer.onerror = (event) => {
+        consecutiveErrors += 1;
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          cancelled = true;
+          setVoiceOn(false);
+          setMicError(
+            "Microphone access is blocked. Allow it for this site in your browser's settings, then try again.",
+          );
+        } else if (event.error !== 'no-speech' && consecutiveErrors > 4) {
+          cancelled = true;
+          setVoiceOn(false);
+          setMicError("Voice commands stopped working — try again, or use the buttons here instead.");
+        }
       };
       try {
         recognizer.start();
@@ -219,10 +262,11 @@ export default function SelfTapeScreen() {
         )}
 
         {blockedMsg && <Text style={styles.error}>{blockedMsg}</Text>}
+        {micError && <Text style={styles.error}>{micError}</Text>}
 
         <View style={styles.controlsRow}>
           {voiceCommandsAllowed && speechSupported && (
-            <Pressable style={[styles.toggle, voiceOn && styles.toggleOn]} onPress={() => setVoiceOn((v) => !v)}>
+            <Pressable style={[styles.toggle, voiceOn && styles.toggleOn]} onPress={toggleVoice}>
               <Text style={[styles.toggleText, voiceOn && styles.toggleTextOn]}>🎙 Voice</Text>
             </Pressable>
           )}
