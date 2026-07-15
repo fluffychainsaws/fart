@@ -57,7 +57,7 @@ export const TIERS: Record<Tier, TierConfig> = {
     name: 'SHART STAR',
     priceLabel: '$25/mo',
     tagline: 'Less than a dollar a day to have a reader always ready!',
-    auditionsPerMonth: 50,
+    auditionsPerMonth: 75,
     aiVoiceCount: OPENAI_VOICES.length,
     directorNotesPerAudition: 10,
     voiceCommands: true,
