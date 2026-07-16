@@ -1,12 +1,13 @@
 import * as Speech from 'expo-speech';
 
 import { stopCloudSpeech } from './cloudVoice';
+import { rankVoices } from './voiceRank';
 
 // ---- Voice pool ------------------------------------------------------------
 // Instead of pitch-shifting one robotic default voice, we pick real voices
-// from the device. iOS ships neural "Enhanced" voices and Android's Google
-// TTS voices are far more natural than the default — we prefer those, and
-// give every character a distinct voice from the pool.
+// from the device, ranked by quality (see voiceRank.ts): iOS "Enhanced"
+// neural voices, Edge's free "(Natural)" neural voices, and Chrome's hosted
+// Google voices beat the robotic defaults, and novelty voices are dropped.
 
 let pool: Speech.Voice[] = [];
 const assigned = new Map<string, string>(); // character -> voice identifier
@@ -17,13 +18,7 @@ export async function loadVoices(): Promise<void> {
     const all = await Speech.getAvailableVoicesAsync();
     if (all.length === 0) return;
     const english = all.filter((v) => v.language?.toLowerCase().startsWith('en'));
-    const candidates = english.length > 0 ? english : all;
-    const enhanced = candidates.filter((v) => v.quality === Speech.VoiceQuality.Enhanced);
-    // Enhanced-only when we have enough for variety; otherwise mix in the rest,
-    // enhanced first so solo characters still get the best voice.
-    pool = (enhanced.length >= 2 ? enhanced : [...enhanced, ...candidates.filter((v) => v.quality !== Speech.VoiceQuality.Enhanced)])
-      .slice()
-      .sort((a, b) => a.identifier.localeCompare(b.identifier));
+    pool = rankVoices(english.length > 0 ? english : all);
   } catch {
     pool = []; // fall back to pitch variation
   }

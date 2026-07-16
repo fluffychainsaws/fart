@@ -27,6 +27,7 @@ import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 import type { FartScript } from '@/lib/types';
 import { lineFollowSupported, requestLineFollowMic, useLineFollow } from '@/lib/useLineFollow';
 import { useRehearsal } from '@/lib/useRehearsal';
+import { isHighQualityVoice } from '@/lib/voiceRank';
 import { directorNoteCount, getUsageStatus, type UsageStatus } from '@/lib/usage';
 
 const prettyVoice = (id: string | undefined, deviceNames: Record<string, string>): string => {
@@ -383,7 +384,7 @@ export default function RehearseScreen() {
                       }))
                     : deviceVoices.map((v) => ({
                         id: `device:${v.identifier}` as string | null,
-                        label: v.quality === 'Enhanced' ? `${v.name} ★` : v.name,
+                        label: isHighQualityVoice(v) ? `${v.name} ★` : v.name,
                       }))),
                 ].map((option) => {
                   const selected = (script.voices?.[pickerChar] ?? null) === option.id;
