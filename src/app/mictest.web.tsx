@@ -30,6 +30,8 @@ export default function MicTestScreen() {
   const rafRef = useRef<number | null>(null);
   const lastSoundAtRef = useRef(0);
   const recognizerRef = useRef<SpeechRecognitionLike | null>(null);
+  const recognitionActiveRef = useRef(false);
+  const recognitionErrorsRef = useRef(0);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const playerRef = useRef<AudioPlayer | null>(null);
@@ -43,6 +45,7 @@ export default function MicTestScreen() {
     recorderRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+    recognitionActiveRef.current = false;
     recognizerRef.current?.abort();
     recognizerRef.current = null;
     setLevel(0);
@@ -117,24 +120,43 @@ export default function MicTestScreen() {
 
       const Ctor = getSpeechRecognitionCtor();
       if (Ctor) {
-        const recognizer = new Ctor();
-        recognizerRef.current = recognizer;
-        recognizer.lang = 'en-US';
-        recognizer.continuous = true;
-        recognizer.interimResults = true;
-        recognizer.onresult = (event) => {
-          const text = event.results?.[0]?.[0]?.transcript ?? '';
-          if (text) setTranscript(text);
+        // A recognition session auto-ends after a few seconds of silence
+        // even with continuous: true, so keeping it going means starting a
+        // fresh instance each time — restarting the same (now-ended) object
+        // is unreliable and is why the transcript would stop after the
+        // first natural pause in speech.
+        recognitionActiveRef.current = true;
+        recognitionErrorsRef.current = 0;
+        const startListening = () => {
+          const recognizer = new Ctor();
+          recognizerRef.current = recognizer;
+          recognizer.lang = 'en-US';
+          recognizer.continuous = true;
+          recognizer.interimResults = true;
+          recognizer.onresult = (event) => {
+            const text = event.results?.[0]?.[0]?.transcript ?? '';
+            if (text) {
+              setTranscript(text);
+              recognitionErrorsRef.current = 0;
+            }
+          };
+          recognizer.onend = () => {
+            if (recognitionActiveRef.current && recognitionErrorsRef.current <= 4) {
+              setTimeout(startListening, 300);
+            }
+          };
+          recognizer.onerror = (event) => {
+            // 'no-speech' just means the pause-timeout fired — expected and
+            // harmless, so it shouldn't count toward giving up.
+            if (event.error !== 'no-speech') recognitionErrorsRef.current += 1;
+          };
+          try {
+            recognizer.start();
+          } catch {
+            // already running
+          }
         };
-        recognizer.onend = () => {
-          if (recognizerRef.current === recognizer) recognizer.start();
-        };
-        recognizer.onerror = () => {};
-        try {
-          recognizer.start();
-        } catch {
-          // already running
-        }
+        startListening();
       }
     } catch (e) {
       const name = e instanceof Error ? e.name : '';
