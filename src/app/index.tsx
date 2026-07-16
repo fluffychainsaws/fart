@@ -84,6 +84,13 @@ export default function HomeScreen() {
               onPress={tryDemo}>
               <Text style={styles.secondaryButtonText}>🎬 Try the demo scene</Text>
             </Pressable>
+            {Platform.OS === 'web' && (
+              <Pressable
+                style={({ pressed }) => [styles.micTestButton, pressed && styles.pressed]}
+                onPress={() => router.push('/mictest')}>
+                <Text style={styles.micTestButtonText}>🎙 Test your microphone</Text>
+              </Pressable>
+            )}
             {scripts.length > 0 && <Text style={styles.sectionTitle}>Your scripts</Text>}
           </View>
         }
@@ -153,6 +160,15 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       marginTop: 10,
     },
     secondaryButtonText: { color: t.accent, fontSize: 15, fontWeight: '700' },
+    micTestButton: {
+      borderRadius: 16,
+      paddingVertical: 12,
+      alignItems: 'center',
+      marginTop: 10,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    micTestButtonText: { color: t.inkSoft, fontSize: 14, fontWeight: '700' },
     sectionTitle: { fontSize: 13, fontWeight: '700', color: t.inkSoft, marginTop: 28, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 },
     empty: { color: t.inkSoft, fontSize: 14, marginTop: 28, textAlign: 'center' },
     card: {

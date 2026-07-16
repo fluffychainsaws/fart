@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 
 import { Text } from '@/lib/AppText';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
@@ -20,6 +21,8 @@ export default function MicTestScreen() {
   const [level, setLevel] = useState(0);
   const [quietHint, setQuietHint] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [replayUri, setReplayUri] = useState<string | null>(null);
+  const [replaying, setReplaying] = useState(false);
   const speechSupported = Boolean(getSpeechRecognitionCtor());
 
   const streamRef = useRef<MediaStream | null>(null);
@@ -27,12 +30,17 @@ export default function MicTestScreen() {
   const rafRef = useRef<number | null>(null);
   const lastSoundAtRef = useRef(0);
   const recognizerRef = useRef<SpeechRecognitionLike | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const playerRef = useRef<AudioPlayer | null>(null);
 
   const stopTest = () => {
     if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
     audioCtxRef.current?.close().catch(() => {});
     audioCtxRef.current = null;
+    if (recorderRef.current && recorderRef.current.state !== 'inactive') recorderRef.current.stop();
+    recorderRef.current = null;
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     recognizerRef.current?.abort();
@@ -42,14 +50,42 @@ export default function MicTestScreen() {
     setStatus('idle');
   };
 
-  useEffect(() => stopTest, []);
+  useEffect(() => {
+    return () => {
+      stopTest();
+      if (replayUri) URL.revokeObjectURL(replayUri);
+      playerRef.current?.remove();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const startTest = async () => {
     setStatus('requesting');
     setTranscript('');
+    if (replayUri) {
+      URL.revokeObjectURL(replayUri);
+      setReplayUri(null);
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
+
+      const recorderMimeType = ['audio/webm', 'audio/mp4', 'audio/ogg'].find((m) =>
+        window.MediaRecorder?.isTypeSupported?.(m),
+      );
+      if (window.MediaRecorder) {
+        chunksRef.current = [];
+        const recorder = new MediaRecorder(stream, recorderMimeType ? { mimeType: recorderMimeType } : undefined);
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) chunksRef.current.push(e.data);
+        };
+        recorder.onstop = () => {
+          const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+          if (blob.size > 0) setReplayUri(URL.createObjectURL(blob));
+        };
+        recorder.start();
+        recorderRef.current = recorder;
+      }
 
       const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       const audioCtx = new Ctx();
@@ -106,6 +142,21 @@ export default function MicTestScreen() {
     }
   };
 
+  const playReplay = () => {
+    if (!replayUri) return;
+    playerRef.current?.remove();
+    const player = createAudioPlayer({ uri: replayUri });
+    playerRef.current = player;
+    setReplaying(true);
+    player.addListener('playbackStatusUpdate', (s) => {
+      if (s.didJustFinish) setReplaying(false);
+    });
+    player.play();
+  };
+
+  const levelPct = Math.round(level * 100);
+  const levelLabel = levelPct < 6 ? 'Too quiet' : levelPct > 85 ? 'Very loud' : 'Good level';
+
   return (
     <View style={styles.screen}>
       <View style={styles.content}>
@@ -116,8 +167,16 @@ export default function MicTestScreen() {
         </Text>
 
         <View style={styles.meterTrack}>
-          <View style={[styles.meterFill, { width: `${Math.round(level * 100)}%` }]} />
+          <View style={[styles.meterFill, { width: `${levelPct}%` }]} />
         </View>
+        {status === 'active' && (
+          <View style={styles.meterReadoutRow}>
+            <Text style={styles.meterReadoutPct}>{levelPct}%</Text>
+            <Text style={[styles.meterReadoutLabel, quietHint && styles.meterReadoutLabelQuiet]}>
+              {quietHint ? 'Too quiet' : levelLabel}
+            </Text>
+          </View>
+        )}
 
         {status === 'idle' && <Text style={styles.status}>Tap start and allow microphone access.</Text>}
         {status === 'requesting' && <Text style={styles.status}>Requesting microphone access…</Text>}
@@ -142,6 +201,15 @@ export default function MicTestScreen() {
           onPress={status === 'active' ? stopTest : startTest}>
           <Text style={styles.primaryButtonText}>{status === 'active' ? '■ Stop test' : '▶ Start test'}</Text>
         </Pressable>
+
+        {replayUri && status !== 'active' && (
+          <Pressable
+            style={({ pressed }) => [styles.replayButton, pressed && styles.pressed]}
+            disabled={replaying}
+            onPress={playReplay}>
+            <Text style={styles.replayButtonText}>{replaying ? '🔊 Playing…' : '▶ Replay what I heard'}</Text>
+          </Pressable>
+        )}
 
         <View style={styles.transcriptCard}>
           <Text style={styles.transcriptLabel}>Live transcript</Text>
@@ -176,6 +244,10 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       borderColor: t.border,
     },
     meterFill: { height: '100%', backgroundColor: t.accent, borderRadius: 10 },
+    meterReadoutRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    meterReadoutPct: { fontSize: 13, fontWeight: '800', color: t.ink, fontVariant: ['tabular-nums'] },
+    meterReadoutLabel: { fontSize: 13, fontWeight: '700', color: t.accent },
+    meterReadoutLabelQuiet: { color: t.danger },
     status: { fontSize: 13, color: t.inkSoft, fontWeight: '600' },
     warning: { fontSize: 13, color: t.danger, fontWeight: '600', lineHeight: 19 },
     primaryButton: {
@@ -186,6 +258,16 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       ...shadow,
     },
     primaryButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+    replayButton: {
+      backgroundColor: t.card,
+      borderWidth: 1,
+      borderColor: t.border,
+      borderRadius: 16,
+      paddingVertical: 13,
+      alignItems: 'center',
+      ...shadow,
+    },
+    replayButtonText: { color: t.accent, fontSize: 15, fontWeight: '700' },
     transcriptCard: {
       backgroundColor: t.card,
       borderRadius: 16,
