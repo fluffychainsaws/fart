@@ -10,33 +10,12 @@ import type { FartScript } from '@/lib/types';
 import { useRehearsal } from '@/lib/useRehearsal';
 import { getUsageStatus, recordAuditionCompleted, type UsageStatus } from '@/lib/usage';
 import { CUT_CMD, START_CMD } from '@/lib/voiceCommands';
+import { getSpeechRecognitionCtor, type SpeechRecognitionLike } from '@/lib/webSpeech';
 
 // Web self-tape: there's no camera recording here (expo-camera can't record
 // video in a browser and there's no web camera roll) — the actor records on
 // their own phone, and this page just plays the reader's lines out loud, with
 // optional hands-free control so they don't have to touch the laptop.
-// The Web Speech API is non-standard and not in TS's DOM lib, so we declare
-// just the shape we use.
-interface SpeechRecognitionLike extends EventTarget {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  start(): void;
-  abort(): void;
-  onresult: ((event: { results: { [i: number]: { [j: number]: { transcript: string } } } }) => void) | null;
-  onend: (() => void) | null;
-  onerror: ((event: { error: string }) => void) | null;
-}
-
-function getSpeechRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
-  if (typeof window === 'undefined') return null;
-  const w = window as unknown as {
-    SpeechRecognition?: new () => SpeechRecognitionLike;
-    webkitSpeechRecognition?: new () => SpeechRecognitionLike;
-  };
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
-}
-
 type RunState = 'idle' | 'countdown' | 'running' | 'done';
 
 export default function SelfTapeScreen() {
@@ -264,7 +243,14 @@ export default function SelfTapeScreen() {
         )}
 
         {blockedMsg && <Text style={styles.error}>{blockedMsg}</Text>}
-        {micError && <Text style={styles.error}>{micError}</Text>}
+        {micError && (
+          <View style={{ alignItems: 'center', gap: 6 }}>
+            <Text style={styles.error}>{micError}</Text>
+            <Pressable onPress={() => router.push('/mictest')}>
+              <Text style={styles.upgradeHint}>Run a mic test ›</Text>
+            </Pressable>
+          </View>
+        )}
 
         <View style={styles.controlsRow}>
           {voiceCommandsAllowed && speechSupported && (
@@ -356,6 +342,7 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     doneTitle: { fontSize: 19, fontWeight: '800', color: t.ink },
     doneText: { fontSize: 14, color: t.inkSoft, marginTop: 4, textAlign: 'center' },
     error: { color: t.danger, fontSize: 13, fontWeight: '600', textAlign: 'center' },
+    upgradeHint: { color: t.accent, fontSize: 13, fontWeight: '700' },
     controlsRow: { flexDirection: 'row', alignItems: 'center', gap: 10, justifyContent: 'center', flexWrap: 'wrap' },
     toggle: {
       backgroundColor: t.card,

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
 import { getTier, TIER_ORDER, type Tier } from '@/lib/subscription';
@@ -64,6 +64,15 @@ export default function AccountScreen() {
         </View>
       </View>
 
+      {Platform.OS === 'web' && (
+        <Pressable
+          style={({ pressed }) => [styles.micTestLink, pressed && styles.pressed]}
+          onPress={() => router.push('/mictest')}>
+          <Text style={styles.micTestLinkText}>🎙 Test your microphone</Text>
+          <Text style={styles.micTestLinkArrow}>›</Text>
+        </Pressable>
+      )}
+
       <Text style={styles.sectionTitle}>Plans</Text>
       {TIER_ORDER.map((id) => {
         const tier = getTier(id);
@@ -124,6 +133,20 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     },
     usageTier: { fontSize: 13, fontWeight: '800', color: t.accent, letterSpacing: 0.5, textTransform: 'uppercase' },
     usageCount: { fontSize: 16, fontWeight: '700', color: t.ink, marginTop: 6 },
+    micTestLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: t.card,
+      borderWidth: 1,
+      borderColor: t.border,
+      borderRadius: 14,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      marginTop: 14,
+    },
+    micTestLinkText: { fontSize: 14, fontWeight: '700', color: t.ink },
+    micTestLinkArrow: { fontSize: 16, color: t.inkSoft },
     progressTrack: {
       height: 8,
       borderRadius: 4,
