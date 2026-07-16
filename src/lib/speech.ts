@@ -1,4 +1,5 @@
 import * as Speech from 'expo-speech';
+import { Platform } from 'react-native';
 
 import { stopCloudSpeech } from './cloudVoice';
 import { rankVoices } from './voiceRank';
@@ -37,6 +38,20 @@ export function pitchFor(character: string): number {
   return 0.85 + (hash(character) % 7) * 0.05; // 0.85 .. 1.15
 }
 
+// Android Chrome ignores the utterance's voice — whatever we pick, it speaks
+// with the system default — and phone TTS engines often expose only
+// near-identical voices anyway. In that situation, vary pitch per character
+// so the cast is still distinguishable; elsewhere, real voice variety exists
+// and pitch-shifting would only degrade the good neural voices.
+function lowVoiceVariety(): boolean {
+  if (pool.length < 2) return true;
+  return (
+    Platform.OS === 'web' &&
+    typeof navigator !== 'undefined' &&
+    /android/i.test(navigator.userAgent)
+  );
+}
+
 // The loaded device-voice pool, for voice-picker UIs. Call loadVoices() first.
 export function getVoicePool(): Speech.Voice[] {
   return pool;
@@ -48,8 +63,10 @@ export function getVoicePool(): Speech.Voice[] {
 export function voiceOptsFor(character: string, override?: string): { voice?: string; pitch?: number } {
   if (override) return { voice: override };
   if (pool.length === 0) return { pitch: pitchFor(character) };
+  const withVariety = (voice: string) =>
+    lowVoiceVariety() ? { voice, pitch: pitchFor(character) } : { voice };
   const existing = assigned.get(character);
-  if (existing) return { voice: existing };
+  if (existing) return withVariety(existing);
   const taken = new Set(assigned.values());
   let i = hash(character) % pool.length;
   for (let step = 0; step < pool.length && taken.has(pool[i].identifier); step++) {
@@ -57,7 +74,7 @@ export function voiceOptsFor(character: string, override?: string): { voice?: st
   }
   const voice = pool[i].identifier;
   assigned.set(character, voice);
-  return { voice };
+  return withVariety(voice);
 }
 
 // ---- Speaking --------------------------------------------------------------
