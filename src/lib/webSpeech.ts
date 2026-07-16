@@ -7,7 +7,11 @@ export interface SpeechRecognitionLike extends EventTarget {
   interimResults: boolean;
   start(): void;
   abort(): void;
-  onresult: ((event: { results: { [i: number]: { [j: number]: { transcript: string } } } }) => void) | null;
+  onresult:
+    | ((event: {
+        results: { length: number } & { [i: number]: { [j: number]: { transcript: string } } };
+      }) => void)
+    | null;
   onend: (() => void) | null;
   onerror: ((event: { error: string }) => void) | null;
 }

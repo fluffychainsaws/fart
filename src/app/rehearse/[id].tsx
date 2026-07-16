@@ -25,6 +25,7 @@ import { getScript, saveScript } from '@/lib/storage';
 import { getTier } from '@/lib/subscription';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 import type { FartScript } from '@/lib/types';
+import { lineFollowSupported, requestLineFollowMic, useLineFollow } from '@/lib/useLineFollow';
 import { useRehearsal } from '@/lib/useRehearsal';
 import { directorNoteCount, getUsageStatus, type UsageStatus } from '@/lib/usage';
 
@@ -66,6 +67,41 @@ export default function RehearseScreen() {
     cloudVoiceAllowed: aiVoicesAllowed,
   });
   const { idx, status } = engine;
+
+  // Voice follow: listen while the engine waits on the user's line and
+  // continue the moment they finish it, instead of guessing with a timer.
+  const [followOn, setFollowOn] = useState(false);
+  const [followErr, setFollowErr] = useState<string | null>(null);
+  const followSupported = useMemo(() => lineFollowSupported(), []);
+  const waitingEl = status === 'waiting' ? script?.elements[idx] : undefined;
+  const waitingLine =
+    waitingEl?.type === 'line' && waitingEl.mine ? { text: waitingEl.text, key: idx } : null;
+  const follow = useLineFollow(followOn, waitingLine, engine.continueMyLine);
+
+  const toggleFollow = async () => {
+    if (followOn) {
+      setFollowOn(false);
+      return;
+    }
+    setFollowErr(null);
+    const granted = await requestLineFollowMic();
+    if (!granted) {
+      setFollowErr(
+        Platform.OS === 'web'
+          ? "Microphone access is blocked. Allow it for this site in your browser's settings, then try again."
+          : 'Microphone access is needed to hear your lines.',
+      );
+      return;
+    }
+    // The word-count timer and real listening would race each other.
+    if (engine.autoAdvance) engine.toggleAuto();
+    setFollowOn(true);
+  };
+
+  const toggleAuto = () => {
+    if (!engine.autoAdvance && followOn) setFollowOn(false);
+    engine.toggleAuto();
+  };
 
   useEffect(() => {
     getScript(id).then(setScript);
@@ -226,9 +262,16 @@ export default function RehearseScreen() {
             🎬 Read directions
           </Text>
         </Pressable>
+        {followSupported && (
+          <Pressable style={[styles.toggle, followOn && styles.toggleOn]} onPress={toggleFollow}>
+            <Text style={[styles.toggleText, followOn && styles.toggleTextOn]}>
+              🎤 Listen for my lines
+            </Text>
+          </Pressable>
+        )}
         <Pressable
           style={[styles.toggle, engine.autoAdvance && styles.toggleOn]}
-          onPress={engine.toggleAuto}>
+          onPress={toggleAuto}>
           <Text style={[styles.toggleText, engine.autoAdvance && styles.toggleTextOn]}>
             ⏱ Auto-continue my lines
           </Text>
@@ -245,6 +288,7 @@ export default function RehearseScreen() {
           </Pressable>
         )}
       </View>
+      {followErr && <Text style={styles.followError}>{followErr}</Text>}
 
       <ScrollView ref={scrollRef} style={styles.script} contentContainerStyle={styles.scriptContent}>
         {script.elements.map((el, i) => {
@@ -281,6 +325,16 @@ export default function RehearseScreen() {
       {status === 'waiting' && current?.type === 'line' && (
         <View style={styles.banner}>
           <Text style={styles.bannerTitle}>🫵 Your line, {current.character}!</Text>
+          {followOn && follow.listening && (
+            <View style={styles.followWrap}>
+              <View style={styles.followTrack}>
+                <View style={[styles.followFill, { width: `${Math.round(follow.progress * 100)}%` }]} />
+              </View>
+              <Text style={styles.followHeard} numberOfLines={1}>
+                {follow.heard ? `🎤 …${follow.heard}` : '🎤 Listening — say your line'}
+              </Text>
+            </View>
+          )}
           <Pressable
             style={({ pressed }) => [styles.continueButton, pressed && styles.pressed]}
             onPress={engine.continueMyLine}>
@@ -455,10 +509,21 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     smallButtonText: { fontSize: 15, fontWeight: '700', color: t.ink },
     toggleRow: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       gap: 8,
       paddingHorizontal: 20,
       paddingTop: 8,
       paddingBottom: 4,
+      maxWidth: 700,
+      width: '100%',
+      alignSelf: 'center',
+    },
+    followError: {
+      color: t.danger,
+      fontSize: 12,
+      fontWeight: '600',
+      paddingHorizontal: 20,
+      paddingTop: 4,
       maxWidth: 700,
       width: '100%',
       alignSelf: 'center',
@@ -511,6 +576,15 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       alignItems: 'center',
     },
     bannerTitle: { fontSize: 17, fontWeight: '800', color: t.ink },
+    followWrap: { width: '100%', maxWidth: 420, marginTop: 10, gap: 6 },
+    followTrack: {
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: t.accentSoft,
+      overflow: 'hidden',
+    },
+    followFill: { height: '100%', backgroundColor: t.accent, borderRadius: 4 },
+    followHeard: { fontSize: 12, color: t.inkSoft, fontWeight: '600', textAlign: 'center' },
     continueButton: {
       backgroundColor: t.accent,
       borderRadius: 14,
