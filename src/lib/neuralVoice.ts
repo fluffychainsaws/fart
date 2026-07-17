@@ -30,20 +30,43 @@ export interface NeuralVoiceOption {
   pitchShift?: number;
 }
 
-// Curated subset of Kokoro's voices — the strongest of each accent/gender —
-// plus two derived young voices.
+// Every English voice Kokoro ships (28), plus two derived young voices.
+// Each voice is a small (~500KB) add-on fetched on first use — the model
+// download covers them all, so listing everything costs nothing.
 export const NEURAL_VOICES: NeuralVoiceOption[] = [
+  // American female
   { id: 'af_heart', label: 'Heart · American female' },
   { id: 'af_bella', label: 'Bella · American female' },
   { id: 'af_nicole', label: 'Nicole · American female (soft)' },
   { id: 'af_sarah', label: 'Sarah · American female' },
+  { id: 'af_aoede', label: 'Aoede · American female' },
+  { id: 'af_kore', label: 'Kore · American female' },
+  { id: 'af_alloy', label: 'Alloy · American female' },
+  { id: 'af_nova', label: 'Nova · American female' },
+  { id: 'af_jessica', label: 'Jessica · American female' },
+  { id: 'af_river', label: 'River · American female' },
+  { id: 'af_sky', label: 'Sky · American female' },
+  // American male
   { id: 'am_michael', label: 'Michael · American male' },
-  { id: 'am_adam', label: 'Adam · American male' },
+  { id: 'am_fenrir', label: 'Fenrir · American male' },
   { id: 'am_puck', label: 'Puck · American male' },
+  { id: 'am_adam', label: 'Adam · American male' },
+  { id: 'am_echo', label: 'Echo · American male' },
+  { id: 'am_eric', label: 'Eric · American male' },
+  { id: 'am_liam', label: 'Liam · American male' },
+  { id: 'am_onyx', label: 'Onyx · American male (deep)' },
+  { id: 'am_santa', label: 'Santa · American male (jolly)' },
+  // British female
   { id: 'bf_emma', label: 'Emma · British female' },
+  { id: 'bf_isabella', label: 'Isabella · British female' },
   { id: 'bf_alice', label: 'Alice · British female' },
+  { id: 'bf_lily', label: 'Lily · British female' },
+  // British male
   { id: 'bm_george', label: 'George · British male' },
+  { id: 'bm_fable', label: 'Fable · British male' },
+  { id: 'bm_lewis', label: 'Lewis · British male' },
   { id: 'bm_daniel', label: 'Daniel · British male' },
+  // Derived young voices (explicit picks only — never auto-cast)
   { id: 'young_girl', label: 'Riley · Young girl', base: 'af_sky', pitchShift: 1.16 },
   { id: 'young_boy', label: 'Charlie · Young boy', base: 'am_liam', pitchShift: 1.14 },
 ] as const;
@@ -174,9 +197,22 @@ function hash(s: string): number {
 function voiceFor(character: string): string {
   const existing = assigned.get(character);
   if (existing) return existing;
-  // Auto-casting never picks the derived young voices — those are explicit
-  // choices only.
-  const autoPool = NEURAL_VOICES.filter((v) => !v.pitchShift);
+  // Auto-casting draws only from the strongest voices; the weaker ones and
+  // the derived young voices stay explicit picks in the full list.
+  const AUTO_CAST = new Set([
+    'af_heart',
+    'af_bella',
+    'af_nicole',
+    'af_sarah',
+    'am_michael',
+    'am_fenrir',
+    'am_puck',
+    'bf_emma',
+    'bf_isabella',
+    'bm_george',
+    'bm_fable',
+  ]);
+  const autoPool = NEURAL_VOICES.filter((v) => AUTO_CAST.has(v.id));
   const taken = new Set(assigned.values());
   let i = hash(character) % autoPool.length;
   for (let step = 0; step < autoPool.length && taken.has(autoPool[i].id); step++) {
