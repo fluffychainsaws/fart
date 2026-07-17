@@ -190,6 +190,43 @@ export default function RehearseScreen() {
     previewVoice(character, voiceId);
   };
 
+  // Tap plays from a line; double-tap (or long-press) a reader's line opens
+  // its director note. The double-tap window means reader-line taps play
+  // after a short beat; directions and the user's own lines play instantly
+  // since they have no double action.
+  const lastTapRef = useRef<{ idx: number; time: number }>({ idx: -1, time: 0 });
+  const pendingPlayTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (pendingPlayTimer.current) clearTimeout(pendingPlayTimer.current);
+    },
+    [],
+  );
+
+  const handleLinePress = (i: number) => {
+    const el = script?.elements[i];
+    const directable = el?.type === 'line' && !el.mine;
+    if (!directable) {
+      engine.play(i);
+      return;
+    }
+    const now = Date.now();
+    const isDouble = lastTapRef.current.idx === i && now - lastTapRef.current.time < 300;
+    lastTapRef.current = { idx: i, time: now };
+    if (pendingPlayTimer.current) {
+      clearTimeout(pendingPlayTimer.current);
+      pendingPlayTimer.current = null;
+    }
+    if (isDouble) {
+      openNote(i);
+      return;
+    }
+    pendingPlayTimer.current = setTimeout(() => {
+      pendingPlayTimer.current = null;
+      engine.play(i);
+    }, 300);
+  };
+
   const warnNoteLimit = (message: string) => {
     if (Platform.OS === 'web') {
       window.alert(message);
@@ -356,7 +393,7 @@ export default function RehearseScreen() {
               onLayout={(e) => {
                 positions.current[i] = e.nativeEvent.layout.y;
               }}
-              onPress={() => engine.play(i)}
+              onPress={() => handleLinePress(i)}
               onLongPress={() => openNote(i)}
               delayLongPress={350}>
               {el.type === 'direction' ? (
@@ -375,7 +412,7 @@ export default function RehearseScreen() {
           );
         })}
         <Text style={styles.tapHint}>
-          Tap any line to play from there. Hold a reader&apos;s line to direct it.
+          Tap any line to play from there. Double-tap (or hold) a reader&apos;s line to direct it.
         </Text>
       </ScrollView>
 
