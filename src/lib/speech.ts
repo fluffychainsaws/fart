@@ -2,6 +2,7 @@ import * as Speech from 'expo-speech';
 import { Platform } from 'react-native';
 
 import { stopCloudSpeech } from './cloudVoice';
+import { stopNeuralSpeech } from './neuralVoice';
 import { rankVoices } from './voiceRank';
 
 // ---- Voice pool ------------------------------------------------------------
@@ -114,4 +115,5 @@ export function speakOnce(
 export function stopSpeaking() {
   Speech.stop();
   stopCloudSpeech();
+  stopNeuralSpeech();
 }

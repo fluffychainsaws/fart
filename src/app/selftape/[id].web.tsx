@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
+import { resumeNeuralVoiceIfEnabled } from '@/lib/neuralVoice';
 import { getScript } from '@/lib/storage';
 import { getTier } from '@/lib/subscription';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
@@ -44,6 +45,7 @@ export default function SelfTapeScreen() {
   useEffect(() => {
     getScript(id).then(setScript);
     refreshUsage();
+    resumeNeuralVoiceIfEnabled();
   }, [id]);
 
   const tier = usage ? getTier(usage.tier) : null;

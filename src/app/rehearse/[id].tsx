@@ -20,6 +20,17 @@ import {
   speakCloud,
 } from '@/lib/cloudVoice';
 import { interpretDirection } from '@/lib/director';
+import {
+  disableNeuralVoice,
+  enableNeuralVoice,
+  NEURAL_VOICES,
+  neuralVoiceProgress,
+  neuralVoiceState,
+  neuralVoiceSupported,
+  resumeNeuralVoiceIfEnabled,
+  speakNeural,
+  subscribeNeuralVoice,
+} from '@/lib/neuralVoice';
 import { getVoicePool, loadVoices, speakOnce, stopSpeaking, voiceOptsFor } from '@/lib/speech';
 import { getScript, saveScript } from '@/lib/storage';
 import { getTier } from '@/lib/subscription';
@@ -104,6 +115,19 @@ export default function RehearseScreen() {
     engine.toggleAuto();
   };
 
+  // In-browser neural voices: module-level engine, mirrored into local state.
+  const [neuralState, setNeuralState] = useState(neuralVoiceState());
+  const [neuralPct, setNeuralPct] = useState(neuralVoiceProgress());
+  useEffect(() => {
+    const unsubscribe = subscribeNeuralVoice(() => {
+      setNeuralState(neuralVoiceState());
+      setNeuralPct(neuralVoiceProgress());
+    });
+    resumeNeuralVoiceIfEnabled();
+    return unsubscribe;
+  }, []);
+  const neuralReady = neuralState === 'ready';
+
   useEffect(() => {
     getScript(id).then(setScript);
     loadVoices().then(() => setDeviceVoices(getVoicePool()));
@@ -136,6 +160,16 @@ export default function RehearseScreen() {
         text: sample,
         character,
         voice: voiceId?.startsWith('openai:') ? voiceId.slice('openai:'.length) : undefined,
+      }).then((ok) => {
+        if (!ok) speakOnce(sample, voiceOptsFor(character));
+      });
+      return;
+    }
+    if (neuralReady && (voiceId?.startsWith('neural:') || voiceId == null)) {
+      speakNeural({
+        text: sample,
+        character,
+        voice: voiceId?.startsWith('neural:') ? voiceId.slice('neural:'.length) : undefined,
       }).then((ok) => {
         if (!ok) speakOnce(sample, voiceOptsFor(character));
       });
@@ -277,6 +311,24 @@ export default function RehearseScreen() {
             ⏱ Auto-continue my lines
           </Text>
         </Pressable>
+        {neuralVoiceSupported() && (
+          <Pressable
+            style={[styles.toggle, neuralReady && styles.toggleOn]}
+            onPress={() => {
+              if (neuralState === 'ready') disableNeuralVoice();
+              else if (neuralState !== 'loading') enableNeuralVoice();
+            }}>
+            <Text style={[styles.toggleText, neuralReady && styles.toggleTextOn]}>
+              {neuralState === 'loading'
+                ? `✨ Downloading voices… ${neuralPct}%`
+                : neuralState === 'error'
+                  ? '✨ Natural voices — retry'
+                  : neuralState === 'ready'
+                    ? '✨ Natural voices'
+                    : '✨ Natural voices (free · 90MB)'}
+            </Text>
+          </Pressable>
+        )}
         {hasCloudVoice() && aiVoicesAllowed && (
           <Pressable
             style={[styles.toggle, cloudOn && styles.toggleOn]}
@@ -365,7 +417,9 @@ export default function RehearseScreen() {
               <Text style={styles.modalLine}>
                 {cloudVoiceActive() && aiVoicesAllowed
                   ? 'ChatGPT voices — tap one to hear it'
-                  : 'Device voices — tap one to hear it'}
+                  : neuralReady
+                    ? 'Natural + device voices — tap one to hear it'
+                    : 'Device voices — tap one to hear it'}
               </Text>
               {cloudVoiceActive() && !aiVoicesAllowed && (
                 <Pressable onPress={() => router.push('/account')}>
@@ -382,6 +436,15 @@ export default function RehearseScreen() {
                         id: `openai:${v}` as string | null,
                         label: v.charAt(0).toUpperCase() + v.slice(1),
                       }))
+                    : []),
+                  ...(neuralReady
+                    ? NEURAL_VOICES.map((v) => ({
+                        id: `neural:${v.id}` as string | null,
+                        label: `✨ ${v.label}`,
+                      }))
+                    : []),
+                  ...(cloudVoiceActive() && aiVoicesAllowed
+                    ? []
                     : deviceVoices.map((v) => ({
                         id: `device:${v.identifier}` as string | null,
                         label: isHighQualityVoice(v) ? `${v.name} ★` : v.name,

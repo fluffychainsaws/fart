@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { cloudVoiceActive, prefetchCloudLine, speakCloud } from './cloudVoice';
+import { neuralVoiceActive, prefetchNeuralLine, speakNeural } from './neuralVoice';
 import { loadVoices, speakOnce, stopSpeaking, voiceOptsFor } from './speech';
 import type { ScriptElement } from './types';
 
@@ -21,6 +22,11 @@ export interface RehearsalOptions {
 const cloudVoiceOf = (voices: Record<string, string> | undefined, character: string) => {
   const v = voices?.[character];
   return v?.startsWith('openai:') ? v.slice('openai:'.length) : undefined;
+};
+
+const neuralVoiceOf = (voices: Record<string, string> | undefined, character: string) => {
+  const v = voices?.[character];
+  return v?.startsWith('neural:') ? v.slice('neural:'.length) : undefined;
 };
 
 const deviceVoiceOf = (voices: Record<string, string> | undefined, character: string) => {
@@ -80,22 +86,35 @@ export function useRehearsal(elements: ScriptElement[], options: RehearsalOption
     setPosition(i);
     const el = els[i];
 
-    // Warm the cloud-voice cache for the next reader line so it starts
-    // instantly, even while the user is still saying their own line.
+    // Warm the voice cache for the next reader line so it starts instantly,
+    // even while the user is still saying their own line. Prefetching matters
+    // most for neural voices — in-browser synthesis takes real time on phones.
     const upcoming = els.slice(i + 1).find((e) => e.type === 'line' && !e.mine);
-    if (upcoming?.type === 'line' && cloudAllowed()) {
-      prefetchCloudLine({
-        text: upcoming.text,
-        character: upcoming.character,
-        note: upcoming.delivery?.note,
-        rate: rateRef.current * (upcoming.delivery?.rate ?? 1),
-        voice: cloudVoiceOf(voicesRef.current, upcoming.character),
-      });
+    if (upcoming?.type === 'line') {
+      if (cloudAllowed()) {
+        prefetchCloudLine({
+          text: upcoming.text,
+          character: upcoming.character,
+          note: upcoming.delivery?.note,
+          rate: rateRef.current * (upcoming.delivery?.rate ?? 1),
+          voice: cloudVoiceOf(voicesRef.current, upcoming.character),
+        });
+      } else if (neuralVoiceActive() && !deviceVoiceOf(voicesRef.current, upcoming.character)) {
+        prefetchNeuralLine({
+          text: upcoming.text,
+          character: upcoming.character,
+          rate: rateRef.current * (upcoming.delivery?.rate ?? 1),
+          voice: neuralVoiceOf(voicesRef.current, upcoming.character),
+        });
+      }
     }
 
     if (el.type === 'direction') {
       if (readDirectionsRef.current) {
-        const spoken = cloudAllowed() && (await speakCloud({ text: el.text, rate: rateRef.current }));
+        let spoken = cloudAllowed() && (await speakCloud({ text: el.text, rate: rateRef.current }));
+        if (!spoken && run === runId.current) {
+          spoken = neuralVoiceActive() && (await speakNeural({ text: el.text, rate: rateRef.current }));
+        }
         if (!spoken && run === runId.current) {
           await speakOnce(el.text, { rate: rateRef.current, pitch: 0.95 });
         }
@@ -128,7 +147,7 @@ export function useRehearsal(elements: ScriptElement[], options: RehearsalOption
       if (run !== runId.current) return;
     }
     const lineRate = rateRef.current * (d?.rate ?? 1);
-    const spoken =
+    let spoken =
       cloudAllowed() &&
       (await speakCloud({
         text: el.text,
@@ -138,6 +157,19 @@ export function useRehearsal(elements: ScriptElement[], options: RehearsalOption
         voice: cloudVoiceOf(voicesRef.current, el.character),
       }));
     if (run !== runId.current) return;
+    // Neural voices step in unless the user explicitly picked a device voice
+    // for this character.
+    if (!spoken && !deviceVoiceOf(voicesRef.current, el.character)) {
+      spoken =
+        neuralVoiceActive() &&
+        (await speakNeural({
+          text: el.text,
+          character: el.character,
+          rate: lineRate,
+          voice: neuralVoiceOf(voicesRef.current, el.character),
+        }));
+      if (run !== runId.current) return;
+    }
     if (!spoken) {
       const voice = voiceOptsFor(el.character, deviceVoiceOf(voicesRef.current, el.character));
       await speakOnce(el.text, {
