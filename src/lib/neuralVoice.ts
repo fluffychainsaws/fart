@@ -20,11 +20,18 @@ const KOKORO_CDN = 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web
 const importFromCdn = new Function('s', 'return import(s)') as (s: string) => Promise<KokoroModule>;
 
 export interface NeuralVoiceOption {
-  id: string; // kokoro voice id, e.g. "af_heart"
+  id: string; // app-level id used in "neural:<id>" (usually the kokoro voice id)
   label: string;
+  // Derived voices: synthesize with `base`, then play back `pitchShift`×
+  // faster without pitch correction. Generation is slowed by the same factor,
+  // so tempo lands back at normal while the voice sits higher — which is how
+  // the young voices are made (Kokoro has no child voices of its own).
+  base?: string;
+  pitchShift?: number;
 }
 
-// Curated subset of Kokoro's voices — the strongest of each accent/gender.
+// Curated subset of Kokoro's voices — the strongest of each accent/gender —
+// plus two derived young voices.
 export const NEURAL_VOICES: NeuralVoiceOption[] = [
   { id: 'af_heart', label: 'Heart · American female' },
   { id: 'af_bella', label: 'Bella · American female' },
@@ -37,7 +44,12 @@ export const NEURAL_VOICES: NeuralVoiceOption[] = [
   { id: 'bf_alice', label: 'Alice · British female' },
   { id: 'bm_george', label: 'George · British male' },
   { id: 'bm_daniel', label: 'Daniel · British male' },
+  { id: 'young_girl', label: 'Riley · Young girl', base: 'af_sky', pitchShift: 1.16 },
+  { id: 'young_boy', label: 'Charlie · Young boy', base: 'am_liam', pitchShift: 1.14 },
 ] as const;
+
+const voiceOption = (id: string): NeuralVoiceOption =>
+  NEURAL_VOICES.find((v) => v.id === id) ?? { id, label: id };
 
 const NARRATOR_VOICE = 'af_nicole'; // soft, unobtrusive for stage directions
 
@@ -162,13 +174,16 @@ function hash(s: string): number {
 function voiceFor(character: string): string {
   const existing = assigned.get(character);
   if (existing) return existing;
+  // Auto-casting never picks the derived young voices — those are explicit
+  // choices only.
+  const autoPool = NEURAL_VOICES.filter((v) => !v.pitchShift);
   const taken = new Set(assigned.values());
-  let i = hash(character) % NEURAL_VOICES.length;
-  for (let step = 0; step < NEURAL_VOICES.length && taken.has(NEURAL_VOICES[i].id); step++) {
-    i = (i + 1) % NEURAL_VOICES.length;
+  let i = hash(character) % autoPool.length;
+  for (let step = 0; step < autoPool.length && taken.has(autoPool[i].id); step++) {
+    i = (i + 1) % autoPool.length;
   }
-  assigned.set(character, NEURAL_VOICES[i].id);
-  return NEURAL_VOICES[i].id;
+  assigned.set(character, autoPool[i].id);
+  return autoPool[i].id;
 }
 
 // ---- Synthesis with caching ------------------------------------------------
@@ -178,18 +193,24 @@ const inflight = new Map<string, Promise<string>>();
 // Serialize synthesis: two concurrent wasm inferences would crawl on phones.
 let queue: Promise<unknown> = Promise.resolve();
 
-function synthesize(text: string, voice: string, speed: number): Promise<string> {
-  const key = `${voice}|${speed}|${hash(text)}-${text.length}`;
+function synthesize(text: string, voiceId: string, speed: number): Promise<string> {
+  const key = `${voiceId}|${speed}|${hash(text)}-${text.length}`;
   const cached = uriCache.get(key);
   if (cached) return Promise.resolve(cached);
   const pending = inflight.get(key);
   if (pending) return pending;
 
+  const opt = voiceOption(voiceId);
   const job = queue.then(async () => {
     const stillCached = uriCache.get(key);
     if (stillCached) return stillCached;
     if (!engine) throw new Error('engine not loaded');
-    const audio = await engine.generate(text, { voice, speed });
+    // Derived voices generate slower by the pitchShift factor; the faster
+    // pitched-up playback brings the tempo back to normal.
+    const audio = await engine.generate(text, {
+      voice: opt.base ?? opt.id,
+      speed: speed / (opt.pitchShift ?? 1),
+    });
     const uri = URL.createObjectURL(audio.toBlob());
     uriCache.set(key, uri);
     return uri;
@@ -213,6 +234,8 @@ export function prefetchNeuralLine(opts: { text: string; character?: string; rat
 
 let audioModeSet = false;
 let currentPlayer: AudioPlayer | null = null;
+let currentSource: AudioBufferSourceNode | null = null;
+let playbackCtx: AudioContext | null = null;
 let currentFinish: (() => void) | null = null;
 
 export function stopNeuralSpeech() {
@@ -225,8 +248,38 @@ export function stopNeuralSpeech() {
       // already released
     }
   }
+  const source = currentSource;
+  currentSource = null;
+  if (source) {
+    try {
+      source.stop();
+    } catch {
+      // already stopped
+    }
+  }
   currentFinish?.();
   currentFinish = null;
+}
+
+// Derived voices play through Web Audio: a raised playbackRate shifts pitch
+// and speed together, which — paired with the slowed generation above — nets
+// out to normal tempo at a higher, younger-sounding pitch.
+async function playPitchShifted(uri: string, shift: number, finish: () => void): Promise<void> {
+  const Ctx =
+    window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  playbackCtx = playbackCtx ?? new Ctx();
+  const res = await fetch(uri);
+  const buffer = await playbackCtx.decodeAudioData(await res.arrayBuffer());
+  const source = playbackCtx.createBufferSource();
+  source.buffer = buffer;
+  source.playbackRate.value = shift;
+  source.onended = () => {
+    if (currentSource === source) currentSource = null;
+    finish();
+  };
+  source.connect(playbackCtx.destination);
+  currentSource = source;
+  source.start();
 }
 
 // Resolves true when done, false when synthesis/playback failed (caller
@@ -245,6 +298,7 @@ export async function speakNeural(opts: {
       audioModeSet = true;
       await setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
     }
+    const pitchShift = voiceOption(voice).pitchShift;
     await new Promise<void>((resolve) => {
       let settled = false;
       const finish = () => {
@@ -257,6 +311,10 @@ export async function speakNeural(opts: {
       currentFinish = finish;
       const words = opts.text.trim().split(/\s+/).length;
       const timer = setTimeout(finish, 8000 + words * 900);
+      if (pitchShift) {
+        playPitchShifted(uri, pitchShift, finish).catch(finish);
+        return;
+      }
       const player = createAudioPlayer({ uri });
       currentPlayer = player;
       player.addListener('playbackStatusUpdate', (status) => {
