@@ -39,7 +39,7 @@ import type { FartScript } from '@/lib/types';
 import { lineFollowSupported, requestLineFollowMic, useLineFollow } from '@/lib/useLineFollow';
 import { useRehearsal } from '@/lib/useRehearsal';
 import { isHighQualityVoice } from '@/lib/voiceRank';
-import { directorNoteCount, getUsageStatus, type UsageStatus } from '@/lib/usage';
+import { directorNoteCount, directorNotesUnlimited, getUsageStatus, type UsageStatus } from '@/lib/usage';
 
 const prettyVoice = (id: string | undefined, deviceNames: Record<string, string>): string => {
   if (!id) return 'Auto';
@@ -203,7 +203,11 @@ export default function RehearseScreen() {
     const el = script.elements[i];
     if (el.type !== 'line' || el.mine) return;
     const hasExistingNote = Boolean(el.delivery?.note);
-    if (!hasExistingNote && directorNoteCount(script) >= tier.directorNotesPerAudition) {
+    if (
+      !directorNotesUnlimited() &&
+      !hasExistingNote &&
+      directorNoteCount(script) >= tier.directorNotesPerAudition
+    ) {
       warnNoteLimit(
         tier.directorNotesPerAudition === 0
           ? "Director notes aren't included in your plan — upgrade to direct the reader."

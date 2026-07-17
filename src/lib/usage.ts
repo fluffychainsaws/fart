@@ -16,10 +16,13 @@ const DEVICE_ID_KEY = 'fart.deviceId.v1';
 const TIER_KEY = 'fart.tier.v1';
 const USAGE_KEY = 'fart.usage.v1';
 
-// Temporary override, per explicit request: unlimited auditions for everyone
-// regardless of tier, until told otherwise. Flip back to false (or delete
-// this block) to restore the normal per-tier monthly quota.
+// Temporary overrides, per explicit request: unlimited auditions and director
+// notes for everyone regardless of tier, until told otherwise. Flip back to
+// false (or delete) to restore the normal per-tier limits.
 const UNLIMITED_AUDITIONS = true;
+const UNLIMITED_DIRECTOR_NOTES = true;
+
+export const directorNotesUnlimited = () => UNLIMITED_DIRECTOR_NOTES;
 
 interface UsageRecord {
   month: string; // "YYYY-MM"
@@ -114,6 +117,7 @@ export function directorNoteCount(script: FartScript): number {
 }
 
 export async function canAddDirectorNote(script: FartScript): Promise<boolean> {
+  if (UNLIMITED_DIRECTOR_NOTES) return true;
   const tier = await getCurrentTier();
   const limit = getTier(tier).directorNotesPerAudition;
   return directorNoteCount(script) < limit;
