@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, FlatList, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
@@ -64,6 +64,14 @@ export default function HomeScreen() {
               Snap a photo of your sides, highlight your lines, and FART reads everyone else&apos;s —
               so you can rehearse anywhere.
             </Text>
+            {Platform.OS !== 'web' && (
+              <Pressable
+                style={({ pressed }) => [styles.webBanner, pressed && styles.pressed]}
+                onPress={() => Linking.openURL('https://fluffychainsaws.github.io/fart')}>
+                <Text style={styles.webBannerText}>🌐 Use FART on the web</Text>
+                <Text style={styles.webBannerSubtext}>Full features, no app install needed</Text>
+              </Pressable>
+            )}
             <Pressable
               style={({ pressed }) => [styles.planPill, pressed && styles.pressed]}
               onPress={() => router.push('/account')}>
@@ -129,6 +137,17 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     listContent: { padding: 20, paddingBottom: 40, maxWidth: 700, width: '100%', alignSelf: 'center' },
     tagline: { fontSize: 15, fontWeight: '700', color: t.accent, letterSpacing: 0.5, textAlign: 'center' },
     blurb: { fontSize: 15, color: t.inkSoft, marginTop: 6, lineHeight: 21 },
+    webBanner: {
+      backgroundColor: '#e8f5ff',
+      borderRadius: 14,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      marginTop: 14,
+      borderLeftWidth: 4,
+      borderLeftColor: '#0066cc',
+    },
+    webBannerText: { fontSize: 14, fontWeight: '700', color: '#0066cc' },
+    webBannerSubtext: { fontSize: 12, color: '#0066cc', marginTop: 2, opacity: 0.8 },
     planPill: {
       flexDirection: 'row',
       alignItems: 'center',

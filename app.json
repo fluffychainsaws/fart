@@ -3,10 +3,12 @@
     "name": "FART",
     "slug": "fart",
     "version": "1.0.0",
+    "description": "Friendly AI Reader To-go - Rehearse scripts with an AI reader. Use the free web version at https://fluffychainsaws.github.io/fart",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "fart",
     "userInterfaceStyle": "automatic",
+    "primaryColor": "#0066cc",
     "ios": {
       "icon": "./assets/expo.icon"
     },
