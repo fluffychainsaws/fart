@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 
 import { Text } from '@/lib/AppText';
+import { MicIcon } from '@/lib/MicIcon';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 import { getSpeechRecognitionCtor, type SpeechRecognitionLike } from '@/lib/webSpeech';
 
@@ -182,7 +183,10 @@ export default function MicTestScreen() {
   return (
     <View style={styles.screen}>
       <View style={styles.content}>
-        <Text style={styles.title}>🎙 Mic test</Text>
+        <View style={styles.titleRow}>
+          <MicIcon size={26} />
+          <Text style={styles.title}>Mic test</Text>
+        </View>
         <Text style={styles.blurb}>
           Talk normally and watch the bar below. If it moves, your browser is hearing you — that's
           independent of whether the words get recognized correctly.
@@ -255,6 +259,7 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.bg },
     content: { padding: 20, maxWidth: 620, width: '100%', alignSelf: 'center', gap: 14 },
+    titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     title: { fontSize: 20, fontWeight: '800', color: t.ink },
     blurb: { fontSize: 14, color: t.inkSoft, lineHeight: 20 },
     meterTrack: {

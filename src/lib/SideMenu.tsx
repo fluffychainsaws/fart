@@ -5,6 +5,8 @@ import { router, usePathname } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
 import { signOut, useSession } from '@/lib/auth';
+import { LogoutIcon } from '@/lib/LogoutIcon';
+import { MicIcon } from '@/lib/MicIcon';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 
 const HINT_SEEN_KEY = 'fart.sideMenuHintSeen.v1';
@@ -227,7 +229,11 @@ export function SideMenu() {
                   setOpen(false);
                   router.push(link.href);
                 }}>
-                <Text style={styles.linkIcon}>{link.icon}</Text>
+                {link.href === '/mictest' ? (
+                  <MicIcon size={18} />
+                ) : (
+                  <Text style={styles.linkIcon}>{link.icon}</Text>
+                )}
                 <Text style={[styles.linkLabel, active && styles.linkLabelActive]}>{link.label}</Text>
               </Pressable>
             );
@@ -265,7 +271,7 @@ export function SideMenu() {
                 setOpen(false);
                 signOut();
               }}>
-              <Text style={styles.linkIcon}>🚪</Text>
+              <LogoutIcon size={18} />
               <Text style={styles.linkLabel}>Log out</Text>
             </Pressable>
           ) : (

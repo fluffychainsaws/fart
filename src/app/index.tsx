@@ -4,6 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
 import { makeDemoScript } from '@/lib/demo';
+import { MicIcon } from '@/lib/MicIcon';
 import { deleteScript, listScripts, refreshScripts, saveScript } from '@/lib/storage';
 import { getTier } from '@/lib/subscription';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
@@ -98,7 +99,8 @@ export default function HomeScreen() {
               <Pressable
                 style={({ pressed }) => [styles.micTestButton, pressed && styles.pressed]}
                 onPress={() => router.push('/mictest')}>
-                <Text style={styles.micTestButtonText}>🎙 Test your microphone</Text>
+                <MicIcon size={18} />
+                <Text style={styles.micTestButtonText}>Test your microphone</Text>
               </Pressable>
             )}
             {scripts.length > 0 && <Text style={styles.sectionTitle}>Your scripts</Text>}
@@ -188,7 +190,10 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     micTestButton: {
       borderRadius: 16,
       paddingVertical: 12,
+      flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
       marginTop: 10,
       borderWidth: 1,
       borderColor: t.border,
