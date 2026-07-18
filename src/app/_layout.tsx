@@ -12,6 +12,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'react-native';
 
+import { HomeHeaderButton, SideMenu } from '@/lib/SideMenu';
 import { loadSavedPalette, useTheme } from '@/lib/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -44,8 +45,14 @@ export default function RootLayout() {
           headerShadowVisible: false,
           headerTitleStyle: { fontWeight: '700', fontFamily: 'Inter_700Bold' },
           contentStyle: { backgroundColor: t.bg },
+          // A home button replaces the back arrow everywhere — full nav
+          // lives in the SideMenu's hover/tap drawer instead.
+          headerLeft: () => <HomeHeaderButton />,
         }}>
-        <Stack.Screen name="index" options={{ title: 'F.A.R.T.', headerTitleAlign: 'center' }} />
+        <Stack.Screen
+          name="index"
+          options={{ title: 'F.A.R.T.', headerTitleAlign: 'center', headerLeft: () => null }}
+        />
         <Stack.Screen name="capture" options={{ title: 'New script' }} />
         <Stack.Screen name="assign/[id]" options={{ title: 'Highlight your lines' }} />
         <Stack.Screen name="rehearse/[id]" options={{ title: 'Rehearsal' }} />
@@ -55,6 +62,7 @@ export default function RootLayout() {
         <Stack.Screen name="admin" options={{ title: 'Monthly analysis' }} />
         <Stack.Screen name="mictest" options={{ title: 'Mic test' }} />
       </Stack>
+      <SideMenu />
     </>
   );
 }
