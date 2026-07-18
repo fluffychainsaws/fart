@@ -48,53 +48,28 @@ const SCRIPT_SCHEMA = {
   additionalProperties: false,
 };
 
-const INSTRUCTIONS = `These photos are pages of an acting audition script (sides), in page order.
+const INSTRUCTIONS = (source: 'photos' | 'PDF') => `These ${source === 'photos' ? 'photos are pages of' : 'pages are'} an acting audition script (sides), in page order.
 Transcribe the script faithfully into structured elements:
 - "line": one character's complete speech. Keep the character name UPPERCASE exactly as printed (drop trailing markers like (V.O.) or (CONT'D) from the name). Merge a speech that wraps across lines or pages into a single element.
 - "direction": scene headings, action/stage directions, and inline actor parentheticals like (beat) or (laughing). Put a parenthetical as its own direction element just before the line it modifies; never leave it inside the line text.
 Ignore page numbers, watermarks, and handwritten notes. Preserve the original wording exactly — do not paraphrase.`;
 
-export async function parseScriptPhotos(
-  photos: ScriptPhoto[],
-): Promise<{ title: string; elements: ScriptElement[] }> {
+function getApiKey(): string {
   const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new Error(
       'No API key set. Put EXPO_PUBLIC_ANTHROPIC_API_KEY in the .env file, then restart the dev server.',
     );
   }
+  return apiKey;
+}
 
-  // Dev-build setup: the key ships with the app bundle, which is fine while
-  // this is a personal build. Move this call behind a small server before
-  // distributing the app publicly.
-  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
-
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 16000,
-    thinking: { type: 'adaptive' },
-    output_config: { format: { type: 'json_schema', schema: SCRIPT_SCHEMA } },
-    messages: [
-      {
-        role: 'user',
-        content: [
-          ...photos.map((photo) => ({
-            type: 'image' as const,
-            source: {
-              type: 'base64' as const,
-              media_type: toMediaType(photo.mimeType),
-              // Web can hand back a full data URL; the API wants bare base64.
-              data: photo.base64.replace(/^data:image\/\w+;base64,/, ''),
-            },
-          })),
-          { type: 'text' as const, text: INSTRUCTIONS },
-        ],
-      },
-    ],
-  });
-
+function extractScript(
+  response: Anthropic.Messages.Message,
+  emptyErrorNoun: string,
+): { title: string; elements: ScriptElement[] } {
   if (response.stop_reason === 'refusal') {
-    throw new Error("The reader couldn't process this script. Try a clearer photo.");
+    throw new Error("The reader couldn't process this script. Try a clearer copy.");
   }
   const textBlock = response.content.find((b) => b.type === 'text');
   if (textBlock?.type !== 'text') {
@@ -114,7 +89,75 @@ export async function parseScriptPhotos(
     );
 
   if (!elements.some((el) => el.type === 'line')) {
-    throw new Error("Couldn't find any dialogue in the photos. Make sure the pages are readable.");
+    throw new Error(`Couldn't find any dialogue in the ${emptyErrorNoun}. Make sure the pages are readable.`);
   }
   return { title: parsed.title?.trim() || 'Untitled sides', elements };
+}
+
+export async function parseScriptPhotos(
+  photos: ScriptPhoto[],
+): Promise<{ title: string; elements: ScriptElement[] }> {
+  // Dev-build setup: the key ships with the app bundle, which is fine while
+  // this is a personal build. Move this call behind a small server before
+  // distributing the app publicly.
+  const client = new Anthropic({ apiKey: getApiKey(), dangerouslyAllowBrowser: true });
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 16000,
+    thinking: { type: 'adaptive' },
+    output_config: { format: { type: 'json_schema', schema: SCRIPT_SCHEMA } },
+    messages: [
+      {
+        role: 'user',
+        content: [
+          ...photos.map((photo) => ({
+            type: 'image' as const,
+            source: {
+              type: 'base64' as const,
+              media_type: toMediaType(photo.mimeType),
+              // Web can hand back a full data URL; the API wants bare base64.
+              data: photo.base64.replace(/^data:image\/\w+;base64,/, ''),
+            },
+          })),
+          { type: 'text' as const, text: INSTRUCTIONS('photos') },
+        ],
+      },
+    ],
+  });
+
+  return extractScript(response, 'photos');
+}
+
+// Reads the PDF as a native document rather than flattening it to images —
+// Claude parses the real embedded text/vector content, so this is more
+// reliable than a photo for anything but a screenshot of a PDF (which is
+// just an image, and still goes through parseScriptPhotos above).
+export async function parseScriptPdf(base64: string): Promise<{ title: string; elements: ScriptElement[] }> {
+  const client = new Anthropic({ apiKey: getApiKey(), dangerouslyAllowBrowser: true });
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 16000,
+    thinking: { type: 'adaptive' },
+    output_config: { format: { type: 'json_schema', schema: SCRIPT_SCHEMA } },
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'document' as const,
+            source: {
+              type: 'base64' as const,
+              media_type: 'application/pdf' as const,
+              data: base64.replace(/^data:application\/pdf;base64,/, ''),
+            },
+          },
+          { type: 'text' as const, text: INSTRUCTIONS('PDF') },
+        ],
+      },
+    ],
+  });
+
+  return extractScript(response, 'PDF');
 }

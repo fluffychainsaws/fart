@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
+import { fromByteArray } from 'base64-js';
 
 import { Text } from '@/lib/AppText';
-import { hasApiKey, parseScriptPhotos } from '@/lib/parser';
+import { hasApiKey, parseScriptPdf, parseScriptPhotos } from '@/lib/parser';
 import { newId, saveScript } from '@/lib/storage';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 
@@ -12,6 +14,11 @@ interface Page {
   uri: string;
   base64: string;
   mimeType: string | null;
+}
+
+interface Pdf {
+  name: string;
+  base64: string;
 }
 
 const LOADING_LINES = [
@@ -44,6 +51,7 @@ export default function CaptureScreen() {
   const shadow = useCardShadow();
   const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   const [pages, setPages] = useState<Page[]>([]);
+  const [pdf, setPdf] = useState<Pdf | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,6 +60,7 @@ export default function CaptureScreen() {
     const added = (result.assets ?? [])
       .filter((a) => a.base64)
       .map((a) => ({ uri: a.uri, base64: a.base64 as string, mimeType: a.mimeType ?? null }));
+    setPdf(null); // a script is either a PDF or a set of photos, not both
     setPages((prev) => [...prev, ...added]);
     setError(null);
   };
@@ -80,6 +89,25 @@ export default function CaptureScreen() {
     );
   };
 
+  const pickPdf = async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: 'application/pdf',
+      copyToCacheDirectory: true,
+    });
+    if (result.canceled) return;
+    const asset = result.assets?.[0];
+    if (!asset) return;
+    try {
+      const res = await fetch(asset.uri);
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      setPages([]); // a script is either a PDF or a set of photos, not both
+      setPdf({ name: asset.name, base64: fromByteArray(bytes) });
+      setError(null);
+    } catch {
+      setError("Couldn't read that PDF. Try picking it again.");
+    }
+  };
+
   const removePage = (index: number) => {
     setPages((prev) => prev.filter((_, i) => i !== index));
   };
@@ -88,9 +116,9 @@ export default function CaptureScreen() {
     setBusy(true);
     setError(null);
     try {
-      const { title, elements } = await parseScriptPhotos(
-        pages.map((p) => ({ base64: p.base64, mimeType: p.mimeType })),
-      );
+      const { title, elements } = pdf
+        ? await parseScriptPdf(pdf.base64)
+        : await parseScriptPhotos(pages.map((p) => ({ base64: p.base64, mimeType: p.mimeType })));
       const script = { id: newId(), title, createdAt: Date.now(), myCharacter: null, elements };
       await saveScript(script);
       router.replace({ pathname: '/assign/[id]', params: { id: script.id } });
@@ -101,17 +129,20 @@ export default function CaptureScreen() {
     }
   };
 
+  const hasInput = pdf !== null || pages.length > 0;
+
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.blurb}>
-        Snap each page of your sides in order (or pull them from your photos). FART turns them into a
-        script it can read with you.
+        Upload your sides as a PDF — most sides already are one, and FART reads the real text
+        directly instead of a photo of it. No PDF handy? Snap a photo or pull one from your
+        library instead; that works exactly the same.
       </Text>
 
       {!hasApiKey() && (
         <View style={styles.keyWarning}>
           <Text style={styles.keyWarningText}>
-            🔑 No API key set yet, so FART can't read photos. Add EXPO_PUBLIC_ANTHROPIC_API_KEY to
+            🔑 No API key set yet, so FART can't read scripts. Add EXPO_PUBLIC_ANTHROPIC_API_KEY to
             the .env file and restart the dev server.
           </Text>
         </View>
@@ -121,6 +152,14 @@ export default function CaptureScreen() {
         <LoadingCard />
       ) : (
         <>
+          <Pressable
+            style={({ pressed }) => [styles.pdfButton, pressed && styles.pressed]}
+            onPress={pickPdf}>
+            <Text style={styles.pdfEmoji}>📄</Text>
+            <Text style={styles.pdfLabel}>Upload PDF</Text>
+          </Pressable>
+
+          <Text style={styles.orDivider}>or snap it instead</Text>
           <View style={styles.buttonRow}>
             <Pressable
               style={({ pressed }) => [styles.pickButton, pressed && styles.pressed]}
@@ -135,6 +174,18 @@ export default function CaptureScreen() {
               <Text style={styles.pickLabel}>From photos</Text>
             </Pressable>
           </View>
+
+          {pdf && (
+            <View style={styles.pdfChip}>
+              <Text style={styles.pdfChipEmoji}>📄</Text>
+              <Text style={styles.pdfChipName} numberOfLines={1}>
+                {pdf.name}
+              </Text>
+              <Pressable hitSlop={8} onPress={() => setPdf(null)}>
+                <Text style={styles.thumbRemoveText}>✕</Text>
+              </Pressable>
+            </View>
+          )}
 
           {pages.length > 0 && (
             <>
@@ -152,12 +203,15 @@ export default function CaptureScreen() {
                   </View>
                 ))}
               </View>
-              <Pressable
-                style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
-                onPress={createScript}>
-                <Text style={styles.primaryButtonText}>✨ Create my script</Text>
-              </Pressable>
             </>
+          )}
+
+          {hasInput && (
+            <Pressable
+              style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
+              onPress={createScript}>
+              <Text style={styles.primaryButtonText}>✨ Create my script</Text>
+            </Pressable>
           )}
         </>
       )}
@@ -172,7 +226,32 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
   screen: { flex: 1, backgroundColor: t.bg },
   content: { padding: 20, paddingBottom: 40, maxWidth: 700, width: '100%', alignSelf: 'center' },
   blurb: { fontSize: 15, color: t.inkSoft, lineHeight: 21 },
-  buttonRow: { flexDirection: 'row', gap: 10, marginTop: 20 },
+  pdfButton: {
+    backgroundColor: t.accent,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.15)',
+    alignItems: 'center',
+    paddingVertical: 22,
+    marginTop: 20,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    ...shadow,
+  },
+  pdfEmoji: { fontSize: 24 },
+  pdfLabel: { fontSize: 17, fontWeight: '700', color: '#fff' },
+  orDivider: {
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '700',
+    color: t.inkSoft,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginTop: 18,
+    marginBottom: 10,
+  },
+  buttonRow: { flexDirection: 'row', gap: 10 },
   pickButton: {
     flex: 1,
     backgroundColor: t.card,
@@ -180,11 +259,26 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     borderWidth: 1,
     borderColor: t.border,
     alignItems: 'center',
-    paddingVertical: 22,
+    paddingVertical: 18,
     ...shadow,
   },
-  pickEmoji: { fontSize: 30 },
-  pickLabel: { fontSize: 14, fontWeight: '700', color: t.ink, marginTop: 6 },
+  pickEmoji: { fontSize: 26 },
+  pickLabel: { fontSize: 13, fontWeight: '700', color: t.ink, marginTop: 6 },
+  pdfChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: t.card,
+    borderWidth: 1,
+    borderColor: t.border,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginTop: 20,
+    ...shadow,
+  },
+  pdfChipEmoji: { fontSize: 18 },
+  pdfChipName: { flex: 1, fontSize: 14, fontWeight: '600', color: t.ink },
   sectionTitle: { fontSize: 13, fontWeight: '700', color: t.inkSoft, marginTop: 24, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 },
   thumbGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   thumbWrap: { width: 90 },
@@ -220,6 +314,8 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.15)',
     ...shadow,
   },
   primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
