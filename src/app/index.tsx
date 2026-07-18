@@ -4,7 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
 import { makeDemoScript } from '@/lib/demo';
-import { deleteScript, listScripts, saveScript } from '@/lib/storage';
+import { deleteScript, listScripts, refreshScripts, saveScript } from '@/lib/storage';
 import { getTier } from '@/lib/subscription';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 import { charactersIn, myLineCount, type FartScript } from '@/lib/types';
@@ -19,7 +19,9 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      // Local list immediately, then the account-merged list when sync lands.
       listScripts().then(setScripts);
+      refreshScripts().then(setScripts);
       getUsageStatus().then(setUsage);
     }, []),
   );

@@ -11,13 +11,43 @@ never put it in the app or the repo.
 ## Dashboard checklist (once, in supabase.com → project `fart`)
 
 1. **Schema** — open **SQL Editor**, paste all of `supabase/schema.sql`, **Run**.
-   Creates the `profiles` table, locks it with Row Level Security, and
-   auto-creates a profile row on signup. Safe to re-run any time.
+   Creates the `profiles` and `scripts` tables, locks them with Row Level
+   Security, and auto-creates a profile row on signup. Safe to re-run any
+   time — and MUST be re-run after pulling schema changes (e.g. the tier-name
+   fix and the scripts table added for account sync).
 2. **Auth settings** — **Authentication → Sign In / Up**: leave **Confirm
    email** ON; set minimum password length to **8**.
 3. **Redirects** — **Authentication → URL Configuration**: set Site URL to
    `https://fluffychainsaws.github.io/fart` and add the same URL to
    **Redirect URLs** (confirmation + reset links land there).
+
+## Billing (Stripe) — when ready to charge
+
+The app opens Stripe **Payment Links** in the browser (no app-store cut), and
+a Supabase Edge Function flips `profiles.tier` when Stripe reports a payment.
+
+1. Create a Stripe account (stripe.com), then in **Product catalog** create
+   three recurring products matching the app's plans: FART $5/mo,
+   FART PRO $10/mo, SHART STAR $25/mo. Note each price's ID (`price_...`).
+2. For each product create a **Payment Link** (Stripe dashboard → Payment
+   Links). Paste the three URLs into `PAYMENT_LINKS` in `src/lib/billing.ts`.
+3. Deploy the webhook (needs the [Supabase CLI](https://supabase.com/docs/guides/cli),
+   one-time):
+   ```
+   supabase login
+   supabase link --project-ref bojaiebacqsqewmxwuih
+   supabase functions deploy stripe-webhook --no-verify-jwt
+   supabase secrets set STRIPE_SECRET_KEY=sk_live_... STRIPE_WEBHOOK_SECRET=whsec_... \
+     PRICE_FART=price_... PRICE_FARTPRO=price_... PRICE_SHARTSTAR=price_...
+   ```
+4. In Stripe → **Developers → Webhooks**, add an endpoint pointing at
+   `https://bojaiebacqsqewmxwuih.supabase.co/functions/v1/stripe-webhook`
+   listening to `checkout.session.completed`, `customer.subscription.updated`,
+   `customer.subscription.deleted`. Copy its signing secret into
+   `STRIPE_WEBHOOK_SECRET` above.
+
+Test the loop with Stripe's test mode (test-mode payment links + `sk_test_`
+keys) before flipping to live keys.
 
 ## How the accounts are protected
 - **Passwords** are bcrypt-hashed by Supabase before storage; nobody

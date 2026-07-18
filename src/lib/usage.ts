@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { getTier, TIERS, type Tier } from './subscription';
+import { supabase } from './supabase';
 import type { FartScript } from './types';
 
 // Local-only subscription + usage tracking. There is no server yet, so this
@@ -48,14 +49,41 @@ export async function getDeviceId(): Promise<string> {
   return id;
 }
 
+// Signed in: the server's profiles.tier is the truth (RLS stops users from
+// editing it — only the billing webhook or the dashboard can). Cached for a
+// minute so every screen focus doesn't hit the network; the last server
+// answer is mirrored locally as the offline fallback.
+let serverTierCache: { tier: Tier; at: number } | null = null;
+
+async function fetchServerTier(): Promise<Tier | null> {
+  if (!supabase) return null;
+  const { data: auth } = await supabase.auth.getSession();
+  const uid = auth.session?.user.id;
+  if (!uid) return null;
+  if (serverTierCache && Date.now() - serverTierCache.at < 60_000) return serverTierCache.tier;
+  const { data, error } = await supabase.from('profiles').select('tier').eq('id', uid).single();
+  if (error || !data || !(data.tier in TIERS)) return null;
+  const tier = data.tier as Tier;
+  serverTierCache = { tier, at: Date.now() };
+  await AsyncStorage.setItem(TIER_KEY, tier);
+  return tier;
+}
+
 export async function getCurrentTier(): Promise<Tier> {
+  try {
+    const server = await fetchServerTier();
+    if (server) return server;
+  } catch {
+    // offline — fall through to the last known local value
+  }
   const stored = await AsyncStorage.getItem(TIER_KEY);
   if (stored && stored in TIERS) return stored as Tier;
   return 'free';
 }
 
-// Dev-only stand-in for a real purchase flow. Once RevenueCat is wired up,
-// this should only be called from its purchase-success / restore callbacks.
+// Dev-only stand-in for a real purchase flow, used while signed OUT. For
+// signed-in users the server tier wins on the next fetch regardless of what
+// this writes.
 export async function setCurrentTier(tier: Tier): Promise<void> {
   await AsyncStorage.setItem(TIER_KEY, tier);
 }

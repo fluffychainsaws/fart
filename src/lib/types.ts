@@ -18,6 +18,9 @@ export interface FartScript {
   id: string;
   title: string;
   createdAt: number;
+  // Set on every save; account sync uses it for last-write-wins merging.
+  // Older local scripts may lack it — fall back to createdAt.
+  updatedAt?: number;
   myCharacter: string | null;
   elements: ScriptElement[];
   // Per-character voice choices: "openai:coral" or "device:<identifier>".

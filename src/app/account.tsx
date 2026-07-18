@@ -4,6 +4,7 @@ import { router, useFocusEffect } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
 import { signOut, useSession } from '@/lib/auth';
+import { billingConfigured, openCheckout } from '@/lib/billing';
 import { getTier, TIER_ORDER, type Tier } from '@/lib/subscription';
 import { accountsEnabled } from '@/lib/supabase';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
@@ -29,6 +30,18 @@ export default function AccountScreen() {
   };
 
   const confirmSwitch = (tier: Tier) => {
+    // Signed in: the server owns the tier, so switching means real checkout.
+    if (session) {
+      if (tier === 'free' || !openCheckout(tier, session.user.id, session.user.email)) {
+        const msg =
+          tier === 'free'
+            ? 'To downgrade, cancel your subscription from the receipt email — your plan drops to Free automatically.'
+            : 'Checkout for this plan isn’t open yet — hang tight!';
+        if (Platform.OS === 'web') window.alert(msg);
+        else Alert.alert('Plans', msg);
+      }
+      return;
+    }
     const name = getTier(tier).name;
     if (Platform.OS === 'web') {
       if (window.confirm(`Switch to ${name}? (dev-only — no real payment yet)`)) switchTier(tier);
@@ -132,7 +145,11 @@ export default function AccountScreen() {
         );
       })}
       <Text style={styles.devNote}>
-        Dev build: plan switching here is a stand-in for real billing. No payment is processed yet.
+        {session
+          ? billingConfigured()
+            ? 'Payments are handled securely by Stripe. Your plan updates within a minute of checkout.'
+            : 'Your plan is tied to your account. Paid checkout opens soon.'
+          : 'Signed out: plan switching is a local stand-in. Sign in to keep a real plan.'}
       </Text>
     </ScrollView>
   );
