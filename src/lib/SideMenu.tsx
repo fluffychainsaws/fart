@@ -98,8 +98,8 @@ export function SideMenu() {
           if (cancelled) return;
           setOpen(false);
           dismissHint.current();
-        }, 2200);
-      }, 1400);
+        }, 1100);
+      }, 700);
     });
 
     return () => {
