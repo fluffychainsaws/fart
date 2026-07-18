@@ -57,7 +57,14 @@ export default function AccountScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.usageCard}>
-        <Text style={styles.usageTier}>{getTier(status.tier).name}</Text>
+        <View style={styles.usageHeader}>
+          <Text style={styles.usageTier}>{getTier(status.tier).name}</Text>
+          {status.tier !== 'free' && (
+            <Pressable hitSlop={8} onPress={() => confirmSwitch('free')}>
+              <Text style={styles.cancelLink}>Cancel plan</Text>
+            </Pressable>
+          )}
+        </View>
         <Text style={styles.usageCount}>
           {status.unlimited
             ? `${status.auditionsUsed} auditions this month · Unlimited`
@@ -146,7 +153,9 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       padding: 18,
       ...shadow,
     },
+    usageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     usageTier: { fontSize: 13, fontWeight: '800', color: t.accent, letterSpacing: 0.5, textTransform: 'uppercase' },
+    cancelLink: { fontSize: 12, fontWeight: '700', color: '#d64545' },
     usageCount: { fontSize: 16, fontWeight: '700', color: t.ink, marginTop: 6 },
     progressTrack: {
       height: 8,

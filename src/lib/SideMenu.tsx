@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Easing, Image, Platform, Pressable, StyleSheet, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, usePathname } from 'expo-router';
 
@@ -7,6 +7,7 @@ import { Text } from '@/lib/AppText';
 import { signOut, useSession } from '@/lib/auth';
 import { LogoutIcon } from '@/lib/LogoutIcon';
 import { MicIcon } from '@/lib/MicIcon';
+import { useProfilePhoto } from '@/lib/profilePhoto';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 
 const HINT_SEEN_KEY = 'fart.sideMenuHintSeen.v1';
@@ -33,9 +34,9 @@ const LINKS: { href: Href; label: string; icon: string }[] = [
 
 // Account-related actions, pinned to the bottom of the drawer and set off
 // with a divider — Logout is an action, not a route, so it's handled
-// separately from the plain nav links above.
+// separately from the plain nav links above. Profile lives up top instead,
+// next to the avatar.
 const BOTTOM_LINKS: { href: Href; label: string; icon: string }[] = [
-  { href: '/profile', label: 'Profile', icon: '👤' },
   { href: '/settings', label: 'Settings', icon: '⚙️' },
   { href: '/account', label: 'Plan', icon: '🎫' },
 ];
@@ -46,6 +47,7 @@ export function SideMenu() {
   const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   const pathname = usePathname();
   const session = useSession();
+  const photo = useProfilePhoto();
   const [open, setOpen] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
@@ -213,6 +215,29 @@ export function SideMenu() {
         )}
 
         <Animated.View style={[styles.drawer, shadow, { transform: [{ translateX }] }]}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.profileRow,
+              pathname === '/profile' && styles.linkActive,
+              pressed && styles.pressed,
+            ]}
+            onPress={() => {
+              dismissHint.current();
+              setOpen(false);
+              router.push('/profile');
+            }}>
+            {photo ? (
+              <Image source={{ uri: photo }} style={styles.avatarImage} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Text style={styles.avatarPlaceholderText}>👤</Text>
+              </View>
+            )}
+            <Text style={[styles.linkLabel, pathname === '/profile' && styles.linkLabelActive]}>
+              Profile
+            </Text>
+          </Pressable>
+
           <Text style={styles.brand}>F.A.R.T.</Text>
           {LINKS.map((link) => {
             const active = pathname === link.href;
@@ -380,6 +405,33 @@ function makeStyles(t: Theme, shadow: ReturnType<typeof useCardShadow>) {
       marginBottom: 8,
       marginHorizontal: 10,
     },
+    profileRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 10,
+      paddingHorizontal: 10,
+      borderRadius: 12,
+      gap: 10,
+      marginBottom: 10,
+    },
+    avatarImage: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      borderWidth: 1,
+      borderColor: t.border,
+    },
+    avatarPlaceholder: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: t.accentSoft,
+      borderWidth: 1,
+      borderColor: t.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarPlaceholderText: { fontSize: 16 },
     brand: {
       fontSize: 13,
       fontWeight: '800',
