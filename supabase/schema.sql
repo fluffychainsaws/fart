@@ -94,6 +94,13 @@ create policy "delete own scripts"
   on public.scripts for delete
   using (auth.uid() = user_id);
 
+-- Profile photo, synced across devices. Stored as a data URI (not Storage
+-- bucket + file) to match the rest of this schema's "just a column" approach
+-- — photos here are small (picked at quality 0.5, cropped square). Merge is
+-- last-write-wins via photo_updated_at, same idea as scripts' updated_at.
+alter table public.profiles add column if not exists photo_url text;
+alter table public.profiles add column if not exists photo_updated_at bigint not null default 0;
+
 -- Owner/admin flag. Flip it on your own row once, in Table Editor:
 -- profiles -> your row -> is_admin = true. Nobody can set it from the app
 -- (the update policy already blocks profile edits beyond what it allows,

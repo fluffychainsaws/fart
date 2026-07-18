@@ -9,7 +9,7 @@ import { ClapperIcon } from '@/lib/ClapperIcon';
 import { HomeIcon } from '@/lib/HomeIcon';
 import { LogoutIcon } from '@/lib/LogoutIcon';
 import { MicIcon } from '@/lib/MicIcon';
-import { useProfilePhoto } from '@/lib/profilePhoto';
+import { refreshProfilePhoto, useProfilePhoto } from '@/lib/profilePhoto';
 import { getTier } from '@/lib/subscription';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 import { getUsageStatus } from '@/lib/usage';
@@ -64,6 +64,7 @@ export function SideMenu() {
   useEffect(() => {
     if (!open) return;
     getUsageStatus().then((status) => setTierName(getTier(status.tier).name));
+    refreshProfilePhoto();
   }, [open, session]);
 
   useEffect(() => {

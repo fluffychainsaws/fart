@@ -1,11 +1,11 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
 import { signOut, useSession } from '@/lib/auth';
-import { getProfilePhoto, setProfilePhoto, useProfilePhoto } from '@/lib/profilePhoto';
+import { getProfilePhoto, refreshProfilePhoto, setProfilePhoto, useProfilePhoto } from '@/lib/profilePhoto';
 import { accountsEnabled } from '@/lib/supabase';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 
@@ -15,6 +15,10 @@ export default function ProfileScreen() {
   const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   const session = useSession();
   const photo = useProfilePhoto();
+
+  useEffect(() => {
+    refreshProfilePhoto();
+  }, [session]);
 
   const pickPhoto = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
