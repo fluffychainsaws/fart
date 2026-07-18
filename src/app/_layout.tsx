@@ -12,9 +12,10 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'react-native';
 
-import { useTheme } from '@/lib/theme';
+import { loadSavedPalette, useTheme } from '@/lib/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+loadSavedPalette();
 
 export default function RootLayout() {
   const t = useTheme();

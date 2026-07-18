@@ -7,7 +7,14 @@ import { signOut, useSession } from '@/lib/auth';
 import { billingConfigured, openCheckout } from '@/lib/billing';
 import { getTier, TIER_ORDER, type Tier } from '@/lib/subscription';
 import { accountsEnabled } from '@/lib/supabase';
-import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
+import {
+  getPaletteId,
+  PALETTES,
+  setPalette,
+  useCardShadow,
+  useTheme,
+  type Theme,
+} from '@/lib/theme';
 import { getUsageStatus, setCurrentTier, type UsageStatus } from '@/lib/usage';
 
 export default function AccountScreen() {
@@ -102,6 +109,33 @@ export default function AccountScreen() {
               },
             ]}
           />
+        </View>
+      </View>
+
+      <Text style={styles.sectionTitle}>Appearance</Text>
+      <View style={styles.paletteCard}>
+        <View style={styles.paletteGrid}>
+          {PALETTES.map((p) => {
+            const selected = p.id === getPaletteId();
+            return (
+              <Pressable
+                key={p.id}
+                style={styles.paletteItem}
+                onPress={() => setPalette(p.id)}
+                accessibilityLabel={`${p.name} color theme`}>
+                <View
+                  style={[
+                    styles.swatchRing,
+                    selected && { borderColor: p.light.accent },
+                  ]}>
+                  <View style={[styles.swatch, { backgroundColor: p.light.accent }]} />
+                </View>
+                <Text style={[styles.swatchName, selected && styles.swatchNameActive]}>
+                  {p.name}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
       </View>
 
@@ -207,6 +241,32 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       textTransform: 'uppercase',
       letterSpacing: 1,
     },
+    paletteCard: {
+      backgroundColor: t.card,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: t.border,
+      padding: 14,
+      ...shadow,
+    },
+    paletteGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+    },
+    paletteItem: { width: '16%', minWidth: 52, alignItems: 'center', marginVertical: 8 },
+    swatchRing: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      borderWidth: 3,
+      borderColor: 'transparent',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    swatch: { width: 28, height: 28, borderRadius: 14 },
+    swatchName: { fontSize: 10, color: t.inkSoft, marginTop: 4, textAlign: 'center' },
+    swatchNameActive: { color: t.ink, fontWeight: '700' },
     planCard: {
       backgroundColor: t.card,
       borderRadius: 16,
