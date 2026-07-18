@@ -36,45 +36,33 @@ export interface NeuralVoiceOption {
 export const NEURAL_VOICES: NeuralVoiceOption[] = [
   // American female
   { id: 'af_heart', label: 'Heart · American female' },
-  { id: 'af_bella', label: 'Bella · American female' },
-  { id: 'af_nicole', label: 'Nicole · American female (soft)' },
   { id: 'af_sarah', label: 'Sarah · American female' },
   { id: 'af_aoede', label: 'Aoede · American female' },
   { id: 'af_kore', label: 'Kore · American female' },
-  { id: 'af_alloy', label: 'Alloy · American female' },
   { id: 'af_nova', label: 'Nova · American female' },
   { id: 'af_jessica', label: 'Jessica · American female' },
-  { id: 'af_river', label: 'River · American female' },
   { id: 'af_sky', label: 'Sky · American female' },
   // American male
   { id: 'am_michael', label: 'Michael · American male' },
   { id: 'am_fenrir', label: 'Fenrir · American male' },
   { id: 'am_puck', label: 'Puck · American male' },
-  { id: 'am_adam', label: 'Adam · American male' },
   { id: 'am_echo', label: 'Echo · American male' },
   { id: 'am_eric', label: 'Eric · American male' },
-  { id: 'am_liam', label: 'Liam · American male' },
   { id: 'am_onyx', label: 'Onyx · American male (deep)' },
-  { id: 'am_santa', label: 'Santa · American male (jolly)' },
   // British female
   { id: 'bf_emma', label: 'Emma · British female' },
   { id: 'bf_isabella', label: 'Isabella · British female' },
-  { id: 'bf_alice', label: 'Alice · British female' },
-  { id: 'bf_lily', label: 'Lily · British female' },
   // British male
   { id: 'bm_george', label: 'George · British male' },
   { id: 'bm_fable', label: 'Fable · British male' },
   { id: 'bm_lewis', label: 'Lewis · British male' },
   { id: 'bm_daniel', label: 'Daniel · British male' },
-  // Derived young voices (explicit picks only — never auto-cast)
-  { id: 'young_girl', label: 'Riley · Young girl', base: 'af_sky', pitchShift: 1.16 },
-  { id: 'young_boy', label: 'Charlie · Young boy', base: 'am_liam', pitchShift: 1.14 },
 ] as const;
 
 const voiceOption = (id: string): NeuralVoiceOption =>
   NEURAL_VOICES.find((v) => v.id === id) ?? { id, label: id };
 
-const NARRATOR_VOICE = 'af_nicole'; // soft, unobtrusive for stage directions
+const NARRATOR_VOICE = 'af_sarah'; // soft, unobtrusive for stage directions
 
 type EngineState = 'off' | 'loading' | 'ready' | 'error';
 
@@ -201,8 +189,6 @@ function voiceFor(character: string): string {
   // the derived young voices stay explicit picks in the full list.
   const AUTO_CAST = new Set([
     'af_heart',
-    'af_bella',
-    'af_nicole',
     'af_sarah',
     'am_michael',
     'am_fenrir',
