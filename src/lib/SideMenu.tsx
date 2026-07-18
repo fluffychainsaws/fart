@@ -6,6 +6,7 @@ import { router, usePathname } from 'expo-router';
 import { Text } from '@/lib/AppText';
 import { signOut, useSession } from '@/lib/auth';
 import { ClapperIcon } from '@/lib/ClapperIcon';
+import { HomeIcon } from '@/lib/HomeIcon';
 import { LogoutIcon } from '@/lib/LogoutIcon';
 import { MicIcon } from '@/lib/MicIcon';
 import { useProfilePhoto } from '@/lib/profilePhoto';
@@ -270,6 +271,8 @@ export function SideMenu() {
                   <MicIcon size={18} />
                 ) : link.href === '/capture' ? (
                   <ClapperIcon size={18} />
+                ) : link.href === '/' ? (
+                  <HomeIcon size={18} />
                 ) : (
                   <Text style={styles.linkIcon}>{link.icon}</Text>
                 )}
@@ -334,14 +337,13 @@ export function SideMenu() {
 // Home button used in place of the default header back arrow — always
 // returns to the root screen regardless of navigation depth.
 export function HomeHeaderButton() {
-  const t = useTheme();
   return (
     <Pressable
       onPress={() => router.push('/')}
       hitSlop={10}
       style={({ pressed }) => [{ paddingHorizontal: 4, opacity: pressed ? 0.6 : 1 }]}
       accessibilityLabel="Go home">
-      <Text style={{ fontSize: 20, color: t.ink }}>🏠</Text>
+      <HomeIcon size={22} />
     </Pressable>
   );
 }

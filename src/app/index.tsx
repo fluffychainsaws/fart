@@ -7,24 +7,20 @@ import { ClapperIcon } from '@/lib/ClapperIcon';
 import { makeDemoScript } from '@/lib/demo';
 import { MicIcon } from '@/lib/MicIcon';
 import { deleteScript, listScripts, refreshScripts, saveScript } from '@/lib/storage';
-import { getTier } from '@/lib/subscription';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 import { charactersIn, myLineCount, type FartScript } from '@/lib/types';
-import { getUsageStatus, type UsageStatus } from '@/lib/usage';
 
 export default function HomeScreen() {
   const t = useTheme();
   const shadow = useCardShadow();
   const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   const [scripts, setScripts] = useState<FartScript[]>([]);
-  const [usage, setUsage] = useState<UsageStatus | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       // Local list immediately, then the account-merged list when sync lands.
       listScripts().then(setScripts);
       refreshScripts().then(setScripts);
-      getUsageStatus().then(setUsage);
     }, []),
   );
 
@@ -76,16 +72,6 @@ export default function HomeScreen() {
                 <Text style={styles.webBannerSubtext}>Full features, no app install needed</Text>
               </Pressable>
             )}
-            <Pressable
-              style={({ pressed }) => [styles.planPill, pressed && styles.pressed]}
-              onPress={() => router.push('/account')}>
-              <Text style={styles.planPillText}>
-                {usage
-                  ? `${getTier(usage.tier).name} · ${usage.unlimited ? 'Unlimited auditions' : `${usage.auditionsUsed}/${usage.auditionsPerMonth} auditions`}`
-                  : 'Your plan'}
-              </Text>
-              <Text style={styles.planPillArrow}>›</Text>
-            </Pressable>
             <Pressable
               style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
               onPress={() => router.push('/capture')}>
@@ -154,20 +140,6 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     },
     webBannerText: { fontSize: 14, fontWeight: '700', color: '#0066cc' },
     webBannerSubtext: { fontSize: 12, color: '#0066cc', marginTop: 2, opacity: 0.8 },
-    planPill: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: t.card,
-      borderWidth: 1,
-      borderColor: t.border,
-      borderRadius: 14,
-      paddingVertical: 10,
-      paddingHorizontal: 14,
-      marginTop: 14,
-    },
-    planPillText: { fontSize: 13, fontWeight: '700', color: t.ink },
-    planPillArrow: { fontSize: 16, color: t.inkSoft },
     primaryButton: {
       backgroundColor: t.accent,
       borderRadius: 16,
