@@ -51,8 +51,14 @@ export async function getDeviceId(): Promise<string> {
 
 // Signed in: the server's profiles.tier is the truth (RLS stops users from
 // editing it — only the billing webhook or the dashboard can). Cached for a
-// minute so every screen focus doesn't hit the network; the last server
-// answer is mirrored locally as the offline fallback.
+// minute so every screen focus doesn't hit the network. The last confirmed
+// server answer is also stored locally with its timestamp: that's the
+// offline fallback, and it EXPIRES after a grace window so a cancelled
+// subscriber can't keep a paid tier forever by blocking the connection —
+// same model as Netflix/Spotify offline entitlements.
+const SERVER_TIER_KEY = 'fart.serverTier.v1';
+const OFFLINE_GRACE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days unreachable → free
+
 let serverTierCache: { tier: Tier; at: number } | null = null;
 
 async function fetchServerTier(): Promise<Tier | null> {
@@ -65,8 +71,14 @@ async function fetchServerTier(): Promise<Tier | null> {
   if (error || !data || !(data.tier in TIERS)) return null;
   const tier = data.tier as Tier;
   serverTierCache = { tier, at: Date.now() };
-  await AsyncStorage.setItem(TIER_KEY, tier);
+  await AsyncStorage.setItem(SERVER_TIER_KEY, JSON.stringify(serverTierCache));
   return tier;
+}
+
+async function signedIn(): Promise<boolean> {
+  if (!supabase) return false;
+  const { data } = await supabase.auth.getSession(); // local read, works offline
+  return !!data.session;
 }
 
 export async function getCurrentTier(): Promise<Tier> {
@@ -74,7 +86,19 @@ export async function getCurrentTier(): Promise<Tier> {
     const server = await fetchServerTier();
     if (server) return server;
   } catch {
-    // offline — fall through to the last known local value
+    // offline — fall through to the graced local mirror
+  }
+  if (await signedIn()) {
+    try {
+      const raw = await AsyncStorage.getItem(SERVER_TIER_KEY);
+      if (raw) {
+        const { tier, at } = JSON.parse(raw) as { tier: Tier; at: number };
+        if (tier in TIERS && Date.now() - at < OFFLINE_GRACE_MS) return tier;
+      }
+    } catch {
+      // corrupt mirror — treat as absent
+    }
+    return 'free';
   }
   const stored = await AsyncStorage.getItem(TIER_KEY);
   if (stored && stored in TIERS) return stored as Tier;
