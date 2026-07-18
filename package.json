@@ -7,6 +7,7 @@
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo/ui": "~57.0.4",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@supabase/supabase-js": "^2.110.7",
     "expo": "~57.0.4",
     "expo-audio": "~57.0.0",
     "expo-camera": "~57.0.1",

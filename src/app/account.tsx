@@ -1,9 +1,11 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
+import { signOut, useSession } from '@/lib/auth';
 import { getTier, TIER_ORDER, type Tier } from '@/lib/subscription';
+import { accountsEnabled } from '@/lib/supabase';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 import { getUsageStatus, setCurrentTier, type UsageStatus } from '@/lib/usage';
 
@@ -12,6 +14,7 @@ export default function AccountScreen() {
   const shadow = useCardShadow();
   const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   const [status, setStatus] = useState<UsageStatus | null>(null);
+  const session = useSession();
 
   const refresh = useCallback(() => {
     getUsageStatus().then(setStatus);
@@ -41,6 +44,31 @@ export default function AccountScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      {accountsEnabled && (
+        <View style={styles.accountCard}>
+          {session ? (
+            <>
+              <Text style={styles.accountEmail}>{session.user.email}</Text>
+              <Pressable
+                style={({ pressed }) => [styles.accountButton, pressed && styles.pressed]}
+                onPress={() => signOut()}>
+                <Text style={styles.accountButtonText}>Sign out</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Text style={styles.accountBlurb}>
+                Sign in to keep your scripts and plan across devices.
+              </Text>
+              <Pressable
+                style={({ pressed }) => [styles.accountButton, pressed && styles.pressed]}
+                onPress={() => router.push('/login')}>
+                <Text style={styles.accountButtonText}>Sign in / Create account</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+      )}
       <View style={styles.usageCard}>
         <Text style={styles.usageTier}>{getTier(status.tier).name}</Text>
         <Text style={styles.usageCount}>
@@ -114,6 +142,25 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.bg },
     content: { padding: 20, paddingBottom: 48, maxWidth: 700, width: '100%', alignSelf: 'center' },
+    accountCard: {
+      backgroundColor: t.card,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: t.border,
+      padding: 18,
+      marginBottom: 12,
+      ...shadow,
+    },
+    accountEmail: { fontSize: 15, fontWeight: '700', color: t.ink },
+    accountBlurb: { fontSize: 14, color: t.inkSoft, lineHeight: 20 },
+    accountButton: {
+      backgroundColor: t.accentSoft,
+      borderRadius: 12,
+      paddingVertical: 11,
+      alignItems: 'center',
+      marginTop: 12,
+    },
+    accountButtonText: { color: t.accent, fontSize: 14, fontWeight: '700' },
     usageCard: {
       backgroundColor: t.card,
       borderRadius: 16,

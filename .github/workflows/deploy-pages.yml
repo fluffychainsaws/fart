@@ -30,6 +30,11 @@ jobs:
 
       - name: Export static web build
         run: npx expo export --platform web
+        env:
+          # Empty until the repo secrets exist (supabase/README.md step 4) —
+          # the app hides all account UI when these are blank.
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
 
       - name: Add SPA fallback and disable Jekyll
         run: |
