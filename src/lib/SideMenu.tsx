@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Easing, Platform, Pressable, StyleSheet, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, usePathname } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
+
+const HINT_SEEN_KEY = 'fart.sideMenuHintSeen.v1';
 
 // Slide-out nav. On web, hovering the left edge reveals it (mouse-driven,
 // like a native app's collapsed sidebar); on touch, tapping the edge tab
@@ -30,7 +33,9 @@ export function SideMenu() {
   const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [showHint, setShowHint] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
+  const pulse = useRef(new Animated.Value(0)).current;
 
   const edgeRef = useRef<View>(null);
   const backdropRef = useRef<View>(null);
@@ -43,6 +48,60 @@ export function SideMenu() {
     }).start();
   }, [open, anim]);
 
+  // First-time discovery: a gentle pulse on the edge grip plus a callout,
+  // then a brief auto-peek of the open drawer — so new visitors notice the
+  // menu exists instead of never finding a hover/tap-only affordance. Once
+  // shown (or the user opens the menu themselves), it never shows again.
+  const dismissHint = useRef(() => {});
+  useEffect(() => {
+    let cancelled = false;
+    let peekTimer: ReturnType<typeof setTimeout>;
+    let closeTimer: ReturnType<typeof setTimeout>;
+    let loop: Animated.CompositeAnimation | null = null;
+
+    dismissHint.current = () => {
+      cancelled = true;
+      clearTimeout(peekTimer);
+      clearTimeout(closeTimer);
+      loop?.stop();
+      pulse.setValue(0);
+      setShowHint(false);
+      AsyncStorage.setItem(HINT_SEEN_KEY, '1').catch(() => {});
+    };
+
+    AsyncStorage.getItem(HINT_SEEN_KEY).then((seen) => {
+      if (seen || cancelled) return;
+      setShowHint(true);
+      loop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulse, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          Animated.timing(pulse, { toValue: 0, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        ]),
+      );
+      loop.start();
+      peekTimer = setTimeout(() => {
+        if (cancelled) return;
+        setOpen(true);
+        closeTimer = setTimeout(() => {
+          if (cancelled) return;
+          setOpen(false);
+          dismissHint.current();
+        }, 2200);
+      }, 1400);
+    });
+
+    return () => {
+      cancelled = true;
+      clearTimeout(peekTimer);
+      clearTimeout(closeTimer);
+      loop?.stop();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const pulseScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] });
+  const pulseOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0] });
+
   // Web: drive open/close from raw DOM events. react-native-web's press
   // system silently drops touches on these absolutely-positioned overlay
   // elements, but the underlying DOM events arrive fine — so we listen to
@@ -51,7 +110,10 @@ export function SideMenu() {
     if (Platform.OS !== 'web') return;
     const edge = edgeRef.current as unknown as HTMLElement | null;
     const backdrop = backdropRef.current as unknown as HTMLElement | null;
-    const openMenu = () => setOpen(true);
+    const openMenu = () => {
+      dismissHint.current();
+      setOpen(true);
+    };
     const closeMenu = () => setOpen(false);
     edge?.addEventListener('touchstart', openMenu, { passive: true });
     edge?.addEventListener('mousedown', openMenu);
@@ -78,7 +140,13 @@ export function SideMenu() {
     typeof window !== 'undefined' &&
     !!window.matchMedia?.('(hover: hover)').matches;
   const hoverProps = hasHover
-    ? { onMouseEnter: () => setOpen(true), onMouseLeave: () => setOpen(false) }
+    ? {
+        onMouseEnter: () => {
+          dismissHint.current();
+          setOpen(true);
+        },
+        onMouseLeave: () => setOpen(false),
+      }
     : {};
 
   return (
@@ -105,10 +173,30 @@ export function SideMenu() {
           // Open-only (not a toggle): both touch and synthesized mouse events
           // can fire for one tap, and an idempotent open is immune to that.
           // Closing belongs to the backdrop, nav links, and mouse-leave.
-          onPressIn={() => setOpen(true)}
+          onPressIn={() => {
+            dismissHint.current();
+            setOpen(true);
+          }}
           accessibilityLabel="Open menu">
+          {showHint && (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.pulseRing,
+                { opacity: pulseOpacity, transform: [{ scale: pulseScale }] },
+              ]}
+            />
+          )}
           <View style={styles.edgeGrip} />
         </Pressable>
+
+        {showHint && !open && (
+          <View pointerEvents="none" style={styles.hintCallout}>
+            <Text style={styles.hintText} numberOfLines={1}>
+              {hasHover ? '← Menu' : '☰ Menu'}
+            </Text>
+          </View>
+        )}
 
         <Animated.View style={[styles.drawer, shadow, { transform: [{ translateX }] }]}>
           <Text style={styles.brand}>F.A.R.T.</Text>
@@ -123,6 +211,7 @@ export function SideMenu() {
                   pressed && styles.pressed,
                 ]}
                 onPress={() => {
+                  dismissHint.current();
                   setOpen(false);
                   router.push(link.href);
                 }}>
@@ -179,10 +268,31 @@ function makeStyles(t: Theme, shadow: ReturnType<typeof useCardShadow>) {
       justifyContent: 'center',
     },
     edgeGrip: {
-      width: 4,
-      height: 48,
-      borderRadius: 2,
-      backgroundColor: t.border,
+      width: 6,
+      height: 64,
+      borderRadius: 3,
+      backgroundColor: t.accent + '80',
+    },
+    pulseRing: {
+      position: 'absolute',
+      width: 20,
+      height: 76,
+      borderRadius: 10,
+      backgroundColor: t.accent,
+    },
+    hintCallout: {
+      position: 'absolute',
+      top: '38%',
+      left: EDGE_WIDTH + 8,
+      backgroundColor: t.ink,
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      borderRadius: 8,
+    },
+    hintText: {
+      color: t.bg,
+      fontSize: 12,
+      fontWeight: '700',
     },
     drawer: {
       position: 'absolute',
