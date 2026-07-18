@@ -227,7 +227,11 @@ export function useTheme(): Theme {
   const scheme = useEffectiveScheme();
   const paletteId = useSyncExternalStore(subscribe, getPaletteId, getPaletteId);
   const palette = PALETTES.find((p) => p.id === paletteId) ?? PALETTES[0];
-  return scheme === 'dark' ? { ...dark, ...palette.dark } : { ...light, ...palette.light };
+  const merged = scheme === 'dark' ? { ...dark, ...palette.dark } : { ...light, ...palette.light };
+  // Borders track whichever accent is currently selected — a translucent
+  // wash of the accent itself, rather than a fixed per-palette hex, so
+  // every bordered surface visibly follows a palette switch.
+  return { ...merged, border: merged.accent + (scheme === 'dark' ? '55' : '40') };
 }
 
 // Soft elevation for cards, buttons, and modals — subtle on the cream light

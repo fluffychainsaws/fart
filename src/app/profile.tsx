@@ -67,6 +67,8 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       paddingVertical: 11,
       alignItems: 'center',
       marginTop: 14,
+      borderWidth: 1,
+      borderColor: t.border,
     },
     buttonText: { color: t.accent, fontSize: 14, fontWeight: '700' },
     pressed: { opacity: 0.7 },

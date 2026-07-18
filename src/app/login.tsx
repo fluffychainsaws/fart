@@ -186,6 +186,8 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       paddingVertical: 14,
       alignItems: 'center',
       marginTop: 20,
+      borderWidth: 1,
+      borderColor: 'rgba(0,0,0,0.15)',
       ...shadow,
     },
     primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
