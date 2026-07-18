@@ -151,14 +151,9 @@ export async function getUsageStatus(): Promise<UsageStatus> {
   };
 }
 
-export async function canRecordAudition(): Promise<boolean> {
-  if (UNLIMITED_AUDITIONS) return true;
-  const status = await getUsageStatus();
-  return status.auditionsRemaining > 0;
-}
-
-// Call once a take actually finishes saving to the camera roll — retries
-// during countdown or a cancelled take don't consume the quota.
+// Call once a script upload parses successfully — an "audition" is charged
+// at upload (the parse is the expensive step), so quitting a scene early
+// can't dodge the meter. Failed parses don't consume quota.
 export async function recordAuditionCompleted(): Promise<void> {
   const usage = await readUsage();
   const next: UsageRecord = { month: currentMonthKey(), auditionsUsed: usage.auditionsUsed + 1 };

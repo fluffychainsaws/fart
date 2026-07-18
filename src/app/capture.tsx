@@ -9,6 +9,7 @@ import { Text } from '@/lib/AppText';
 import { hasApiKey, parseScriptPdf, parseScriptPhotos } from '@/lib/parser';
 import { newId, saveScript } from '@/lib/storage';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
+import { getUsageStatus, recordAuditionCompleted } from '@/lib/usage';
 
 interface Page {
   uri: string;
@@ -116,11 +117,20 @@ export default function CaptureScreen() {
     setBusy(true);
     setError(null);
     try {
+      // Uploading a script IS the audition, quota-wise: it's charged up
+      // front (the parse is the costly step) so ending a scene early can't
+      // dodge the meter.
+      const usage = await getUsageStatus();
+      if (usage.auditionsRemaining <= 0) {
+        setError("You're out of auditions this month — upgrade your plan to keep going.");
+        return;
+      }
       const { title, elements } = pdf
         ? await parseScriptPdf(pdf.base64)
         : await parseScriptPhotos(pages.map((p) => ({ base64: p.base64, mimeType: p.mimeType })));
       const script = { id: newId(), title, createdAt: Date.now(), myCharacter: null, elements };
       await saveScript(script);
+      await recordAuditionCompleted();
       router.replace({ pathname: '/assign/[id]', params: { id: script.id } });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');

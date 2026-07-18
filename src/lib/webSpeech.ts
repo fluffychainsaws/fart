@@ -1,5 +1,5 @@
 // The Web Speech API (SpeechRecognition) is non-standard and not in TS's DOM
-// lib, so this declares just the shape used by the web self-tape and mic-test
+// lib, so this declares just the shape used by the rehearsal and mic-test
 // screens, and the (webkit-prefixed) constructor lookup they share.
 export interface SpeechRecognitionLike extends EventTarget {
   lang: string;

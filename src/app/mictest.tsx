@@ -6,8 +6,7 @@ import { MicIcon } from '@/lib/MicIcon';
 import { useTheme, type Theme } from '@/lib/theme';
 
 // The mic-level meter uses the Web Audio API, which only exists in a
-// browser — this diagnostic is web-only for now. On native, use the
-// self-tape screen's own "Allow access" flow to grant mic permission.
+// browser — this diagnostic is web-only for now.
 export default function MicTestScreen() {
   const t = useTheme();
   const styles = useMemo(() => makeStyles(t), [t]);
@@ -16,8 +15,8 @@ export default function MicTestScreen() {
       <MicIcon size={44} />
       <Text style={styles.title}>Mic test is web-only</Text>
       <Text style={styles.text}>
-        Open the website version of FART to run the microphone level test. On this device, self-tape
-        mode already asks for microphone access directly when you start it.
+        Open the website version of FART to run the microphone level test. On this device, rehearsal
+        asks for microphone access directly when a feature needs it.
       </Text>
     </View>
   );

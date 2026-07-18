@@ -106,13 +106,6 @@ export default function AssignScreen() {
             {mineCount === 0 ? 'Highlight your lines to start' : `▶ Start rehearsing (${mineCount} lines)`}
           </Text>
         </Pressable>
-        {mineCount > 0 && (
-          <Pressable
-            style={({ pressed }) => [styles.selfTapeButton, pressed && styles.pressed]}
-            onPress={() => router.push({ pathname: '/selftape/[id]', params: { id: script.id } })}>
-            <Text style={styles.selfTapeButtonText}>🎥 Record a self-tape</Text>
-          </Pressable>
-        )}
       </View>
     </View>
   );
@@ -184,16 +177,5 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
   },
   startButtonDisabled: { backgroundColor: t.border },
   startButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  selfTapeButton: {
-    backgroundColor: t.accentSoft,
-    borderRadius: 16,
-    paddingVertical: 13,
-    alignItems: 'center',
-    maxWidth: 700,
-    width: '100%',
-    alignSelf: 'center',
-    marginTop: 8,
-  },
-  selfTapeButtonText: { color: t.accent, fontSize: 15, fontWeight: '700' },
   pressed: { opacity: 0.7 },
 });

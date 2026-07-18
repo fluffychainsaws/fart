@@ -39,6 +39,8 @@ import type { FartScript } from '@/lib/types';
 import { lineFollowSupported, requestLineFollowMic, useLineFollow } from '@/lib/useLineFollow';
 import { useRehearsal } from '@/lib/useRehearsal';
 import { directorNoteCount, directorNotesUnlimited, getUsageStatus, type UsageStatus } from '@/lib/usage';
+import { CUT_CMD, START_CMD } from '@/lib/voiceCommands';
+import { getSpeechRecognitionCtor, type SpeechRecognitionLike } from '@/lib/webSpeech';
 
 const prettyVoice = (id: string | undefined, deviceNames: Record<string, string>): string => {
   if (!id) return 'Auto';
@@ -106,6 +108,7 @@ export default function RehearseScreen() {
     }
     // The word-count timer and real listening would race each other.
     if (engine.autoAdvance) engine.toggleAuto();
+    setVoiceCmdOn(false); // one speech recognizer at a time
     setFollowOn(true);
   };
 
@@ -113,6 +116,100 @@ export default function RehearseScreen() {
     if (!engine.autoAdvance && followOn) setFollowOn(false);
     engine.toggleAuto();
   };
+
+  // Hands-free "FART start" / "FART cut" (SHART STAR): a continuous listener
+  // that plays/pauses the scene. Mutually exclusive with "Listen for my
+  // lines" — the browser gives us one speech recognizer at a time.
+  const [voiceCmdOn, setVoiceCmdOn] = useState(false);
+  const [voiceCmdErr, setVoiceCmdErr] = useState<string | null>(null);
+  const voiceCommandsAllowed = Boolean(tier?.voiceCommands);
+  const speechSupported = Boolean(getSpeechRecognitionCtor());
+  const voiceCooldownUntil = useRef(0);
+  const statusRef = useRef(status);
+  statusRef.current = status;
+  const engineRef = useRef(engine);
+  engineRef.current = engine;
+
+  const toggleVoiceCmd = async () => {
+    if (voiceCmdOn) {
+      setVoiceCmdOn(false);
+      return;
+    }
+    setVoiceCmdErr(null);
+    // Ask from the tap itself so the browser reliably shows its permission
+    // prompt instead of silently failing later.
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+      if (followOn) setFollowOn(false);
+      setVoiceCmdOn(true);
+    } catch (e) {
+      const name = e instanceof Error ? e.name : '';
+      setVoiceCmdErr(
+        name === 'NotFoundError' || name === 'OverconstrainedError'
+          ? 'No microphone found on this device.'
+          : "Microphone access is blocked. Allow it for this site in your browser's settings, then try again.",
+      );
+    }
+  };
+
+  useEffect(() => {
+    if (!voiceCmdOn || !voiceCommandsAllowed || !speechSupported) return;
+    const Ctor = getSpeechRecognitionCtor();
+    if (!Ctor) return;
+    let cancelled = false;
+    let recognizer: SpeechRecognitionLike | null = null;
+    let consecutiveErrors = 0;
+
+    const startListening = () => {
+      recognizer = new Ctor();
+      recognizer.lang = 'en-US';
+      recognizer.continuous = true;
+      recognizer.interimResults = true;
+      recognizer.onresult = (event) => {
+        const transcript = (event.results?.[0]?.[0]?.transcript ?? '').toLowerCase();
+        if (!transcript || Date.now() < voiceCooldownUntil.current) return;
+        consecutiveErrors = 0;
+        const state = statusRef.current;
+        if ((state === 'idle' || state === 'done') && START_CMD.test(transcript)) {
+          voiceCooldownUntil.current = Date.now() + 4000;
+          engineRef.current.play(state === 'done' ? 0 : undefined);
+        } else if ((state === 'playing' || state === 'waiting') && CUT_CMD.test(transcript)) {
+          voiceCooldownUntil.current = Date.now() + 4000;
+          engineRef.current.pause();
+        }
+      };
+      recognizer.onend = () => {
+        if (cancelled || consecutiveErrors > 4) return;
+        setTimeout(startListening, 600);
+      };
+      recognizer.onerror = (event) => {
+        consecutiveErrors += 1;
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          cancelled = true;
+          setVoiceCmdOn(false);
+          setVoiceCmdErr(
+            "Microphone access is blocked. Allow it for this site in your browser's settings, then try again.",
+          );
+        } else if (event.error !== 'no-speech' && consecutiveErrors > 4) {
+          cancelled = true;
+          setVoiceCmdOn(false);
+          setVoiceCmdErr('Voice commands stopped working — try again, or use the buttons instead.');
+        }
+      };
+      try {
+        recognizer.start();
+      } catch {
+        // already running
+      }
+    };
+
+    startListening();
+    return () => {
+      cancelled = true;
+      recognizer?.abort();
+    };
+  }, [voiceCmdOn, voiceCommandsAllowed, speechSupported]);
 
   // In-browser neural voices: module-level engine, mirrored into local state.
   const [neuralState, setNeuralState] = useState(neuralVoiceState());
@@ -344,6 +441,13 @@ export default function RehearseScreen() {
             </Text>
           </Pressable>
         )}
+        {voiceCommandsAllowed && speechSupported && (
+          <Pressable style={[styles.toggle, voiceCmdOn && styles.toggleOn]} onPress={toggleVoiceCmd}>
+            <Text style={[styles.toggleText, voiceCmdOn && styles.toggleTextOn]}>
+              🎙 Voice commands
+            </Text>
+          </Pressable>
+        )}
         <Pressable
           style={[styles.toggle, engine.autoAdvance && styles.toggleOn]}
           onPress={toggleAuto}>
@@ -382,6 +486,12 @@ export default function RehearseScreen() {
         )}
       </View>
       {followErr && <Text style={styles.followError}>{followErr}</Text>}
+      {voiceCmdErr && <Text style={styles.followError}>{voiceCmdErr}</Text>}
+      {voiceCmdOn && (status === 'idle' || status === 'done' || status === 'playing') && (
+        <Text style={styles.voiceCmdHint}>
+          {status === 'playing' ? 'Say "FART cut" to stop' : 'Say "FART start" to roll'}
+        </Text>
+      )}
 
       <ScrollView ref={scrollRef} style={styles.script} contentContainerStyle={styles.scriptContent}>
         {script.elements.map((el, i) => {
@@ -612,6 +722,16 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       paddingHorizontal: 20,
       paddingTop: 8,
       paddingBottom: 4,
+      maxWidth: 700,
+      width: '100%',
+      alignSelf: 'center',
+    },
+    voiceCmdHint: {
+      color: t.inkSoft,
+      fontSize: 12,
+      fontWeight: '600',
+      paddingHorizontal: 20,
+      paddingTop: 4,
       maxWidth: 700,
       width: '100%',
       alignSelf: 'center',

@@ -34,7 +34,7 @@ const deviceVoiceOf = (voices: Record<string, string> | undefined, character: st
   return v?.startsWith('device:') ? v.slice('device:'.length) : undefined;
 };
 
-// The shared line-reading engine behind the rehearsal and self-tape screens.
+// The line-reading engine behind the rehearsal screen.
 // It walks the elements: speaks other characters' lines, skips or reads stage
 // directions, and stops (or auto-continues) on the user's highlighted lines.
 export function useRehearsal(elements: ScriptElement[], options: RehearsalOptions = {}) {
