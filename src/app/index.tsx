@@ -9,18 +9,21 @@ import { MicIcon } from '@/lib/MicIcon';
 import { deleteScript, listScripts, refreshScripts, saveScript } from '@/lib/storage';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 import { charactersIn, myLineCount, type FartScript } from '@/lib/types';
+import { getUsageStatus } from '@/lib/usage';
 
 export default function HomeScreen() {
   const t = useTheme();
   const shadow = useCardShadow();
   const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   const [scripts, setScripts] = useState<FartScript[]>([]);
+  const [isPaid, setIsPaid] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       // Local list immediately, then the account-merged list when sync lands.
       listScripts().then(setScripts);
       refreshScripts().then(setScripts);
+      getUsageStatus().then((status) => setIsPaid(status.tier !== 'free'));
     }, []),
   );
 
@@ -78,11 +81,13 @@ export default function HomeScreen() {
               <ClapperIcon size={20} />
               <Text style={styles.primaryButtonText}>New script</Text>
             </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
-              onPress={tryDemo}>
-              <Text style={styles.secondaryButtonText}>🎬 Try the demo scene</Text>
-            </Pressable>
+            {!isPaid && (
+              <Pressable
+                style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
+                onPress={tryDemo}>
+                <Text style={styles.secondaryButtonText}>🎬 Try the demo scene</Text>
+              </Pressable>
+            )}
             {Platform.OS === 'web' && (
               <Pressable
                 style={({ pressed }) => [styles.micTestButton, pressed && styles.pressed]}
