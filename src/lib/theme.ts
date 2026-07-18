@@ -118,12 +118,51 @@ export const PALETTES: Palette[] = [
     light: { bg: '#F8F3F6', accent: '#7E5A6E', accentSoft: '#EEDFE8', border: '#E7D7E0' },
     dark: { accent: '#B58AA5', accentSoft: '#2E2028' },
   },
+  {
+    id: 'mutedPink',
+    name: 'Muted Pink',
+    light: { bg: '#FBF3F5', accent: '#C97B94', accentSoft: '#F5E2E8', border: '#F0DEE3' },
+    dark: { accent: '#E29FB3', accentSoft: '#3A2129' },
+  },
+  {
+    id: 'hotPink',
+    name: 'Hot Pink',
+    light: { bg: '#FFF0F6', accent: '#E5399C', accentSoft: '#FCE1EF', border: '#F7D3E6' },
+    dark: { accent: '#FF7AC6', accentSoft: '#401B33' },
+  },
+  {
+    id: 'mutedYellow',
+    name: 'Muted Yellow',
+    light: { bg: '#FCF8EC', accent: '#C9A227', accentSoft: '#F5EACB', border: '#EFE2BE' },
+    dark: { accent: '#E0C158', accentSoft: '#3A3018' },
+  },
+  {
+    id: 'mutedOrange',
+    name: 'Muted Orange',
+    light: { bg: '#FCF3EC', accent: '#D97D45', accentSoft: '#F5E1D2', border: '#EFDBC8' },
+    dark: { accent: '#E8A06F', accentSoft: '#3A2618' },
+  },
+  {
+    id: 'bubblegum',
+    name: 'Bubblegum',
+    light: { bg: '#FBF2FA', accent: '#C46FC2', accentSoft: '#F3E3F2', border: '#EDD9EC' },
+    dark: { accent: '#D89AD6', accentSoft: '#362138' },
+  },
+  {
+    id: 'coral',
+    name: 'Coral',
+    light: { bg: '#FDF2EF', accent: '#E06B5C', accentSoft: '#FBE2DD', border: '#F5D7D0' },
+    dark: { accent: '#EF9184', accentSoft: '#3C201C' },
+  },
 ];
 
-// Tiny external store so every screen re-renders when the palette changes,
-// without threading a context through the whole app.
+// Tiny external store so every screen re-renders when the palette or color
+// mode changes, without threading a context through the whole app.
 const PALETTE_KEY = 'fart.palette.v1';
+const COLOR_MODE_KEY = 'fart.colorMode.v1';
 let currentPaletteId = 'meadow';
+export type ColorMode = 'system' | 'light' | 'dark';
+let currentColorMode: ColorMode = 'system';
 const listeners = new Set<() => void>();
 
 export function getPaletteId(): string {
@@ -137,16 +176,37 @@ export function setPalette(id: string): void {
   AsyncStorage.setItem(PALETTE_KEY, id).catch(() => {});
 }
 
-// Call once at startup (root layout) to restore the saved choice.
+export function getColorMode(): ColorMode {
+  return currentColorMode;
+}
+
+export function setColorMode(mode: ColorMode): void {
+  currentColorMode = mode;
+  listeners.forEach((l) => l());
+  AsyncStorage.setItem(COLOR_MODE_KEY, mode).catch(() => {});
+}
+
+// Call once at startup (root layout) to restore the saved choices.
 export async function loadSavedPalette(): Promise<void> {
   try {
-    const saved = await AsyncStorage.getItem(PALETTE_KEY);
-    if (saved && PALETTES.some((p) => p.id === saved) && saved !== currentPaletteId) {
-      currentPaletteId = saved;
-      listeners.forEach((l) => l());
+    const [savedPalette, savedMode] = await Promise.all([
+      AsyncStorage.getItem(PALETTE_KEY),
+      AsyncStorage.getItem(COLOR_MODE_KEY),
+    ]);
+    let changed = false;
+    if (savedPalette && PALETTES.some((p) => p.id === savedPalette) && savedPalette !== currentPaletteId) {
+      currentPaletteId = savedPalette;
+      changed = true;
     }
+    if (savedMode === 'light' || savedMode === 'dark' || savedMode === 'system') {
+      if (savedMode !== currentColorMode) {
+        currentColorMode = savedMode;
+        changed = true;
+      }
+    }
+    if (changed) listeners.forEach((l) => l());
   } catch {
-    // default palette is fine
+    // defaults are fine
   }
 }
 
@@ -155,8 +215,16 @@ function subscribe(cb: () => void): () => void {
   return () => listeners.delete(cb);
 }
 
+// Resolves the color mode override against the OS preference.
+export function useEffectiveScheme(): 'light' | 'dark' {
+  const systemScheme = useColorScheme();
+  const mode = useSyncExternalStore(subscribe, getColorMode, getColorMode);
+  if (mode === 'system') return systemScheme === 'dark' ? 'dark' : 'light';
+  return mode;
+}
+
 export function useTheme(): Theme {
-  const scheme = useColorScheme();
+  const scheme = useEffectiveScheme();
   const paletteId = useSyncExternalStore(subscribe, getPaletteId, getPaletteId);
   const palette = PALETTES.find((p) => p.id === paletteId) ?? PALETTES[0];
   return scheme === 'dark' ? { ...dark, ...palette.dark } : { ...light, ...palette.light };
@@ -181,5 +249,5 @@ export const cardShadowDark = {
 } as const;
 
 export function useCardShadow() {
-  return useColorScheme() === 'dark' ? cardShadowDark : cardShadow;
+  return useEffectiveScheme() === 'dark' ? cardShadowDark : cardShadow;
 }

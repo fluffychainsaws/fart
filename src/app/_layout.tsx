@@ -10,17 +10,16 @@ import {
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useColorScheme } from 'react-native';
 
 import { HomeHeaderButton, SideMenu } from '@/lib/SideMenu';
-import { loadSavedPalette, useTheme } from '@/lib/theme';
+import { loadSavedPalette, useEffectiveScheme, useTheme } from '@/lib/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 loadSavedPalette();
 
 export default function RootLayout() {
   const t = useTheme();
-  const scheme = useColorScheme();
+  const scheme = useEffectiveScheme();
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -58,6 +57,8 @@ export default function RootLayout() {
         <Stack.Screen name="rehearse/[id]" options={{ title: 'Rehearsal' }} />
         <Stack.Screen name="selftape/[id]" options={{ title: 'Self-tape' }} />
         <Stack.Screen name="account" options={{ title: 'Your plan' }} />
+        <Stack.Screen name="profile" options={{ title: 'Profile' }} />
+        <Stack.Screen name="settings" options={{ title: 'Settings' }} />
         <Stack.Screen name="login" options={{ title: 'Account' }} />
         <Stack.Screen name="admin" options={{ title: 'Monthly analysis' }} />
         <Stack.Screen name="mictest" options={{ title: 'Mic test' }} />

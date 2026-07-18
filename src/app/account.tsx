@@ -1,20 +1,12 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
-import { signOut, useSession } from '@/lib/auth';
+import { useSession } from '@/lib/auth';
 import { billingConfigured, openCheckout } from '@/lib/billing';
 import { getTier, TIER_ORDER, type Tier } from '@/lib/subscription';
-import { accountsEnabled } from '@/lib/supabase';
-import {
-  getPaletteId,
-  PALETTES,
-  setPalette,
-  useCardShadow,
-  useTheme,
-  type Theme,
-} from '@/lib/theme';
+import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 import { getUsageStatus, setCurrentTier, type UsageStatus } from '@/lib/usage';
 
 export default function AccountScreen() {
@@ -64,31 +56,6 @@ export default function AccountScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      {accountsEnabled && (
-        <View style={styles.accountCard}>
-          {session ? (
-            <>
-              <Text style={styles.accountEmail}>{session.user.email}</Text>
-              <Pressable
-                style={({ pressed }) => [styles.accountButton, pressed && styles.pressed]}
-                onPress={() => signOut()}>
-                <Text style={styles.accountButtonText}>Sign out</Text>
-              </Pressable>
-            </>
-          ) : (
-            <>
-              <Text style={styles.accountBlurb}>
-                Sign in to keep your scripts and plan across devices.
-              </Text>
-              <Pressable
-                style={({ pressed }) => [styles.accountButton, pressed && styles.pressed]}
-                onPress={() => router.push('/login')}>
-                <Text style={styles.accountButtonText}>Sign in / Create account</Text>
-              </Pressable>
-            </>
-          )}
-        </View>
-      )}
       <View style={styles.usageCard}>
         <Text style={styles.usageTier}>{getTier(status.tier).name}</Text>
         <Text style={styles.usageCount}>
@@ -109,33 +76,6 @@ export default function AccountScreen() {
               },
             ]}
           />
-        </View>
-      </View>
-
-      <Text style={styles.sectionTitle}>Appearance</Text>
-      <View style={styles.paletteCard}>
-        <View style={styles.paletteGrid}>
-          {PALETTES.map((p) => {
-            const selected = p.id === getPaletteId();
-            return (
-              <Pressable
-                key={p.id}
-                style={styles.paletteItem}
-                onPress={() => setPalette(p.id)}
-                accessibilityLabel={`${p.name} color theme`}>
-                <View
-                  style={[
-                    styles.swatchRing,
-                    selected && { borderColor: p.light.accent },
-                  ]}>
-                  <View style={[styles.swatch, { backgroundColor: p.light.accent }]} />
-                </View>
-                <Text style={[styles.swatchName, selected && styles.swatchNameActive]}>
-                  {p.name}
-                </Text>
-              </Pressable>
-            );
-          })}
         </View>
       </View>
 
@@ -195,25 +135,6 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.bg },
     content: { padding: 20, paddingBottom: 48, maxWidth: 700, width: '100%', alignSelf: 'center' },
-    accountCard: {
-      backgroundColor: t.card,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: t.border,
-      padding: 18,
-      marginBottom: 12,
-      ...shadow,
-    },
-    accountEmail: { fontSize: 15, fontWeight: '700', color: t.ink },
-    accountBlurb: { fontSize: 14, color: t.inkSoft, lineHeight: 20 },
-    accountButton: {
-      backgroundColor: t.accentSoft,
-      borderRadius: 12,
-      paddingVertical: 11,
-      alignItems: 'center',
-      marginTop: 12,
-    },
-    accountButtonText: { color: t.accent, fontSize: 14, fontWeight: '700' },
     usageCard: {
       backgroundColor: t.card,
       borderRadius: 16,
@@ -241,32 +162,6 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       textTransform: 'uppercase',
       letterSpacing: 1,
     },
-    paletteCard: {
-      backgroundColor: t.card,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: t.border,
-      padding: 14,
-      ...shadow,
-    },
-    paletteGrid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'space-between',
-    },
-    paletteItem: { width: '16%', minWidth: 52, alignItems: 'center', marginVertical: 8 },
-    swatchRing: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      borderWidth: 3,
-      borderColor: 'transparent',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    swatch: { width: 28, height: 28, borderRadius: 14 },
-    swatchName: { fontSize: 10, color: t.inkSoft, marginTop: 4, textAlign: 'center' },
-    swatchNameActive: { color: t.ink, fontWeight: '700' },
     planCard: {
       backgroundColor: t.card,
       borderRadius: 16,

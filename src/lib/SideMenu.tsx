@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, usePathname } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
+import { signOut, useSession } from '@/lib/auth';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 
 const HINT_SEEN_KEY = 'fart.sideMenuHintSeen.v1';
@@ -20,11 +21,21 @@ const HINT_SEEN_KEY = 'fart.sideMenuHintSeen.v1';
 const DRAWER_WIDTH = 232;
 const EDGE_WIDTH = 16;
 
-const LINKS: { href: '/' | '/capture' | '/account' | '/mictest'; label: string; icon: string }[] = [
+type Href = '/' | '/capture' | '/mictest' | '/profile' | '/settings' | '/account';
+
+const LINKS: { href: Href; label: string; icon: string }[] = [
   { href: '/', label: 'Home', icon: '🏠' },
   { href: '/capture', label: 'New script', icon: '📸' },
-  { href: '/account', label: 'Your plan', icon: '👤' },
   { href: '/mictest', label: 'Mic test', icon: '🎙' },
+];
+
+// Account-related actions, pinned to the bottom of the drawer and set off
+// with a divider — Logout is an action, not a route, so it's handled
+// separately from the plain nav links above.
+const BOTTOM_LINKS: { href: Href; label: string; icon: string }[] = [
+  { href: '/profile', label: 'Profile', icon: '👤' },
+  { href: '/settings', label: 'Settings', icon: '⚙️' },
+  { href: '/account', label: 'Plan', icon: '🎫' },
 ];
 
 export function SideMenu() {
@@ -32,6 +43,7 @@ export function SideMenu() {
   const shadow = useCardShadow();
   const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   const pathname = usePathname();
+  const session = useSession();
   const [open, setOpen] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
@@ -220,6 +232,54 @@ export function SideMenu() {
               </Pressable>
             );
           })}
+
+          <View style={styles.spacer} />
+          <View style={styles.divider} />
+
+          {BOTTOM_LINKS.map((link) => {
+            const active = pathname === link.href;
+            return (
+              <Pressable
+                key={link.href}
+                style={({ pressed }) => [
+                  styles.link,
+                  active && styles.linkActive,
+                  pressed && styles.pressed,
+                ]}
+                onPress={() => {
+                  dismissHint.current();
+                  setOpen(false);
+                  router.push(link.href);
+                }}>
+                <Text style={styles.linkIcon}>{link.icon}</Text>
+                <Text style={[styles.linkLabel, active && styles.linkLabelActive]}>{link.label}</Text>
+              </Pressable>
+            );
+          })}
+
+          {session ? (
+            <Pressable
+              style={({ pressed }) => [styles.link, pressed && styles.pressed]}
+              onPress={() => {
+                dismissHint.current();
+                setOpen(false);
+                signOut();
+              }}>
+              <Text style={styles.linkIcon}>🚪</Text>
+              <Text style={styles.linkLabel}>Log out</Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              style={({ pressed }) => [styles.link, pressed && styles.pressed]}
+              onPress={() => {
+                dismissHint.current();
+                setOpen(false);
+                router.push('/login');
+              }}>
+              <Text style={styles.linkIcon}>🔑</Text>
+              <Text style={styles.linkLabel}>Sign in</Text>
+            </Pressable>
+          )}
         </Animated.View>
       </View>
     </View>
@@ -304,7 +364,15 @@ function makeStyles(t: Theme, shadow: ReturnType<typeof useCardShadow>) {
       borderRightWidth: 1,
       borderRightColor: t.border,
       paddingTop: 56,
+      paddingBottom: 20,
       paddingHorizontal: 12,
+    },
+    spacer: { flex: 1, minHeight: 12 },
+    divider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: t.border,
+      marginBottom: 8,
+      marginHorizontal: 10,
     },
     brand: {
       fontSize: 13,
