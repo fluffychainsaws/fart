@@ -11,11 +11,13 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 
+import { loadSavedProfilePhoto } from '@/lib/profilePhoto';
 import { HomeHeaderButton, SideMenu } from '@/lib/SideMenu';
 import { loadSavedPalette, useEffectiveScheme, useTheme } from '@/lib/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 loadSavedPalette();
+loadSavedProfilePhoto();
 
 export default function RootLayout() {
   const t = useTheme();

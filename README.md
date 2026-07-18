@@ -1,4 +1,4 @@
-# FART 💨 — Friendly AI Reader To-go
+# FART 💨 — Friendly AI Reader To-Go!
 
 Your pocket scene partner. Snap a photo of your audition sides, highlight your lines, and FART reads everyone else's lines out loud while you rehearse yours.
 
