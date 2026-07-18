@@ -1,6 +1,8 @@
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { Platform } from 'react-native';
 
+import { logUsage } from './metrics';
+
 // Natural "ChatGPT" voices via OpenAI's TTS API (gpt-4o-mini-tts). Optional:
 // activates when EXPO_PUBLIC_OPENAI_API_KEY is set, and every call falls back
 // to device speech on failure so rehearsal never stalls. The model takes
@@ -116,6 +118,7 @@ async function synthesize(text: string, voice: string, instructions: string): Pr
       }),
     });
     if (!res.ok) throw new Error(`TTS failed: ${res.status}`);
+    logUsage('tts', text.length, voice); // paid synthesis only — cache hits never reach here
     const dataUri = await blobToDataUri(await res.blob());
     let uri = dataUri;
     if (Platform.OS !== 'web') {

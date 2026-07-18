@@ -93,3 +93,64 @@ drop policy if exists "delete own scripts" on public.scripts;
 create policy "delete own scripts"
   on public.scripts for delete
   using (auth.uid() = user_id);
+
+-- Owner/admin flag. Flip it on your own row once, in Table Editor:
+-- profiles -> your row -> is_admin = true. Nobody can set it from the app
+-- (the update policy already blocks profile edits beyond what it allows,
+-- and this column is only readable via the RLS-scoped own-row select).
+alter table public.profiles add column if not exists is_admin boolean not null default false;
+
+-- Usage telemetry for the monthly cost analysis: one row per billable-ish
+-- event. 'tts' rows carry the synthesized character count (the thing OpenAI
+-- charges for); 'audition' rows mark a completed self-tape.
+create table if not exists public.usage_events (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  kind text not null check (kind in ('tts', 'audition')),
+  chars integer not null default 0,
+  voice text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.usage_events enable row level security;
+
+drop policy if exists "insert own usage" on public.usage_events;
+create policy "insert own usage"
+  on public.usage_events for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "read own usage" on public.usage_events;
+create policy "read own usage"
+  on public.usage_events for select
+  using (auth.uid() = user_id);
+
+-- Monthly per-tier rollup for the admin dashboard. SECURITY DEFINER so it
+-- can aggregate across all users, but it refuses anyone whose profile isn't
+-- flagged is_admin. Tier attribution uses each user's CURRENT tier.
+create or replace function public.admin_usage_summary(month_arg text default null)
+returns jsonb
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  m text := coalesce(month_arg, to_char(now(), 'YYYY-MM'));
+  result jsonb;
+begin
+  if not exists (select 1 from profiles where id = auth.uid() and is_admin) then
+    raise exception 'not authorized';
+  end if;
+  select jsonb_agg(t) into result from (
+    select
+      p.tier,
+      count(distinct p.id) as users,
+      count(e.id) filter (where e.kind = 'audition') as auditions,
+      coalesce(sum(e.chars) filter (where e.kind = 'tts'), 0) as tts_chars,
+      count(distinct e.user_id) as active_users
+    from profiles p
+    left join usage_events e
+      on e.user_id = p.id and to_char(e.created_at, 'YYYY-MM') = m
+    group by p.tier
+  ) t;
+  return coalesce(result, '[]'::jsonb);
+end;
+$$;

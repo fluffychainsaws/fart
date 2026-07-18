@@ -125,7 +125,9 @@ export default function AccountScreen() {
                 📝{' '}
                 {tier.directorNotesPerAudition === 0
                   ? 'No director notes'
-                  : `${tier.directorNotesPerAudition} director notes/audition`}
+                  : tier.directorNotesPerAudition === Infinity
+                    ? 'Unlimited director notes'
+                    : `${tier.directorNotesPerAudition} director notes/audition`}
               </Text>
               {tier.voiceCommands && <Text style={styles.planFeature}>🎙 Hands-free voice commands</Text>}
             </View>

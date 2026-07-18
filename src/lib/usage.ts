@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { logUsage } from './metrics';
 import { getTier, TIERS, type Tier } from './subscription';
 import { supabase } from './supabase';
 import type { FartScript } from './types';
@@ -162,6 +163,7 @@ export async function recordAuditionCompleted(): Promise<void> {
   const usage = await readUsage();
   const next: UsageRecord = { month: currentMonthKey(), auditionsUsed: usage.auditionsUsed + 1 };
   await AsyncStorage.setItem(USAGE_KEY, JSON.stringify(next));
+  logUsage('audition');
 }
 
 export function directorNoteCount(script: FartScript): number {

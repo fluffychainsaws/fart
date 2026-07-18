@@ -51,6 +51,7 @@ export default function RootLayout() {
         <Stack.Screen name="selftape/[id]" options={{ title: 'Self-tape' }} />
         <Stack.Screen name="account" options={{ title: 'Your plan' }} />
         <Stack.Screen name="login" options={{ title: 'Account' }} />
+        <Stack.Screen name="admin" options={{ title: 'Monthly analysis' }} />
         <Stack.Screen name="mictest" options={{ title: 'Mic test' }} />
       </Stack>
     </>
