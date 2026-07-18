@@ -3,7 +3,7 @@
     "name": "FART",
     "slug": "fart",
     "version": "1.0.0",
-    "description": "Friendly AI Reader To-go - Rehearse scripts with an AI reader. Use the free web version at https://fluffychainsaws.github.io/fart",
+    "description": "Friendly AI Reader To-go - Rehearse scripts with an AI reader. Use the free web version at https://selftapebuddy.com",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "fart",
@@ -67,8 +67,7 @@
     ],
     "experiments": {
       "typedRoutes": true,
-      "reactCompiler": true,
-      "baseUrl": "/fart"
+      "reactCompiler": true
     }
   }
 }

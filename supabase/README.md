@@ -18,8 +18,8 @@ never put it in the app or the repo.
 2. **Auth settings** — **Authentication → Sign In / Up**: leave **Confirm
    email** ON; set minimum password length to **8**.
 3. **Redirects** — **Authentication → URL Configuration**: set Site URL to
-   `https://fluffychainsaws.github.io/fart` and add the same URL to
-   **Redirect URLs** (confirmation + reset links land there).
+   `https://selftapebuddy.com` and add the same URL to **Redirect URLs**
+   (confirmation + reset links land there).
 
 ## Billing (Stripe) — when ready to charge
 

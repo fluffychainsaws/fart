@@ -7,7 +7,7 @@ import { supabase } from './supabase';
 // directly. Every function returns a friendly error string (or null on
 // success) instead of throwing, so screens can just show the message.
 
-const SITE_URL = 'https://fluffychainsaws.github.io/fart';
+const SITE_URL = 'https://selftapebuddy.com';
 
 function friendly(message: string): string {
   const m = message.toLowerCase();

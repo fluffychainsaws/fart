@@ -69,7 +69,7 @@ export default function HomeScreen() {
             {Platform.OS !== 'web' && (
               <Pressable
                 style={({ pressed }) => [styles.webBanner, pressed && styles.pressed]}
-                onPress={() => Linking.openURL('https://fluffychainsaws.github.io/fart')}>
+                onPress={() => Linking.openURL('https://selftapebuddy.com')}>
                 <Text style={styles.webBannerText}>🌐 Use FART on the web</Text>
                 <Text style={styles.webBannerSubtext}>Full features, no app install needed</Text>
               </Pressable>
