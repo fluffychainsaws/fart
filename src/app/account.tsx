@@ -60,7 +60,10 @@ export default function AccountScreen() {
         <View style={styles.usageHeader}>
           <Text style={styles.usageTier}>{getTier(status.tier).name}</Text>
           {status.tier !== 'free' && (
-            <Pressable hitSlop={8} onPress={() => confirmSwitch('free')}>
+            <Pressable
+              hitSlop={8}
+              style={({ pressed }) => [styles.cancelBubble, pressed && styles.pressed]}
+              onPress={() => confirmSwitch('free')}>
               <Text style={styles.cancelLink}>Cancel plan</Text>
             </Pressable>
           )}
@@ -155,6 +158,14 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     },
     usageHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     usageTier: { fontSize: 13, fontWeight: '800', color: t.accent, letterSpacing: 0.5, textTransform: 'uppercase' },
+    cancelBubble: {
+      backgroundColor: 'rgba(214,69,69,0.12)',
+      borderWidth: 1,
+      borderColor: 'rgba(214,69,69,0.35)',
+      borderRadius: 999,
+      paddingVertical: 5,
+      paddingHorizontal: 12,
+    },
     cancelLink: { fontSize: 12, fontWeight: '700', color: '#d64545' },
     usageCount: { fontSize: 16, fontWeight: '700', color: t.ink, marginTop: 6 },
     progressTrack: {

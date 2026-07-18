@@ -3,6 +3,7 @@ import { Alert, FlatList, Linking, Platform, Pressable, StyleSheet, View } from 
 import { router, useFocusEffect } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
+import { ClapperIcon } from '@/lib/ClapperIcon';
 import { makeDemoScript } from '@/lib/demo';
 import { MicIcon } from '@/lib/MicIcon';
 import { deleteScript, listScripts, refreshScripts, saveScript } from '@/lib/storage';
@@ -88,7 +89,8 @@ export default function HomeScreen() {
             <Pressable
               style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
               onPress={() => router.push('/capture')}>
-              <Text style={styles.primaryButtonText}>📸 New script</Text>
+              <ClapperIcon size={20} />
+              <Text style={styles.primaryButtonText}>New script</Text>
             </Pressable>
             <Pressable
               style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
@@ -170,7 +172,10 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       backgroundColor: t.accent,
       borderRadius: 16,
       paddingVertical: 16,
+      flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
       marginTop: 20,
       borderWidth: 1,
       borderColor: 'rgba(0,0,0,0.15)',

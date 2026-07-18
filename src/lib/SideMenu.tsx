@@ -5,10 +5,13 @@ import { router, usePathname } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
 import { signOut, useSession } from '@/lib/auth';
+import { ClapperIcon } from '@/lib/ClapperIcon';
 import { LogoutIcon } from '@/lib/LogoutIcon';
 import { MicIcon } from '@/lib/MicIcon';
 import { useProfilePhoto } from '@/lib/profilePhoto';
+import { getTier } from '@/lib/subscription';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
+import { getUsageStatus } from '@/lib/usage';
 
 const HINT_SEEN_KEY = 'fart.sideMenuHintSeen.v1';
 
@@ -49,12 +52,18 @@ export function SideMenu() {
   const session = useSession();
   const photo = useProfilePhoto();
   const [open, setOpen] = useState(false);
+  const [tierName, setTierName] = useState<string | null>(null);
   const [showHint, setShowHint] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(0)).current;
 
   const edgeRef = useRef<View>(null);
   const backdropRef = useRef<View>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    getUsageStatus().then((status) => setTierName(getTier(status.tier).name));
+  }, [open, session]);
 
   useEffect(() => {
     Animated.timing(anim, {
@@ -233,9 +242,12 @@ export function SideMenu() {
                 <Text style={styles.avatarPlaceholderText}>👤</Text>
               </View>
             )}
-            <Text style={[styles.linkLabel, pathname === '/profile' && styles.linkLabelActive]}>
-              Profile
-            </Text>
+            <View>
+              <Text style={[styles.linkLabel, pathname === '/profile' && styles.linkLabelActive]}>
+                Profile
+              </Text>
+              {tierName && <Text style={styles.profileTier}>{tierName}</Text>}
+            </View>
           </Pressable>
 
           <Text style={styles.brand}>F.A.R.T.</Text>
@@ -256,6 +268,8 @@ export function SideMenu() {
                 }}>
                 {link.href === '/mictest' ? (
                   <MicIcon size={18} />
+                ) : link.href === '/capture' ? (
+                  <ClapperIcon size={18} />
                 ) : (
                   <Text style={styles.linkIcon}>{link.icon}</Text>
                 )}
@@ -432,6 +446,7 @@ function makeStyles(t: Theme, shadow: ReturnType<typeof useCardShadow>) {
       justifyContent: 'center',
     },
     avatarPlaceholderText: { fontSize: 16 },
+    profileTier: { fontSize: 11, fontWeight: '700', color: t.accent, marginTop: 1, letterSpacing: 0.3 },
     brand: {
       fontSize: 13,
       fontWeight: '800',
