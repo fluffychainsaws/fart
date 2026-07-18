@@ -93,7 +93,10 @@ export default function AccountScreen() {
             <View style={styles.planFeatures}>
               <Text style={styles.planFeature}>🎬 {tier.auditionsPerMonth} auditions/month</Text>
               <Text style={styles.planFeature}>
-                🔊 {tier.aiVoiceCount === 0 ? 'Basic device voice' : `${tier.aiVoiceCount} AI voices`}
+                🔊{' '}
+                {tier.aiVoiceCount === 0
+                  ? 'Basic device voice'
+                  : `${tier.aiVoiceCount}${tier.id === 'shartstar' ? '+' : ''} AI voices`}
               </Text>
               <Text style={styles.planFeature}>
                 📝{' '}
