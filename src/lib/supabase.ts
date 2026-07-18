@@ -11,8 +11,15 @@ import { Platform } from 'react-native';
 // to `auth.uid() = user_id`. Real secrets (service role key) never go in the
 // client.
 
-const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+// The live project. Baked in as defaults (env vars still override) because
+// this pair is public by design — it ships in the bundle either way, and Row
+// Level Security is what actually guards the data. Same model as Firebase
+// client config.
+const LIVE_URL = 'https://bojaiebacqsqewmxwuih.supabase.co';
+const LIVE_ANON_KEY = 'sb_publishable_wQXxgoZaTUOAW1KjJCq-YA_UoY98hLi';
+
+const url = process.env.EXPO_PUBLIC_SUPABASE_URL || LIVE_URL;
+const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || LIVE_ANON_KEY;
 
 // The web build is statically pre-rendered in Node, where localStorage (which
 // AsyncStorage wraps on web) doesn't exist — and the client eagerly restores

@@ -1,45 +1,23 @@
-# Setting up accounts (Supabase) — one-time, ~5 minutes
+# Accounts (Supabase) — LIVE
 
-The app ships with accounts **dormant**: until the two env vars below exist,
-there's no login surface and everything stays on-device like before.
+The live project is `bojaiebacqsqewmxwuih` (fart on supabase.com). Its URL and
+publishable key are baked into `src/lib/supabase.ts` (env vars override them),
+so accounts are on everywhere by default.
 
-## 1. Create the project
-1. Go to [supabase.com](https://supabase.com) → **Start your project** → sign up (free).
-2. **New project** → name it `fart`, pick a strong database password (save it
-   somewhere — you rarely need it again), choose the region closest to your users.
-3. Wait ~2 minutes for it to provision.
+The publishable key is fine to ship — it can only do what the RLS policies
+allow. The **service_role** key in the same dashboard is the dangerous one:
+never put it in the app or the repo.
 
-## 2. Run the schema
-1. In the dashboard, open **SQL Editor**.
-2. Paste the whole contents of `supabase/schema.sql` and click **Run**.
-   This creates the `profiles` table, locks it down with Row Level Security,
-   and auto-creates a profile row on every signup.
+## Dashboard checklist (once, in supabase.com → project `fart`)
 
-## 3. Configure auth
-In **Authentication → Sign In / Up**:
-- Email provider is on by default — leave **Confirm email** ON (stops people
-  signing up with emails they don't own).
-- Set minimum password length to **8**.
-
-In **Authentication → URL Configuration**:
-- Site URL: `https://fluffychainsaws.github.io/fart`
-- Add the same URL to **Redirect URLs** (confirmation + reset links land there).
-
-## 4. Wire the app
-1. In **Project Settings → API**, copy the **Project URL** and the
-   **anon public** key.
-2. Put them in `.env` locally:
-   ```
-   EXPO_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-   EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-   ```
-3. For the live site, add both as **Actions secrets** in the GitHub repo
-   (Settings → Secrets and variables → Actions) and expose them in
-   `.github/workflows/deploy-pages.yml`'s build env.
-
-The anon key is fine to ship publicly — it can only do what the RLS policies
-allow. The **service_role** key on the same page is the dangerous one: never
-put it in the app or the repo.
+1. **Schema** — open **SQL Editor**, paste all of `supabase/schema.sql`, **Run**.
+   Creates the `profiles` table, locks it with Row Level Security, and
+   auto-creates a profile row on signup. Safe to re-run any time.
+2. **Auth settings** — **Authentication → Sign In / Up**: leave **Confirm
+   email** ON; set minimum password length to **8**.
+3. **Redirects** — **Authentication → URL Configuration**: set Site URL to
+   `https://fluffychainsaws.github.io/fart` and add the same URL to
+   **Redirect URLs** (confirmation + reset links land there).
 
 ## How the accounts are protected
 - **Passwords** are bcrypt-hashed by Supabase before storage; nobody
