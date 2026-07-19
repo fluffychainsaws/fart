@@ -1,6 +1,6 @@
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
-import { Platform } from 'react-native';
 
+import { getCachedAudio, putCachedAudio } from './audioCache';
 import { logUsage } from './metrics';
 
 // Natural "ChatGPT" voices via OpenAI's TTS API (gpt-4o-mini-tts). Optional:
@@ -75,8 +75,13 @@ export function buildInstructions(opts: {
 }
 
 // ---- Synthesis with caching -------------------------------------------------
+//
+// The cache is persisted to disk (see audioCache.ts) rather than kept only in
+// memory: a script rehearsed across many separate app sessions would
+// otherwise silently re-pay OpenAI for every line on every reload, with no
+// ceiling. Persisting bounds the real cost to one paid synthesis per unique
+// line, ever.
 
-const uriCache = new Map<string, string>();
 const inflight = new Map<string, Promise<string>>();
 
 function blobToDataUri(blob: Blob): Promise<string> {
@@ -88,16 +93,9 @@ function blobToDataUri(blob: Blob): Promise<string> {
   });
 }
 
-function base64ToBytes(base64: string): Uint8Array {
-  const bin = atob(base64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes;
-}
-
 async function synthesize(text: string, voice: string, instructions: string): Promise<string> {
   const key = `${voice}|${hash(instructions)}|${hash(text)}-${text.length}`;
-  const cached = uriCache.get(key);
+  const cached = await getCachedAudio(key);
   if (cached) return cached;
   const pending = inflight.get(key);
   if (pending) return pending;
@@ -120,18 +118,7 @@ async function synthesize(text: string, voice: string, instructions: string): Pr
     if (!res.ok) throw new Error(`TTS failed: ${res.status}`);
     logUsage('tts', text.length, voice); // paid synthesis only — cache hits never reach here
     const dataUri = await blobToDataUri(await res.blob());
-    let uri = dataUri;
-    if (Platform.OS !== 'web') {
-      // Native players are happier with real files than giant data URIs.
-      // Lazy require: expo-file-system's native module must never be
-      // evaluated in a web bundle (same crash class as expo-media-library).
-      const { File, Paths } = require('expo-file-system') as typeof import('expo-file-system');
-      const file = new File(Paths.cache, `fart-tts-${hash(key)}.mp3`);
-      file.write(base64ToBytes(dataUri.slice(dataUri.indexOf(',') + 1)));
-      uri = file.uri;
-    }
-    uriCache.set(key, uri);
-    return uri;
+    return putCachedAudio(key, dataUri);
   })();
 
   inflight.set(key, job);
