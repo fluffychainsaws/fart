@@ -8,8 +8,8 @@ import type { Tier } from './subscription';
 // blank its tier just isn't purchasable yet and the UI says so.
 const PAYMENT_LINKS: Record<Exclude<Tier, 'free'>, string> = {
   fart: 'https://buy.stripe.com/test_fZu7sM9bqcWWgN1diudQQ01',
-  fartpro: '',
-  shartstar: '',
+  fartpro: 'https://buy.stripe.com/test_bJe28sevK7CCbsH4LYdQQ02',
+  shartstar: 'https://buy.stripe.com/test_4gMdRa2N25uu8gvfqCdQQ03',
 };
 
 export function checkoutUrl(tier: Tier): string | null {
