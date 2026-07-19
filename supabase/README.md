@@ -29,18 +29,24 @@ a Supabase Edge Function flips `profiles.tier` when Stripe reports a payment.
 1. Create a Stripe account (stripe.com), then in **Product catalog** create
    three recurring products matching the app's plans: FART $5/mo,
    FART PRO $10/mo, SHART STAR $25/mo. Note each price's ID (`price_...`).
-2. For each product create a **Payment Link** (Stripe dashboard → Payment
-   Links). Paste the three URLs into `PAYMENT_LINKS` in `src/lib/billing.ts`.
-3. Deploy the webhook (needs the [Supabase CLI](https://supabase.com/docs/guides/cli),
+2. Also create a fourth product for the **Day Pass**: a one-time (not
+   recurring) $2.99 price. It grants a permanent `premium_credits` credit
+   instead of changing tier — see the `daypass` pseudo-tier in
+   `src/lib/subscription.ts`.
+3. For each of the four products create a **Payment Link** (Stripe dashboard
+   → Payment Links). Paste the four URLs into `PAYMENT_LINKS` in
+   `src/lib/billing.ts` (`fart`, `fartpro`, `shartstar`, `daypass`).
+4. Deploy the webhook (needs the [Supabase CLI](https://supabase.com/docs/guides/cli),
    one-time):
    ```
    supabase login
    supabase link --project-ref bojaiebacqsqewmxwuih
    supabase functions deploy stripe-webhook --no-verify-jwt
    supabase secrets set STRIPE_SECRET_KEY=sk_live_... STRIPE_WEBHOOK_SECRET=whsec_... \
-     PRICE_FART=price_... PRICE_FARTPRO=price_... PRICE_SHARTSTAR=price_...
+     PRICE_FART=price_... PRICE_FARTPRO=price_... PRICE_SHARTSTAR=price_... \
+     PRICE_DAYPASS=price_...
    ```
-4. In Stripe → **Developers → Webhooks**, add an endpoint pointing at
+5. In Stripe → **Developers → Webhooks**, add an endpoint pointing at
    `https://bojaiebacqsqewmxwuih.supabase.co/functions/v1/stripe-webhook`
    listening to `checkout.session.completed`, `customer.subscription.updated`,
    `customer.subscription.deleted`. Copy its signing secret into

@@ -137,10 +137,15 @@ export interface UsageStatus {
   auditionsPerMonth: number;
   auditionsRemaining: number;
   unlimited: boolean;
+  premiumCredits: number;
 }
 
 export async function getUsageStatus(): Promise<UsageStatus> {
-  const [tier, usage] = await Promise.all([getCurrentTier(), readUsage()]);
+  const [tier, usage, premiumCredits] = await Promise.all([
+    getCurrentTier(),
+    readUsage(),
+    getPremiumCredits(),
+  ]);
   const limit = getTier(tier).auditionsPerMonth;
   return {
     tier,
@@ -148,7 +153,59 @@ export async function getUsageStatus(): Promise<UsageStatus> {
     auditionsPerMonth: limit,
     auditionsRemaining: UNLIMITED_AUDITIONS ? Infinity : Math.max(0, limit - usage.auditionsUsed),
     unlimited: UNLIMITED_AUDITIONS,
+    premiumCredits,
   };
+}
+
+// Day Pass credits: a one-time $2.99 purchase that never expires, spent one
+// per script to give that script SHART STAR-level features (see the
+// 'daypass' pseudo-tier). Signed in, the server's profiles.premium_credits
+// is the truth (spent atomically via the spend_premium_credit() RPC, so a
+// double-spend race can't grant two scripts off one credit). Signed out,
+// there's no account to hold a real purchase against, so this is a
+// dev-only local stand-in exactly like setCurrentTier.
+const DEV_PREMIUM_CREDITS_KEY = 'fart.devPremiumCredits.v1';
+
+export async function getPremiumCredits(): Promise<number> {
+  if (await signedIn()) {
+    if (!supabase) return 0;
+    const { data: auth } = await supabase.auth.getSession();
+    const uid = auth.session?.user.id;
+    if (!uid) return 0;
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('premium_credits')
+        .eq('id', uid)
+        .single();
+      if (error || !data) return 0;
+      return Number(data.premium_credits ?? 0);
+    } catch {
+      return 0; // offline — credits aren't usable without the server anyway
+    }
+  }
+  const raw = await AsyncStorage.getItem(DEV_PREMIUM_CREDITS_KEY);
+  return raw ? Number(raw) || 0 : 0;
+}
+
+// Dev-only stand-in for buying a Day Pass while signed out.
+export async function devGrantPremiumCredit(): Promise<void> {
+  const current = await getPremiumCredits();
+  await AsyncStorage.setItem(DEV_PREMIUM_CREDITS_KEY, String(current + 1));
+}
+
+// Atomically spends one credit. Returns false if none were available or the
+// user is signed out (no server balance to spend against).
+export async function spendPremiumCredit(): Promise<boolean> {
+  if (!(await signedIn())) {
+    const current = await getPremiumCredits();
+    if (current <= 0) return false;
+    await AsyncStorage.setItem(DEV_PREMIUM_CREDITS_KEY, String(current - 1));
+    return true;
+  }
+  if (!supabase) return false;
+  const { data, error } = await supabase.rpc('spend_premium_credit');
+  return !error && data === true;
 }
 
 // Call once a script upload parses successfully — an "audition" is charged

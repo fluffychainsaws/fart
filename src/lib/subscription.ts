@@ -4,7 +4,10 @@ import { OPENAI_VOICES } from './cloudVoice';
 // of truth for pricing and limits — RevenueCat (or any other billing
 // provider) should map its product IDs onto these Tier values rather than
 // duplicating the numbers elsewhere.
-export type Tier = 'free' | 'fart' | 'fartpro' | 'shartstar';
+// 'daypass' isn't a subscribable plan (it's excluded from TIER_ORDER) — it's a
+// pseudo-tier used to describe the feature set a spent Day Pass credit grants
+// a single script, regardless of the account's actual subscription tier.
+export type Tier = 'free' | 'fart' | 'fartpro' | 'shartstar' | 'daypass';
 
 export interface TierConfig {
   id: Tier;
@@ -60,6 +63,17 @@ export const TIERS: Record<Tier, TierConfig> = {
     auditionsPerMonth: 75,
     aiVoiceCount: OPENAI_VOICES.length,
     directorNotesPerAudition: Infinity,
+    voiceCommands: true,
+    inputAbility: true,
+  },
+  daypass: {
+    id: 'daypass',
+    name: 'Day Pass',
+    priceLabel: '$2.99',
+    tagline: 'One script, full SHART STAR treatment.',
+    auditionsPerMonth: Infinity, // scoped to its own script, not a monthly quota
+    aiVoiceCount: OPENAI_VOICES.length,
+    directorNotesPerAudition: 10,
     voiceCommands: true,
     inputAbility: true,
   },

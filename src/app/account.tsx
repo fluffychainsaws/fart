@@ -7,7 +7,7 @@ import { useSession } from '@/lib/auth';
 import { billingConfigured, openCheckout } from '@/lib/billing';
 import { getTier, TIER_ORDER, type Tier } from '@/lib/subscription';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
-import { getUsageStatus, setCurrentTier, type UsageStatus } from '@/lib/usage';
+import { devGrantPremiumCredit, getUsageStatus, setCurrentTier, type UsageStatus } from '@/lib/usage';
 
 export default function AccountScreen() {
   const t = useTheme();
@@ -52,7 +52,31 @@ export default function AccountScreen() {
     ]);
   };
 
+  const buyDayPass = () => {
+    // Signed in: real checkout, same mechanism as the subscriptions — the
+    // webhook credits profiles.premium_credits instead of flipping tier.
+    if (session) {
+      if (!openCheckout('daypass', session.user.id, session.user.email)) {
+        const msg = 'Day Pass checkout isn’t open yet — hang tight!';
+        if (Platform.OS === 'web') window.alert(msg);
+        else Alert.alert('Day Pass', msg);
+      }
+      return;
+    }
+    if (Platform.OS === 'web') {
+      if (window.confirm('Buy a Day Pass credit? (dev-only — no real payment yet)')) {
+        devGrantPremiumCredit().then(refresh);
+      }
+      return;
+    }
+    Alert.alert('Day Pass', 'Buy a Day Pass credit? This is a dev-only stand-in — no real payment yet.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Buy', onPress: () => devGrantPremiumCredit().then(refresh) },
+    ]);
+  };
+
   if (!status) return <View style={styles.screen} />;
+  const dayPass = getTier('daypass');
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -133,6 +157,30 @@ export default function AccountScreen() {
           </View>
         );
       })}
+      <Text style={styles.sectionTitle}>Day Pass</Text>
+      <View style={styles.planCard}>
+        <View style={styles.planHeader}>
+          <Text style={styles.planName}>{dayPass.name}</Text>
+          <Text style={styles.planPrice}>{dayPass.priceLabel}</Text>
+        </View>
+        <Text style={styles.planTagline}>{dayPass.tagline}</Text>
+        <View style={styles.planFeatures}>
+          <Text style={styles.planFeature}>🔊 {dayPass.aiVoiceCount}+ AI voices</Text>
+          <Text style={styles.planFeature}>📝 {dayPass.directorNotesPerAudition} director notes</Text>
+          <Text style={styles.planFeature}>🎙 Hands-free voice commands</Text>
+        </View>
+        <Text style={styles.dayPassBalance}>
+          {status.premiumCredits > 0
+            ? `You have ${status.premiumCredits} credit${status.premiumCredits === 1 ? '' : 's'} ready to use`
+            : 'Never expires — use it whenever you want'}
+        </Text>
+        <Pressable
+          style={({ pressed }) => [styles.planButton, pressed && styles.pressed]}
+          onPress={buyDayPass}>
+          <Text style={styles.planButtonText}>Buy a Day Pass</Text>
+        </Pressable>
+      </View>
+
       <Text style={styles.devNote}>
         {session
           ? billingConfigured()
@@ -201,6 +249,7 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     planTagline: { fontSize: 13, color: t.inkSoft, marginTop: 4 },
     planFeatures: { marginTop: 12, gap: 4 },
     planFeature: { fontSize: 13, color: t.ink },
+    dayPassBalance: { fontSize: 12, color: t.inkSoft, marginTop: 10, fontStyle: 'italic' },
     planButton: {
       backgroundColor: t.accent,
       borderRadius: 12,

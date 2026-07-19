@@ -9,7 +9,7 @@ import { Text } from '@/lib/AppText';
 import { hasApiKey, parseScriptPdf, parseScriptPhotos } from '@/lib/parser';
 import { newId, saveScript } from '@/lib/storage';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
-import { getUsageStatus, recordAuditionCompleted } from '@/lib/usage';
+import { getUsageStatus, recordAuditionCompleted, spendPremiumCredit } from '@/lib/usage';
 
 interface Page {
   uri: string;
@@ -55,6 +55,12 @@ export default function CaptureScreen() {
   const [pdf, setPdf] = useState<Pdf | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [premiumCredits, setPremiumCredits] = useState(0);
+  const [useCredit, setUseCredit] = useState(false);
+
+  useEffect(() => {
+    getUsageStatus().then((u) => setPremiumCredits(u.premiumCredits));
+  }, []);
 
   const addAssets = (result: ImagePicker.ImagePickerResult) => {
     if (result.canceled) return;
@@ -121,14 +127,25 @@ export default function CaptureScreen() {
       // front (the parse is the costly step) so ending a scene early can't
       // dodge the meter.
       const usage = await getUsageStatus();
-      if (usage.auditionsRemaining <= 0) {
+      const wantsCredit = useCredit && usage.premiumCredits > 0;
+      if (!wantsCredit && usage.auditionsRemaining <= 0) {
         setError("You're out of auditions this month — upgrade your plan to keep going.");
         return;
       }
       const { title, elements } = pdf
         ? await parseScriptPdf(pdf.base64)
         : await parseScriptPhotos(pages.map((p) => ({ base64: p.base64, mimeType: p.mimeType })));
-      const script = { id: newId(), title, createdAt: Date.now(), myCharacter: null, elements };
+      // Spend the credit only after a successful parse — same "don't charge
+      // a failed attempt" rule as the monthly quota below.
+      const spentCredit = wantsCredit && (await spendPremiumCredit());
+      const script = {
+        id: newId(),
+        title,
+        createdAt: Date.now(),
+        myCharacter: null,
+        elements,
+        ...(spentCredit ? { premiumCredit: true } : {}),
+      };
       await saveScript(script);
       await recordAuditionCompleted();
       router.replace({ pathname: '/assign/[id]', params: { id: script.id } });
@@ -214,6 +231,19 @@ export default function CaptureScreen() {
                 ))}
               </View>
             </>
+          )}
+
+          {premiumCredits > 0 && (
+            <Pressable
+              style={[styles.creditToggle, useCredit && styles.creditToggleOn]}
+              onPress={() => setUseCredit((v) => !v)}>
+              <Text style={[styles.creditToggleText, useCredit && styles.creditToggleTextOn]}>
+                ✨ Use a Day Pass credit for this script ({premiumCredits} left)
+              </Text>
+              <Text style={styles.creditToggleSub}>
+                Every voice, hands-free commands, and more director notes — just for this one.
+              </Text>
+            </Pressable>
           )}
 
           {hasInput && (
@@ -318,6 +348,18 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     justifyContent: 'center',
   },
   thumbRemoveText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  creditToggle: {
+    backgroundColor: t.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: t.border,
+    padding: 14,
+    marginTop: 20,
+  },
+  creditToggleOn: { backgroundColor: t.accentSoft, borderColor: t.accent },
+  creditToggleText: { fontSize: 14, fontWeight: '700', color: t.ink },
+  creditToggleTextOn: { color: t.accent },
+  creditToggleSub: { fontSize: 12, color: t.inkSoft, marginTop: 4, lineHeight: 17 },
   primaryButton: {
     backgroundColor: t.accent,
     borderRadius: 16,

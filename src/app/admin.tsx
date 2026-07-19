@@ -15,7 +15,10 @@ import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 // gpt-4o-mini-tts ≈ $0.015/min ≈ 900 chars of speech per minute.
 const TTS_COST_PER_CHAR = 0.015 / 900;
 
-const TIER_PRICE: Record<Tier, number> = { free: 0, fart: 5, fartpro: 10, shartstar: 25 };
+// 'daypass' never appears here — profiles.tier's DB check constraint doesn't
+// allow it (it's a script-scoped pseudo-tier, not a stored account tier) —
+// but TypeScript still wants the Record exhaustive.
+const TIER_PRICE: Record<Tier, number> = { free: 0, fart: 5, fartpro: 10, shartstar: 25, daypass: 0 };
 
 interface TierRow {
   tier: Tier;

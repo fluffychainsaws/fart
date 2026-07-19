@@ -101,6 +101,58 @@ create policy "delete own scripts"
 alter table public.profiles add column if not exists photo_url text;
 alter table public.profiles add column if not exists photo_updated_at bigint not null default 0;
 
+-- Day Pass credits: a one-time $2.99 purchase grants one permanent credit
+-- (never expires), spent one-per-script to give that script SHART STAR-level
+-- features (see the 'daypass' pseudo-tier in src/lib/subscription.ts). Unlike
+-- tier changes, crediting isn't naturally idempotent — a duplicate webhook
+-- delivery for the same Stripe checkout session must not grant twice, hence
+-- day_pass_purchases as a dedupe ledger keyed by the session id.
+alter table public.profiles add column if not exists premium_credits integer not null default 0;
+
+create table if not exists public.day_pass_purchases (
+  session_id text primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+alter table public.day_pass_purchases enable row level security;
+-- No client policies: only the webhook (service role, which bypasses RLS)
+-- and the dashboard ever touch this table.
+
+-- Atomically spends one credit for the calling user, in a single UPDATE so
+-- concurrent spends can't both succeed against the same last credit. Returns
+-- whether a credit was actually available and spent.
+create or replace function public.spend_premium_credit()
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  updated_rows integer;
+begin
+  update public.profiles set premium_credits = premium_credits - 1
+  where id = auth.uid() and premium_credits > 0;
+  get diagnostics updated_rows = row_count;
+  return updated_rows > 0;
+end;
+$$;
+
+grant execute on function public.spend_premium_credit() to authenticated;
+
+-- Called only by the stripe-webhook edge function (service role) after it
+-- inserts into day_pass_purchases — that insert is what makes granting
+-- idempotent against Stripe's at-least-once webhook delivery, so this
+-- function itself doesn't need to re-check anything.
+create or replace function public.increment_premium_credits(p_user_id uuid, p_amount integer)
+returns void
+language sql
+security definer set search_path = public
+as $$
+  update public.profiles set premium_credits = premium_credits + p_amount where id = p_user_id;
+$$;
+
+grant execute on function public.increment_premium_credits(uuid, integer) to service_role;
+
 -- Owner/admin flag. Flip it on your own row once, in Table Editor:
 -- profiles -> your row -> is_admin = true. Nobody can set it from the app
 -- (the update policy already blocks profile edits beyond what it allows,
