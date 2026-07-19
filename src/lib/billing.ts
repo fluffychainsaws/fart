@@ -7,7 +7,7 @@ import type { Tier } from './subscription';
 // (see supabase/README.md, "Billing"); paste the URLs here. While a link is
 // blank its tier just isn't purchasable yet and the UI says so.
 const PAYMENT_LINKS: Record<Exclude<Tier, 'free'>, string> = {
-  fart: '',
+  fart: 'https://buy.stripe.com/test_fZu7sM9bqcWWgN1diudQQ01',
   fartpro: '',
   shartstar: '',
 };
