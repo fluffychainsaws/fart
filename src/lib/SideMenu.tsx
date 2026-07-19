@@ -6,6 +6,7 @@ import { router, usePathname } from 'expo-router';
 import { Text } from '@/lib/AppText';
 import { signOut, useSession } from '@/lib/auth';
 import { ClapperIcon } from '@/lib/ClapperIcon';
+import { CoinIcon } from '@/lib/CoinIcon';
 import { HomeIcon } from '@/lib/HomeIcon';
 import { LogoutIcon } from '@/lib/LogoutIcon';
 import { MicIcon } from '@/lib/MicIcon';
@@ -54,6 +55,7 @@ export function SideMenu() {
   const photo = useProfilePhoto();
   const [open, setOpen] = useState(false);
   const [tierName, setTierName] = useState<string | null>(null);
+  const [credits, setCredits] = useState(0);
   const [showHint, setShowHint] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(0)).current;
@@ -63,7 +65,10 @@ export function SideMenu() {
 
   useEffect(() => {
     if (!open) return;
-    getUsageStatus().then((status) => setTierName(getTier(status.tier).name));
+    getUsageStatus().then((status) => {
+      setTierName(getTier(status.tier).name);
+      setCredits(status.premiumCredits);
+    });
     refreshProfilePhoto();
   }, [open, session]);
 
@@ -250,6 +255,19 @@ export function SideMenu() {
               </Text>
               {tierName && <Text style={styles.profileTier}>{tierName}</Text>}
             </View>
+          </Pressable>
+
+          <Pressable
+            style={({ pressed }) => [styles.creditsRow, pressed && styles.pressed]}
+            onPress={() => {
+              dismissHint.current();
+              setOpen(false);
+              router.push('/account');
+            }}>
+            <CoinIcon size={20} />
+            <Text style={styles.creditsText}>
+              {credits} Audition Credit{credits === 1 ? '' : 's'}
+            </Text>
           </Pressable>
 
           <Text style={styles.brand}>F.A.R.T.</Text>
@@ -450,6 +468,16 @@ function makeStyles(t: Theme, shadow: ReturnType<typeof useCardShadow>) {
     },
     avatarPlaceholderText: { fontSize: 16 },
     profileTier: { fontSize: 11, fontWeight: '700', color: t.accent, marginTop: 1, letterSpacing: 0.3 },
+    creditsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingVertical: 8,
+      paddingHorizontal: 10,
+      borderRadius: 12,
+      marginBottom: 14,
+    },
+    creditsText: { fontSize: 13, fontWeight: '700', color: t.ink },
     brand: {
       fontSize: 13,
       fontWeight: '800',
