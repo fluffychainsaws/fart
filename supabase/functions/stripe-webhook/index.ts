@@ -3,16 +3,17 @@
 // Secrets (supabase secrets set KEY=value):
 //   STRIPE_WEBHOOK_SECRET  - from the Stripe webhook endpoint config
 //   PRICE_FART, PRICE_FARTPRO, PRICE_SHARTSTAR - Stripe price IDs per tier
-//   PRICE_DAYPASS - Stripe price ID for the one-time Day Pass credit
+//   PRICE_DAYPASS - Stripe price ID for the one-time Audition Credit
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are injected automatically.
 //
 // This is the ONLY place tiers get upgraded: checkout.session.completed sets
 // the paid tier, customer.subscription.deleted drops back to free. The
 // client_reference_id on the checkout session is the Supabase user id
-// (attached by src/lib/billing.ts when opening the payment link). The Day
-// Pass is a separate one-time price on the same checkout.session.completed
-// event — it grants a premium_credits credit instead of changing tier, and
-// is deduped against Stripe's at-least-once delivery via day_pass_purchases.
+// (attached by src/lib/billing.ts when opening the payment link). The
+// Audition Credit is a separate one-time price on the same
+// checkout.session.completed event — it grants a premium_credits credit
+// instead of changing tier, and is deduped against Stripe's at-least-once
+// delivery via day_pass_purchases.
 
 import Stripe from 'npm:stripe@18';
 import { createClient } from 'npm:@supabase/supabase-js@2';

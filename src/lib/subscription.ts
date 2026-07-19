@@ -5,7 +5,7 @@ import { OPENAI_VOICES } from './cloudVoice';
 // provider) should map its product IDs onto these Tier values rather than
 // duplicating the numbers elsewhere.
 // 'daypass' isn't a subscribable plan (it's excluded from TIER_ORDER) — it's a
-// pseudo-tier used to describe the feature set a spent Day Pass credit grants
+// pseudo-tier used to describe the feature set a spent Audition Credit grants
 // a single script, regardless of the account's actual subscription tier.
 export type Tier = 'free' | 'fart' | 'fartpro' | 'shartstar' | 'daypass';
 
@@ -68,7 +68,7 @@ export const TIERS: Record<Tier, TierConfig> = {
   },
   daypass: {
     id: 'daypass',
-    name: 'Day Pass',
+    name: 'Audition Credit',
     priceLabel: '$2.99',
     tagline: 'One script, full SHART STAR treatment.',
     auditionsPerMonth: Infinity, // scoped to its own script, not a monthly quota

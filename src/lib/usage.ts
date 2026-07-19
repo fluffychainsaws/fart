@@ -157,7 +157,7 @@ export async function getUsageStatus(): Promise<UsageStatus> {
   };
 }
 
-// Day Pass credits: a one-time $2.99 purchase that never expires, spent one
+// Audition Credit: a one-time $2.99 purchase that never expires, spent one
 // per script to give that script SHART STAR-level features (see the
 // 'daypass' pseudo-tier). Signed in, the server's profiles.premium_credits
 // is the truth (spent atomically via the spend_premium_credit() RPC, so a
@@ -188,7 +188,7 @@ export async function getPremiumCredits(): Promise<number> {
   return raw ? Number(raw) || 0 : 0;
 }
 
-// Dev-only stand-in for buying a Day Pass while signed out.
+// Dev-only stand-in for buying an Audition Credit while signed out.
 export async function devGrantPremiumCredit(): Promise<void> {
   const current = await getPremiumCredits();
   await AsyncStorage.setItem(DEV_PREMIUM_CREDITS_KEY, String(current + 1));

@@ -26,7 +26,7 @@ export interface FartScript {
   // Per-character voice choices: "openai:coral" or "device:<identifier>".
   // Characters not in the map get an automatic voice.
   voices?: Record<string, string>;
-  // Set when this script was created by spending a Day Pass credit — grants
+  // Set when this script was created by spending an Audition Credit — grants
   // it SHART STAR-level features (voices, voice commands) for its own
   // rehearsals regardless of the account's actual subscription tier, with
   // director notes capped like the 'daypass' tier rather than unlimited.

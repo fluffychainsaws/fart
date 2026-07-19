@@ -3,7 +3,7 @@ import { Linking, Platform } from 'react-native';
 import type { Tier } from './subscription';
 
 // Web checkout via Stripe Payment Links — no in-app purchase, no 30% store
-// cut. Each paid tier (plus the one-time Day Pass) gets a Payment Link
+// cut. Each paid tier (plus the one-time Audition Credit) gets a Payment Link
 // created in the Stripe dashboard (see supabase/README.md, "Billing"); paste
 // the URLs here. While a link is blank its tier just isn't purchasable yet
 // and the UI says so. 'daypass' shares this same URL-open + webhook-flip

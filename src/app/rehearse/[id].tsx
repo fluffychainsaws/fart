@@ -71,7 +71,7 @@ export default function RehearseScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const positions = useRef<Record<number, number>>({});
 
-  // A script bought with a Day Pass credit gets SHART STAR-level features for
+  // A script bought with an Audition Credit gets SHART STAR-level features for
   // itself regardless of the account's actual subscription tier — capped on
   // director notes rather than unlimited, per the 'daypass' pseudo-tier.
   const tier = script?.premiumCredit ? getTier('daypass') : usage ? getTier(usage.tier) : null;

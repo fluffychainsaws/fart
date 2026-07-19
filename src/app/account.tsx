@@ -57,19 +57,19 @@ export default function AccountScreen() {
     // webhook credits profiles.premium_credits instead of flipping tier.
     if (session) {
       if (!openCheckout('daypass', session.user.id, session.user.email)) {
-        const msg = 'Day Pass checkout isn’t open yet — hang tight!';
+        const msg = 'Audition Credit checkout isn’t open yet — hang tight!';
         if (Platform.OS === 'web') window.alert(msg);
-        else Alert.alert('Day Pass', msg);
+        else Alert.alert('Audition Credit', msg);
       }
       return;
     }
     if (Platform.OS === 'web') {
-      if (window.confirm('Buy a Day Pass credit? (dev-only — no real payment yet)')) {
+      if (window.confirm('Buy an Audition Credit? (dev-only — no real payment yet)')) {
         devGrantPremiumCredit().then(refresh);
       }
       return;
     }
-    Alert.alert('Day Pass', 'Buy a Day Pass credit? This is a dev-only stand-in — no real payment yet.', [
+    Alert.alert('Audition Credit', 'Buy an Audition Credit? This is a dev-only stand-in — no real payment yet.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Buy', onPress: () => devGrantPremiumCredit().then(refresh) },
     ]);
@@ -157,7 +157,7 @@ export default function AccountScreen() {
           </View>
         );
       })}
-      <Text style={styles.sectionTitle}>Day Pass</Text>
+      <Text style={styles.sectionTitle}>Audition Credit</Text>
       <View style={styles.planCard}>
         <View style={styles.planHeader}>
           <Text style={styles.planName}>{dayPass.name}</Text>
@@ -177,7 +177,7 @@ export default function AccountScreen() {
         <Pressable
           style={({ pressed }) => [styles.planButton, pressed && styles.pressed]}
           onPress={buyDayPass}>
-          <Text style={styles.planButtonText}>Buy a Day Pass</Text>
+          <Text style={styles.planButtonText}>Buy an Audition Credit</Text>
         </Pressable>
       </View>
 

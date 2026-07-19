@@ -238,7 +238,7 @@ export default function CaptureScreen() {
               style={[styles.creditToggle, useCredit && styles.creditToggleOn]}
               onPress={() => setUseCredit((v) => !v)}>
               <Text style={[styles.creditToggleText, useCredit && styles.creditToggleTextOn]}>
-                ✨ Use a Day Pass credit for this script ({premiumCredits} left)
+                ✨ Use an Audition Credit for this script ({premiumCredits} left)
               </Text>
               <Text style={styles.creditToggleSub}>
                 Every voice, hands-free commands, and more director notes — just for this one.

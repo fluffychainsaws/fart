@@ -101,7 +101,7 @@ create policy "delete own scripts"
 alter table public.profiles add column if not exists photo_url text;
 alter table public.profiles add column if not exists photo_updated_at bigint not null default 0;
 
--- Day Pass credits: a one-time $2.99 purchase grants one permanent credit
+-- Audition Credit: a one-time $2.99 purchase grants one permanent credit
 -- (never expires), spent one-per-script to give that script SHART STAR-level
 -- features (see the 'daypass' pseudo-tier in src/lib/subscription.ts). Unlike
 -- tier changes, crediting isn't naturally idempotent — a duplicate webhook
