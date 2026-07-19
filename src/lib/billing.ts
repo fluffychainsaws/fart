@@ -10,10 +10,10 @@ import type { Tier } from './subscription';
 // mechanism as the subscriptions — the webhook just credits instead of
 // setting tier for that one price.
 const PAYMENT_LINKS: Record<Exclude<Tier, 'free'>, string> = {
-  fart: 'https://buy.stripe.com/test_fZu7sM9bqcWWgN1diudQQ01',
-  fartpro: 'https://buy.stripe.com/test_bJe28sevK7CCbsH4LYdQQ02',
-  shartstar: 'https://buy.stripe.com/test_4gMdRa2N25uu8gvfqCdQQ03',
-  daypass: 'https://buy.stripe.com/test_cNi4gA5ZeaOOeETa6idQQ04',
+  fart: 'https://buy.stripe.com/6oUdRa3TrbvvgmP3P2a7C00',
+  fartpro: 'https://buy.stripe.com/eVq7sM2Pn9nn9Yr85ia7C01',
+  shartstar: 'https://buy.stripe.com/bJe9AU2Pn5773A32KYa7C02',
+  daypass: 'https://buy.stripe.com/fZu8wQahP1UV2vZ85ia7C03',
 };
 
 export function checkoutUrl(tier: Tier): string | null {
