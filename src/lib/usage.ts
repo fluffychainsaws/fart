@@ -118,6 +118,38 @@ function currentMonthKey(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
+// The server stores its counter keyed by UTC month, so the client compares
+// against UTC (not local) when reading the server's value back.
+function utcMonthKey(): string {
+  const now = new Date();
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+// Auditions used this month. Signed in, the truth is profiles.auditions_used
+// on the server (the parse-script edge function is the only thing that writes
+// it) — a stale/rolled-over month reads as 0. Signed out, the local counter is
+// the fallback (though parsing itself requires signing in).
+async function getAuditionsUsed(): Promise<number> {
+  if (await signedIn()) {
+    if (!supabase) return 0;
+    const { data: auth } = await supabase.auth.getSession();
+    const uid = auth.session?.user.id;
+    if (!uid) return 0;
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('auditions_month, auditions_used')
+        .eq('id', uid)
+        .single();
+      if (error || !data) return 0;
+      return data.auditions_month === utcMonthKey() ? Number(data.auditions_used ?? 0) : 0;
+    } catch {
+      return 0; // offline — quota isn't enforceable without the server anyway
+    }
+  }
+  return (await readUsage()).auditionsUsed;
+}
+
 async function readUsage(): Promise<UsageRecord> {
   const raw = await AsyncStorage.getItem(USAGE_KEY);
   const month = currentMonthKey();
@@ -141,17 +173,17 @@ export interface UsageStatus {
 }
 
 export async function getUsageStatus(): Promise<UsageStatus> {
-  const [tier, usage, premiumCredits] = await Promise.all([
+  const [tier, auditionsUsed, premiumCredits] = await Promise.all([
     getCurrentTier(),
-    readUsage(),
+    getAuditionsUsed(),
     getPremiumCredits(),
   ]);
   const limit = getTier(tier).auditionsPerMonth;
   return {
     tier,
-    auditionsUsed: usage.auditionsUsed,
+    auditionsUsed,
     auditionsPerMonth: limit,
-    auditionsRemaining: UNLIMITED_AUDITIONS ? Infinity : Math.max(0, limit - usage.auditionsUsed),
+    auditionsRemaining: UNLIMITED_AUDITIONS ? Infinity : Math.max(0, limit - auditionsUsed),
     // A tier with an Infinity quota (SHART STAR) is unlimited on its own,
     // not just via the global override.
     unlimited: UNLIMITED_AUDITIONS || limit === Infinity,
@@ -210,10 +242,12 @@ export async function spendPremiumCredit(): Promise<boolean> {
   return !error && data === true;
 }
 
-// Call once a script upload parses successfully — an "audition" is charged
-// at upload (the parse is the expensive step), so quitting a scene early
-// can't dodge the meter. Failed parses don't consume quota.
+// Signed in, the parse-script edge function already consumed the audition
+// server-side and logged the analytics event when it parsed — counting again
+// here would double it. This only touches the local counter for the signed-out
+// dev path (which can't reach the real parser anyway).
 export async function recordAuditionCompleted(): Promise<void> {
+  if (await signedIn()) return;
   const usage = await readUsage();
   const next: UsageRecord = { month: currentMonthKey(), auditionsUsed: usage.auditionsUsed + 1 };
   await AsyncStorage.setItem(USAGE_KEY, JSON.stringify(next));

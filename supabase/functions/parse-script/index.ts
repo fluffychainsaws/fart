@@ -17,7 +17,24 @@
 // account means abuse can be traced to — and cut off at — a user.
 
 import Anthropic from 'npm:@anthropic-ai/sdk@0.111';
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
+
+// Monthly audition limits per tier — keep in sync with src/lib/subscription.ts
+// (TIERS[*].auditionsPerMonth). Infinity means the tier is unlimited and skips
+// the counter entirely. Duplicated here because this Deno function can't import
+// the app's TypeScript.
+const AUDITION_LIMITS: Record<string, number> = {
+  free: 1,
+  fart: 6,
+  fartpro: 14,
+  shartstar: Infinity,
+};
+
+// 'YYYY-MM' in UTC — the key the audition counter rolls over on.
+function monthKey(): string {
+  const n = new Date();
+  return `${n.getUTCFullYear()}-${String(n.getUTCMonth() + 1).padStart(2, '0')}`;
+}
 
 // Script transcription runs on Haiku 4.5 (~5x cheaper than Opus per the
 // pricing) with an automatic one-shot retry on Opus 4.8 if Haiku errors or
@@ -180,6 +197,60 @@ async function parseScript(
   throw new Error('unreachable');
 }
 
+// Charges the upload against the user's quota BEFORE spending any Claude money,
+// then parses. If Claude fails, the charge is refunded so a failed upload never
+// costs the user an audition or a credit. `admin` is a service-role client (the
+// quota RPCs are service_role-only, so the client can't call them directly).
+async function gateAndParse(
+  admin: SupabaseClient,
+  client: Anthropic,
+  userId: string,
+  useCredit: boolean,
+  content: Anthropic.Messages.ContentBlockParam[],
+  noun: 'photos' | 'PDF',
+): Promise<Response> {
+  const { data: profile } = await admin.from('profiles').select('tier').eq('id', userId).single();
+  const tier = (profile?.tier as string) ?? 'free';
+  const month = monthKey();
+  let consumed: 'credit' | 'audition' | 'none' = 'none';
+
+  if (useCredit) {
+    const { data: ok } = await admin.rpc('spend_premium_credit_for', { p_user_id: userId });
+    if (ok !== true) return json({ error: "You don't have any Audition Credits left." }, 402);
+    consumed = 'credit';
+  } else {
+    const limit = AUDITION_LIMITS[tier] ?? AUDITION_LIMITS.free;
+    if (limit !== Infinity) {
+      const { data: ok } = await admin.rpc('consume_audition', {
+        p_user_id: userId,
+        p_month: month,
+        p_limit: limit,
+      });
+      if (ok !== true) {
+        return json(
+          { error: "You're out of auditions this month — upgrade your plan to keep going." },
+          402,
+        );
+      }
+      consumed = 'audition';
+    }
+  }
+
+  try {
+    const result = await parseScript(client, content, noun);
+    // Best-effort analytics for the /admin dashboard (service role bypasses RLS).
+    await admin.from('usage_events').insert({ user_id: userId, kind: 'audition' });
+    return json({ ...result, usedCredit: consumed === 'credit' });
+  } catch (err) {
+    if (consumed === 'credit') {
+      await admin.rpc('increment_premium_credits', { p_user_id: userId, p_amount: 1 });
+    } else if (consumed === 'audition') {
+      await admin.rpc('refund_audition', { p_user_id: userId, p_month: month });
+    }
+    throw err; // handled by the outer catch → friendly 502
+  }
+}
+
 // --- Handler ----------------------------------------------------------------
 
 Deno.serve(async (req) => {
@@ -210,27 +281,40 @@ Deno.serve(async (req) => {
     return json({ error: 'bad request' }, 400);
   }
 
+  // Service-role client for the quota RPCs (service_role-only) and the tier
+  // read. The auth client above is only for verifying the caller's identity.
+  const admin = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  );
+
   const client = new Anthropic({ apiKey });
   const mode = payload.mode;
+  const useCredit = Boolean(payload.useCredit);
 
   try {
     if (mode === 'pdf') {
       const pdf = String(payload.pdf ?? '').replace(/^data:application\/pdf;base64,/, '');
-      const result = await parseScript(
+      return await gateAndParse(
+        admin,
         client,
+        user.id,
+        useCredit,
         [
           { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdf } },
           { type: 'text', text: scriptInstructions('PDF') },
         ],
         'PDF',
       );
-      return json(result);
     }
 
     if (mode === 'photos') {
       const photos = (payload.photos as { base64: string; mimeType: string | null }[]) ?? [];
-      const result = await parseScript(
+      return await gateAndParse(
+        admin,
         client,
+        user.id,
+        useCredit,
         [
           ...photos.map((photo) => ({
             type: 'image' as const,
@@ -244,7 +328,6 @@ Deno.serve(async (req) => {
         ],
         'photos',
       );
-      return json(result);
     }
 
     if (mode === 'direction') {

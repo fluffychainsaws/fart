@@ -153,6 +153,78 @@ $$;
 
 grant execute on function public.increment_premium_credits(uuid, integer) to service_role;
 
+-- Server-enforced monthly audition quota. The count lives HERE, not in device
+-- storage, so it can't be reset by clearing the browser / going incognito, and
+-- can't be faked by a modified client. The parse-script edge function is the
+-- sole caller: it consumes one per upload before spending any Claude money,
+-- refunds on parse failure, and rejects once the tier's monthly limit is hit.
+-- auditions_month rolls the counter over at the start of each month ('YYYY-MM',
+-- UTC — matches the edge function's clock).
+alter table public.profiles add column if not exists auditions_month text;
+alter table public.profiles add column if not exists auditions_used integer not null default 0;
+
+-- Atomically consume one audition if under p_limit, resetting the counter when
+-- the stored month differs from p_month. The two updates run in one function
+-- call (one transaction), and Postgres row-locks serialize concurrent calls for
+-- the same user, so a burst of requests can't race past the limit. Returns
+-- whether an audition was available and consumed. service_role only — the
+-- client can never call this to grant itself auditions (or pass a fake limit).
+create or replace function public.consume_audition(p_user_id uuid, p_month text, p_limit integer)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  updated_rows integer;
+begin
+  update public.profiles
+    set auditions_month = p_month, auditions_used = 0
+    where id = p_user_id and auditions_month is distinct from p_month;
+  update public.profiles
+    set auditions_used = auditions_used + 1
+    where id = p_user_id and auditions_used < p_limit;
+  get diagnostics updated_rows = row_count;
+  return updated_rows > 0;
+end;
+$$;
+
+grant execute on function public.consume_audition(uuid, text, integer) to service_role;
+
+-- Give an audition back when the parse fails after it was consumed, so a failed
+-- upload doesn't burn the user's quota (mirrors the credit refund).
+create or replace function public.refund_audition(p_user_id uuid, p_month text)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  update public.profiles
+    set auditions_used = greatest(0, auditions_used - 1)
+    where id = p_user_id and auditions_month = p_month and auditions_used > 0;
+end;
+$$;
+
+grant execute on function public.refund_audition(uuid, text) to service_role;
+
+-- Service-role twin of spend_premium_credit() for the edge function, which has
+-- no auth.uid(). Same atomic decrement-if-available.
+create or replace function public.spend_premium_credit_for(p_user_id uuid)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  updated_rows integer;
+begin
+  update public.profiles set premium_credits = premium_credits - 1
+    where id = p_user_id and premium_credits > 0;
+  get diagnostics updated_rows = row_count;
+  return updated_rows > 0;
+end;
+$$;
+
+grant execute on function public.spend_premium_credit_for(uuid) to service_role;
+
 -- Owner/admin flag. Flip it on your own row once, in Table Editor:
 -- profiles -> your row -> is_admin = true. Nobody can set it from the app
 -- (the update policy already blocks profile edits beyond what it allows,

@@ -10,7 +10,7 @@ import { useSession } from '@/lib/auth';
 import { parseScriptPdf, parseScriptPhotos } from '@/lib/parser';
 import { newId, saveScript } from '@/lib/storage';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
-import { getUsageStatus, recordAuditionCompleted, spendPremiumCredit } from '@/lib/usage';
+import { getUsageStatus } from '@/lib/usage';
 
 interface Page {
   uri: string;
@@ -134,22 +134,25 @@ export default function CaptureScreen() {
         setError("You're out of auditions this month — upgrade your plan to keep going.");
         return;
       }
-      const { title, elements } = pdf
-        ? await parseScriptPdf(pdf.base64)
-        : await parseScriptPhotos(pages.map((p) => ({ base64: p.base64, mimeType: p.mimeType })));
-      // Spend the credit only after a successful parse — same "don't charge
-      // a failed attempt" rule as the monthly quota below.
-      const spentCredit = wantsCredit && (await spendPremiumCredit());
+      // The edge function enforces the quota / spends the credit server-side
+      // (the old client counter was resettable by clearing browser storage),
+      // refunds on a failed parse, and reports whether a credit was actually
+      // used so we can mark the script premium.
+      const parsed = pdf
+        ? await parseScriptPdf(pdf.base64, { useCredit: wantsCredit })
+        : await parseScriptPhotos(
+            pages.map((p) => ({ base64: p.base64, mimeType: p.mimeType })),
+            { useCredit: wantsCredit },
+          );
       const script = {
         id: newId(),
-        title,
+        title: parsed.title,
         createdAt: Date.now(),
         myCharacter: null,
-        elements,
-        ...(spentCredit ? { premiumCredit: true } : {}),
+        elements: parsed.elements,
+        ...(parsed.usedCredit ? { premiumCredit: true } : {}),
       };
       await saveScript(script);
-      await recordAuditionCompleted();
       router.replace({ pathname: '/assign/[id]', params: { id: script.id } });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');

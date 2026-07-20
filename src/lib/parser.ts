@@ -14,6 +14,9 @@ export interface ScriptPhoto {
 export interface ParsedScript {
   title: string;
   elements: ScriptElement[];
+  // Set by the server when the upload was charged to an Audition Credit rather
+  // than the monthly quota — the client uses it to mark the script premium.
+  usedCredit?: boolean;
 }
 
 // True when the accounts backend (the parse proxy) is reachable at all. Screens
@@ -46,10 +49,19 @@ export async function invokeParseProxy<T>(body: Record<string, unknown>): Promis
   return data as T;
 }
 
-export async function parseScriptPhotos(photos: ScriptPhoto[]): Promise<ParsedScript> {
-  return invokeParseProxy<ParsedScript>({ mode: 'photos', photos });
+// useCredit asks the server to charge this upload to an Audition Credit instead
+// of the monthly quota. The server is the authority — it spends the credit (or
+// consumes a monthly audition) before parsing and reports back via usedCredit.
+export async function parseScriptPhotos(
+  photos: ScriptPhoto[],
+  opts?: { useCredit?: boolean },
+): Promise<ParsedScript> {
+  return invokeParseProxy<ParsedScript>({ mode: 'photos', photos, useCredit: opts?.useCredit ?? false });
 }
 
-export async function parseScriptPdf(base64: string): Promise<ParsedScript> {
-  return invokeParseProxy<ParsedScript>({ mode: 'pdf', pdf: base64 });
+export async function parseScriptPdf(
+  base64: string,
+  opts?: { useCredit?: boolean },
+): Promise<ParsedScript> {
+  return invokeParseProxy<ParsedScript>({ mode: 'pdf', pdf: base64, useCredit: opts?.useCredit ?? false });
 }
