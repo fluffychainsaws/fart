@@ -21,6 +21,26 @@ never put it in the app or the repo.
    `https://selftapebuddy.com` and add the same URL to **Redirect URLs**
    (confirmation + reset links land there).
 
+## Script reading (Claude) — required to parse scripts
+
+Uploading a PDF/photo and turning it into a script calls Claude. That call
+runs **server-side**, in the `parse-script` Edge Function, so the Anthropic key
+stays a secret — an `EXPO_PUBLIC_*` key would be inlined into the public web
+bundle and could be lifted by anyone. Smart director notes go through the same
+function. Without this deployed, script uploads fail with a friendly error and
+director notes fall back to keyword matching.
+
+1. Deploy the function (JWT verification stays ON — parsing is gated to
+   signed-in users so the key can't be abused anonymously):
+   ```
+   supabase functions deploy parse-script
+   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+   ```
+   (Or paste `supabase/functions/parse-script/index.ts` via the dashboard's
+   Edge Functions editor and set the secret under **Edge Functions → Secrets**.)
+2. That's it — the client calls it through the Supabase URL already baked into
+   the app. Parsing requires the user to be **signed in**.
+
 ## Billing (Stripe) — when ready to charge
 
 The app opens Stripe **Payment Links** in the browser (no app-store cut), and

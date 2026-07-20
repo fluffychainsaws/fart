@@ -6,7 +6,8 @@ import { router } from 'expo-router';
 import { fromByteArray } from 'base64-js';
 
 import { Text } from '@/lib/AppText';
-import { hasApiKey, parseScriptPdf, parseScriptPhotos } from '@/lib/parser';
+import { useSession } from '@/lib/auth';
+import { parseScriptPdf, parseScriptPhotos } from '@/lib/parser';
 import { newId, saveScript } from '@/lib/storage';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 import { getUsageStatus, recordAuditionCompleted, spendPremiumCredit } from '@/lib/usage';
@@ -57,6 +58,7 @@ export default function CaptureScreen() {
   const [error, setError] = useState<string | null>(null);
   const [premiumCredits, setPremiumCredits] = useState(0);
   const [useCredit, setUseCredit] = useState(false);
+  const session = useSession();
 
   useEffect(() => {
     getUsageStatus().then((u) => setPremiumCredits(u.premiumCredits));
@@ -166,11 +168,11 @@ export default function CaptureScreen() {
         library instead; that works exactly the same.
       </Text>
 
-      {!hasApiKey() && (
+      {session === null && (
         <View style={styles.keyWarning}>
           <Text style={styles.keyWarningText}>
-            🔑 No API key set yet, so FART can't read scripts. Add EXPO_PUBLIC_ANTHROPIC_API_KEY to
-            the .env file and restart the dev server.
+            🔒 Sign in to upload a script — reading your sides happens on our server so your account
+            can keep track of it.
           </Text>
         </View>
       )}

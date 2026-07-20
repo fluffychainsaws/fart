@@ -1,9 +1,6 @@
-import Anthropic from '@anthropic-ai/sdk';
-
-import { hasApiKey } from './parser';
+import { invokeParseProxy } from './parser';
+import { supabase } from './supabase';
 import type { Delivery } from './types';
-
-const MODEL = 'claude-opus-4-8';
 
 const NO_CHANGE: Omit<Delivery, 'note'> = {
   rate: 1,
@@ -11,37 +8,6 @@ const NO_CHANGE: Omit<Delivery, 'note'> = {
   pauseBeforeMs: 0,
   pauseAfterMs: 0,
   cutoff: false,
-};
-
-const DELIVERY_SCHEMA = {
-  type: 'object',
-  properties: {
-    rate: {
-      type: 'number',
-      description:
-        'Speaking-speed multiplier, 0.5–2. Angry/excited/urgent ≈ 1.1–1.3; sad/tired/thoughtful ≈ 0.75–0.9; 1 = unchanged.',
-    },
-    pitch: {
-      type: 'number',
-      description:
-        'Voice-pitch multiplier, 0.6–1.5. Angry/menacing slightly lower ≈ 0.9; excited/panicked higher ≈ 1.1–1.2; 1 = unchanged.',
-    },
-    pauseBeforeMs: {
-      type: 'number',
-      description: 'Silence in milliseconds before the line starts, 0–10000. "Pause 2 seconds first" → 2000.',
-    },
-    pauseAfterMs: {
-      type: 'number',
-      description: 'Silence in milliseconds after the line ends, 0–10000.',
-    },
-    cutoff: {
-      type: 'boolean',
-      description:
-        'True when the reader should interrupt — start this line before the user finishes their previous line ("cut me off", "talk over me", "interrupt me").',
-    },
-  },
-  required: ['rate', 'pitch', 'pauseBeforeMs', 'pauseAfterMs', 'cutoff'],
-  additionalProperties: false,
 };
 
 // Keyword fallback when there's no API key (or the call fails): covers the
@@ -74,40 +40,31 @@ export function keywordDelivery(note: string): Omit<Delivery, 'note'> {
   return d;
 }
 
-// Turn a natural-language director's note into delivery parameters.
-// Uses Claude when a key is configured; otherwise the keyword fallback.
+// Turn a natural-language director's note into delivery parameters. Uses
+// Claude (via the server proxy) for a signed-in user; otherwise — signed out,
+// offline, or on any error — the keyword fallback, so the feature always works.
 export async function interpretDirection(
   note: string,
   line: { character: string; text: string },
 ): Promise<Delivery> {
   const trimmed = note.trim();
-  if (!hasApiKey()) return { note: trimmed, ...keywordDelivery(trimmed) };
+
+  // Signed out → no server call to make; the keyword fallback still covers the
+  // common notes. (Avoids a doomed round-trip the proxy would 401 anyway.)
+  let signedIn = false;
+  try {
+    signedIn = supabase ? Boolean((await supabase.auth.getSession()).data.session) : false;
+  } catch {
+    signedIn = false;
+  }
+  if (!signedIn) return { note: trimmed, ...keywordDelivery(trimmed) };
 
   try {
-    const client = new Anthropic({
-      apiKey: process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY,
-      dangerouslyAllowBrowser: true,
+    const params = await invokeParseProxy<Omit<Delivery, 'note'>>({
+      mode: 'direction',
+      note: trimmed,
+      line,
     });
-    const response = await client.messages.create({
-      model: MODEL,
-      max_tokens: 2000,
-      output_config: { format: { type: 'json_schema', schema: DELIVERY_SCHEMA } },
-      messages: [
-        {
-          role: 'user',
-          content: `You are compiling an actor's director-note into text-to-speech delivery parameters for an AI scene reader. The reader cannot truly act, so approximate emotion with speed and pitch, and be conservative — small changes read better than big ones. Use the parameter defaults (rate 1, pitch 1, pauses 0, cutoff false) for anything the note doesn't ask for.
-
-The reader is about to say this line as ${line.character}:
-"${line.text}"
-
-The actor's note for this line:
-"${trimmed}"`,
-        },
-      ],
-    });
-    const block = response.content.find((b) => b.type === 'text');
-    if (block?.type !== 'text') throw new Error('empty response');
-    const params = JSON.parse(block.text) as Omit<Delivery, 'note'>;
     return {
       note: trimmed,
       rate: clamp(params.rate, 0.5, 2),
