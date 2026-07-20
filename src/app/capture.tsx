@@ -7,9 +7,12 @@ import { fromByteArray } from 'base64-js';
 
 import { Text } from '@/lib/AppText';
 import { useSession } from '@/lib/auth';
+import { openCheckout } from '@/lib/billing';
 import { parseScriptPdf, parseScriptPhotos } from '@/lib/parser';
 import { newId, saveScript } from '@/lib/storage';
+import { type Tier } from '@/lib/subscription';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
+import { UpgradeModal } from '@/lib/UpgradeModal';
 import { getUsageStatus } from '@/lib/usage';
 
 interface Page {
@@ -58,11 +61,21 @@ export default function CaptureScreen() {
   const [error, setError] = useState<string | null>(null);
   const [premiumCredits, setPremiumCredits] = useState(0);
   const [useCredit, setUseCredit] = useState(false);
+  const [tier, setTier] = useState<Tier>('free');
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const session = useSession();
 
   useEffect(() => {
-    getUsageStatus().then((u) => setPremiumCredits(u.premiumCredits));
+    getUsageStatus().then((u) => {
+      setPremiumCredits(u.premiumCredits);
+      setTier(u.tier);
+    });
   }, []);
+
+  const handleUpgrade = (target: Tier) => {
+    if (session) openCheckout(target, session.user.id, session.user.email);
+    setShowUpgrade(false);
+  };
 
   const addAssets = (result: ImagePicker.ImagePickerResult) => {
     if (result.canceled) return;
@@ -131,7 +144,9 @@ export default function CaptureScreen() {
       const usage = await getUsageStatus();
       const wantsCredit = useCredit && usage.premiumCredits > 0;
       if (!wantsCredit && usage.auditionsRemaining <= 0) {
+        setTier(usage.tier);
         setError("You're out of auditions this month — upgrade your plan to keep going.");
+        setShowUpgrade(true);
         return;
       }
       // The edge function enforces the quota / spends the credit server-side
@@ -155,7 +170,11 @@ export default function CaptureScreen() {
       await saveScript(script);
       router.replace({ pathname: '/assign/[id]', params: { id: script.id } });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
+      const msg = e instanceof Error ? e.message : 'Something went wrong. Try again.';
+      setError(msg);
+      // Covers the race where the client pre-check passed but the server (the
+      // real gate) rejected the upload as over-quota.
+      if (msg.includes('out of auditions')) setShowUpgrade(true);
     } finally {
       setBusy(false);
     }
@@ -164,6 +183,7 @@ export default function CaptureScreen() {
   const hasInput = pdf !== null || pages.length > 0;
 
   return (
+    <>
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.blurb}>
         Upload your sides as a PDF — most sides already are one, and FART reads the real text
@@ -263,6 +283,14 @@ export default function CaptureScreen() {
 
       {error && <Text style={styles.error}>{error}</Text>}
     </ScrollView>
+    <UpgradeModal
+      visible={showUpgrade}
+      currentTier={tier}
+      hasCredits={premiumCredits > 0}
+      onUpgrade={handleUpgrade}
+      onClose={() => setShowUpgrade(false)}
+    />
+    </>
   );
 }
 
