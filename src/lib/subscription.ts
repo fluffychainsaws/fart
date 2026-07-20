@@ -57,7 +57,7 @@ export const TIERS: Record<Tier, TierConfig> = {
     tagline: 'More auditions, more direction.',
     auditionsPerMonth: 14,
     aiVoiceCount: 2,
-    voiceLabel: 'All device voices + 2 premium AI voices',
+    voiceLabel: 'All device voices + 2 Premium AI voices',
     directorNotesPerAudition: 20,
     voiceCommands: false,
     inputAbility: true,
