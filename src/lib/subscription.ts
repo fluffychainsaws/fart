@@ -81,7 +81,7 @@ export const TIERS: Record<Tier, TierConfig> = {
     tagline: 'One script, full SHART STAR treatment.',
     auditionsPerMonth: Infinity, // scoped to its own script, not a monthly quota
     aiVoiceCount: OPENAI_VOICES.length,
-    voiceLabel: 'All voices + Premium voices',
+    voiceLabel: 'All voices + ALL Premium voices',
     directorNotesPerAudition: 10,
     voiceCommands: true,
     inputAbility: true,
