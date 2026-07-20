@@ -19,7 +19,15 @@
 import Anthropic from 'npm:@anthropic-ai/sdk@0.111';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const MODEL = 'claude-opus-4-8';
+// Script transcription runs on Haiku 4.5 (~5x cheaper than Opus per the
+// pricing) with an automatic one-shot retry on Opus 4.8 if Haiku errors or
+// finds no dialogue — see parseScript. Reading already-typed dialogue off a
+// clean PDF is OCR-plus-structure, not deep reasoning, so Haiku handles the
+// common case; Opus is the safety net for messy scans/photos. Director-note
+// interpretation stays on Opus (small volume, more nuanced).
+const SCRIPT_MODEL_PRIMARY = 'claude-haiku-4-5';
+const SCRIPT_MODEL_FALLBACK = 'claude-opus-4-8';
+const DIRECTION_MODEL = 'claude-opus-4-8';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -149,14 +157,27 @@ async function parseScript(
   content: Anthropic.Messages.ContentBlockParam[],
   noun: 'photos' | 'PDF',
 ) {
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 16000,
-    thinking: { type: 'adaptive' },
-    output_config: { format: { type: 'json_schema', schema: SCRIPT_SCHEMA } },
-    messages: [{ role: 'user', content }],
-  });
-  return extractScript(response, noun);
+  const models = [SCRIPT_MODEL_PRIMARY, SCRIPT_MODEL_FALLBACK];
+  for (let i = 0; i < models.length; i++) {
+    const model = models[i];
+    try {
+      const response = await client.messages.create({
+        model,
+        max_tokens: 16000,
+        // Adaptive thinking is Opus-family only — Haiku 4.5 rejects it (400).
+        // Transcription needs no thinking, so Haiku just omits it.
+        ...(model.startsWith('claude-opus') ? { thinking: { type: 'adaptive' as const } } : {}),
+        output_config: { format: { type: 'json_schema', schema: SCRIPT_SCHEMA } },
+        messages: [{ role: 'user', content }],
+      });
+      return extractScript(response, noun);
+    } catch (err) {
+      // Last model in the chain failed — give up and let the handler report it.
+      if (i === models.length - 1) throw err;
+      console.error(`parse on ${model} failed; retrying on ${models[i + 1]}:`, err);
+    }
+  }
+  throw new Error('unreachable');
 }
 
 // --- Handler ----------------------------------------------------------------
@@ -230,7 +251,7 @@ Deno.serve(async (req) => {
       const note = String(payload.note ?? '').trim();
       const line = (payload.line as { character: string; text: string }) ?? { character: '', text: '' };
       const response = await client.messages.create({
-        model: MODEL,
+        model: DIRECTION_MODEL,
         max_tokens: 2000,
         output_config: { format: { type: 'json_schema', schema: DELIVERY_SCHEMA } },
         messages: [
