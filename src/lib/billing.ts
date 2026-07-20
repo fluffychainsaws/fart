@@ -13,7 +13,7 @@ const PAYMENT_LINKS: Record<Exclude<Tier, 'free'>, string> = {
   fart: 'https://buy.stripe.com/6oUdRa3TrbvvgmP3P2a7C00',
   fartpro: 'https://buy.stripe.com/eVq7sM2Pn9nn9Yr85ia7C01',
   shartstar: 'https://buy.stripe.com/bJe9AU2Pn5773A32KYa7C02',
-  daypass: 'https://buy.stripe.com/fZu8wQahP1UV2vZ85ia7C03',
+  daypass: 'https://buy.stripe.com/dRm00kfC9arr7Qjadqa7C04',
 };
 
 export function checkoutUrl(tier: Tier): string | null {
