@@ -125,13 +125,13 @@ export default function AccountScreen() {
             </View>
             <Text style={styles.planTagline}>{tier.tagline}</Text>
             <View style={styles.planFeatures}>
-              <Text style={styles.planFeature}>🎬 {tier.auditionsPerMonth} auditions/month</Text>
               <Text style={styles.planFeature}>
-                🔊{' '}
-                {tier.aiVoiceCount === 0
-                  ? 'Basic device voice'
-                  : `${tier.aiVoiceCount}${tier.id === 'shartstar' ? '+' : ''} AI voices`}
+                🎬{' '}
+                {tier.auditionsPerMonth === Infinity
+                  ? 'Unlimited auditions'
+                  : `${tier.auditionsPerMonth} audition${tier.auditionsPerMonth === 1 ? '' : 's'}/month`}
               </Text>
+              <Text style={styles.planFeature}>🔊 {tier.voiceLabel}</Text>
               <Text style={styles.planFeature}>
                 📝{' '}
                 {tier.directorNotesPerAudition === 0
@@ -165,7 +165,7 @@ export default function AccountScreen() {
         </View>
         <Text style={styles.planTagline}>{dayPass.tagline}</Text>
         <View style={styles.planFeatures}>
-          <Text style={styles.planFeature}>🔊 {dayPass.aiVoiceCount}+ AI voices</Text>
+          <Text style={styles.planFeature}>🔊 {dayPass.voiceLabel}</Text>
           <Text style={styles.planFeature}>📝 {dayPass.directorNotesPerAudition} director notes</Text>
           <Text style={styles.planFeature}>🎙 Hands-free voice commands</Text>
         </View>
