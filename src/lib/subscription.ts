@@ -69,7 +69,7 @@ export const TIERS: Record<Tier, TierConfig> = {
     tagline: 'Less than a dollar a day to have a reader always ready!',
     auditionsPerMonth: Infinity,
     aiVoiceCount: OPENAI_VOICES.length,
-    voiceLabel: 'All voices + ALL premium voices',
+    voiceLabel: 'All voices + ALL Premium voices',
     directorNotesPerAudition: Infinity,
     voiceCommands: true,
     inputAbility: true,
