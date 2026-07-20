@@ -50,7 +50,7 @@ a Supabase Edge Function flips `profiles.tier` when Stripe reports a payment.
    three recurring products matching the app's plans: FART $5/mo,
    FART PRO $10/mo, SHART STAR $25/mo. Note each price's ID (`price_...`).
 2. Also create a fourth product for the **Audition Credit**: a one-time (not
-   recurring) $2.99 price. It grants a permanent `premium_credits` credit
+   recurring) $3.99 price. It grants a permanent `premium_credits` credit
    instead of changing tier — see the `daypass` pseudo-tier in
    `src/lib/subscription.ts`.
 3. For each of the four products create a **Payment Link** (Stripe dashboard

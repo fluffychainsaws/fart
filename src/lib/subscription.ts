@@ -77,7 +77,7 @@ export const TIERS: Record<Tier, TierConfig> = {
   daypass: {
     id: 'daypass',
     name: 'Audition Credit',
-    priceLabel: '$2.99',
+    priceLabel: '$3.99',
     tagline: 'One script, full SHART STAR treatment.',
     auditionsPerMonth: Infinity, // scoped to its own script, not a monthly quota
     aiVoiceCount: OPENAI_VOICES.length,

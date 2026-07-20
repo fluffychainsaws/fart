@@ -191,7 +191,7 @@ export async function getUsageStatus(): Promise<UsageStatus> {
   };
 }
 
-// Audition Credit: a one-time $2.99 purchase that never expires, spent one
+// Audition Credit: a one-time $3.99 purchase that never expires, spent one
 // per script to give that script SHART STAR-level features (see the
 // 'daypass' pseudo-tier). Signed in, the server's profiles.premium_credits
 // is the truth (spent atomically via the spend_premium_credit() RPC, so a
