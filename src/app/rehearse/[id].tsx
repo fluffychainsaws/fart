@@ -518,10 +518,11 @@ export default function RehearseScreen() {
       </View>
       {followErr && <Text style={styles.followError}>{followErr}</Text>}
       {voiceCmdErr && <Text style={styles.followError}>{voiceCmdErr}</Text>}
-      {voiceCmdOn && (status === 'idle' || status === 'done' || status === 'playing') && (
-        <Text style={styles.voiceCmdHint}>
-          {status === 'playing' ? 'Say "FART stop" to stop' : 'Say "FART start" to roll'}
-        </Text>
+      {voiceCmdOn && (
+        <View style={styles.voiceCmdCard}>
+          <Text style={styles.voiceCmdCardText}>{'🎙 Say "FART start" — roll the scene'}</Text>
+          <Text style={styles.voiceCmdCardText}>{'🛑 Say "FART stop" — stop the scene'}</Text>
+        </View>
       )}
 
       <ScrollView ref={scrollRef} style={styles.script} contentContainerStyle={styles.scriptContent}>
@@ -786,16 +787,21 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       width: '100%',
       alignSelf: 'center',
     },
-    voiceCmdHint: {
-      color: t.inkSoft,
-      fontSize: 12,
-      fontWeight: '600',
-      paddingHorizontal: 20,
-      paddingTop: 4,
+    voiceCmdCard: {
+      backgroundColor: t.accentSoft,
+      borderWidth: 1,
+      borderColor: t.accent,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      marginHorizontal: 20,
+      marginTop: 6,
+      gap: 3,
       maxWidth: 700,
       width: '100%',
       alignSelf: 'center',
     },
+    voiceCmdCardText: { color: t.accent, fontSize: 13, fontWeight: '700' },
     followError: {
       color: t.danger,
       fontSize: 12,
