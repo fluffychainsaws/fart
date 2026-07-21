@@ -26,6 +26,29 @@ export const OPENAI_VOICES = [
   'verse',
 ] as const;
 
+// Display names for the voice slots. The slot IDs above stay as OpenAI's voice
+// names so the OpenAI path, the audio cache, and saved per-character picks keep
+// working — only the UI label changes. Committed to ElevenLabs, these are the
+// ElevenLabs voices each slot maps to (see ELEVEN_VOICE_MAP in the
+// synthesize-voice function). Flipping VOICE_PROVIDER back to openai still works
+// for a comparison; the labels just won't match OpenAI's own names meanwhile.
+export const VOICE_LABELS: Record<string, string> = {
+  alloy: 'Sarah',
+  ash: 'Adam',
+  ballad: 'Charlotte',
+  coral: 'Rachel',
+  echo: 'Antoni',
+  fable: 'George',
+  nova: 'Domi',
+  onyx: 'Clyde',
+  sage: 'Charlie',
+  shimmer: 'Lily',
+  verse: 'Callum',
+};
+
+export const voiceLabel = (id: string): string =>
+  VOICE_LABELS[id] ?? id.charAt(0).toUpperCase() + id.slice(1);
+
 const NARRATOR_VOICE = 'sage';
 
 // Premium voices are available whenever the accounts backend is reachable (it

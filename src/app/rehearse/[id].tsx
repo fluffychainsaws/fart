@@ -18,6 +18,7 @@ import {
   OPENAI_VOICES,
   setCloudVoiceEnabled,
   speakCloud,
+  voiceLabel,
 } from '@/lib/cloudVoice';
 import { interpretDirection } from '@/lib/director';
 import {
@@ -484,7 +485,7 @@ export default function RehearseScreen() {
               setCloudVoiceEnabled(next);
               setCloudOn(next);
             }}>
-            <Text style={[styles.toggleText, cloudOn && styles.toggleTextOn]}>✨ ChatGPT voice</Text>
+            <Text style={[styles.toggleText, cloudOn && styles.toggleTextOn]}>✨ Premium voice</Text>
           </Pressable>
         )}
       </View>
@@ -569,7 +570,7 @@ export default function RehearseScreen() {
               <Text style={styles.modalTitle}>🔊 Voice for {pickerChar}</Text>
               <Text style={styles.modalLine}>
                 {cloudVoiceActive() && aiVoicesAllowed
-                  ? 'ChatGPT voices — tap one to hear it'
+                  ? 'Premium voices — tap one to hear it'
                   : neuralReady
                     ? 'Natural voices — tap one to hear it'
                     : 'Turn on natural voices above to pick one'}
@@ -587,7 +588,7 @@ export default function RehearseScreen() {
                   ...(cloudVoiceActive() && aiVoicesAllowed
                     ? allowedOpenAiVoices.map((v) => ({
                         id: `openai:${v}` as string | null,
-                        label: v.charAt(0).toUpperCase() + v.slice(1),
+                        label: voiceLabel(v),
                       }))
                     : []),
                   ...(neuralReady
