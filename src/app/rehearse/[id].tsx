@@ -466,9 +466,6 @@ export default function RehearseScreen() {
           }}>
           <Text style={styles.smallButtonText}>⏮</Text>
         </Pressable>
-        <Pressable style={styles.smallButton} onPress={engine.cycleRate}>
-          <Text style={styles.smallButtonText}>{engine.rate}x</Text>
-        </Pressable>
       </View>
       <View style={styles.toggleRow}>
         <Pressable
