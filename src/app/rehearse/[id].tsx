@@ -121,9 +121,9 @@ export default function RehearseScreen() {
     engine.toggleAuto();
   };
 
-  // Hands-free "FART start" / "FART cut" (SHART STAR): a continuous listener
+  // Hands-free "FART start" / "FART stop" (SHART STAR): a continuous listener
   // that plays/pauses the scene. Runs on the shared recognizer, so it can be on
-  // at the same time as "Listen for my lines" — say "FART cut" to restart after
+  // at the same time as "Listen for my lines" — say "FART stop" to halt after
   // a flubbed take without dropping the mic that's following your lines.
   const [voiceCmdOn, setVoiceCmdOn] = useState(false);
   const [voiceCmdErr, setVoiceCmdErr] = useState<string | null>(null);
@@ -134,6 +134,51 @@ export default function RehearseScreen() {
   statusRef.current = status;
   const engineRef = useRef(engine);
   engineRef.current = engine;
+
+  // Countdown start: an audible "5…4…3…2…1" (spoken via device speech) before
+  // the scene rolls, so an actor working solo has time to get into frame and
+  // set. Triggered by the "FART start" voice command and by the manual
+  // "5-second delayed start" button (for people who don't want voice commands).
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const countdownRef = useRef<{ cancelled: boolean } | null>(null);
+
+  const cancelCountdown = () => {
+    if (countdownRef.current) countdownRef.current.cancelled = true;
+    countdownRef.current = null;
+    setCountdown(null);
+    stopSpeaking();
+  };
+
+  const startWithCountdown = (from = 5) => {
+    cancelCountdown(); // never stack two countdowns
+    const token = { cancelled: false };
+    countdownRef.current = token;
+    const target = statusRef.current === 'done' ? 0 : undefined;
+    let n = from;
+    setCountdown(n);
+    speakOnce(String(n), { rate: 1.1 });
+    const tick = () => {
+      if (token.cancelled) return;
+      n -= 1;
+      if (n <= 0) {
+        countdownRef.current = null;
+        setCountdown(null);
+        engineRef.current.play(target);
+        return;
+      }
+      setCountdown(n);
+      speakOnce(String(n), { rate: 1.1 });
+      setTimeout(tick, 1000);
+    };
+    setTimeout(tick, 1000);
+  };
+
+  // Keep a live handle for the voice-command effect, whose closure would
+  // otherwise capture a stale startWithCountdown.
+  const startCountdownRef = useRef(startWithCountdown);
+  startCountdownRef.current = startWithCountdown;
+
+  useEffect(() => cancelCountdown, []);
 
   const toggleVoiceCmd = async () => {
     if (voiceCmdOn) {
@@ -172,7 +217,7 @@ export default function RehearseScreen() {
         const state = statusRef.current;
         if ((state === 'idle' || state === 'done') && START_CMD.test(transcript)) {
           voiceCooldownUntil.current = Date.now() + 4000;
-          engineRef.current.play(state === 'done' ? 0 : undefined);
+          startCountdownRef.current();
         } else if ((state === 'playing' || state === 'waiting') && CUT_CMD.test(transcript)) {
           voiceCooldownUntil.current = Date.now() + 4000;
           engineRef.current.pause();
@@ -399,18 +444,44 @@ export default function RehearseScreen() {
       <View style={styles.controls}>
         <Pressable
           style={({ pressed }) => [styles.playButton, pressed && styles.pressed]}
-          onPress={() => (playing ? engine.pause() : engine.play(status === 'done' ? 0 : undefined))}>
+          onPress={() => {
+            cancelCountdown();
+            if (playing) engine.pause();
+            else engine.play(status === 'done' ? 0 : undefined);
+          }}>
           <Text style={styles.playButtonText}>
             {playing ? '⏸ Pause' : status === 'done' ? '↻ Run it back' : '▶ Play'}
           </Text>
         </Pressable>
-        <Pressable style={styles.smallButton} onPress={engine.restart}>
+        <Pressable
+          style={styles.smallButton}
+          onPress={() => {
+            cancelCountdown();
+            engine.restart();
+          }}>
           <Text style={styles.smallButtonText}>⏮</Text>
         </Pressable>
         <Pressable style={styles.smallButton} onPress={engine.cycleRate}>
           <Text style={styles.smallButtonText}>{engine.rate}x</Text>
         </Pressable>
       </View>
+      {!playing && (
+        <View style={styles.delayRow}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.delayButton,
+              countdown != null && styles.delayButtonActive,
+              pressed && styles.pressed,
+            ]}
+            onPress={() => (countdown != null ? cancelCountdown() : startWithCountdown())}>
+            <Text style={[styles.delayButtonText, countdown != null && styles.delayButtonTextActive]}>
+              {countdown != null
+                ? `🎬 Rolling in ${countdown}…   ✕ Cancel`
+                : '⏱ 5-second delayed start'}
+            </Text>
+          </Pressable>
+        </View>
+      )}
       <View style={styles.toggleRow}>
         <Pressable
           style={[styles.toggle, engine.readDirections && styles.toggleOn]}
@@ -474,7 +545,7 @@ export default function RehearseScreen() {
       {voiceCmdErr && <Text style={styles.followError}>{voiceCmdErr}</Text>}
       {voiceCmdOn && (status === 'idle' || status === 'done' || status === 'playing') && (
         <Text style={styles.voiceCmdHint}>
-          {status === 'playing' ? 'Say "FART cut" to stop' : 'Say "FART start" to roll'}
+          {status === 'playing' ? 'Say "FART stop" to stop' : 'Say "FART start" to roll'}
         </Text>
       )}
 
@@ -700,6 +771,24 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       justifyContent: 'center',
     },
     smallButtonText: { fontSize: 15, fontWeight: '700', color: t.ink },
+    delayRow: {
+      paddingHorizontal: 20,
+      paddingTop: 8,
+      maxWidth: 700,
+      width: '100%',
+      alignSelf: 'center',
+    },
+    delayButton: {
+      backgroundColor: t.card,
+      borderWidth: 1,
+      borderColor: t.border,
+      borderRadius: 14,
+      paddingVertical: 11,
+      alignItems: 'center',
+    },
+    delayButtonActive: { backgroundColor: t.accentSoft, borderColor: t.accent },
+    delayButtonText: { fontSize: 14, fontWeight: '700', color: t.ink },
+    delayButtonTextActive: { color: t.accent },
     toggleRow: {
       flexDirection: 'row',
       flexWrap: 'wrap',
