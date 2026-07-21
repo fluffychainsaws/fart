@@ -8,6 +8,10 @@ export interface Delivery {
   pauseBeforeMs: number;
   pauseAfterMs: number;
   cutoff: boolean;
+  // When the note asks to change the words (e.g. change line to "…"), the new
+  // line text. The original element text is left untouched, so removing the
+  // note restores it. Absent for ordinary tone/pacing notes.
+  rewrite?: string;
 }
 
 export type ScriptElement =

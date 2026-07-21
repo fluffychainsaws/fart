@@ -40,6 +40,29 @@ export function keywordDelivery(note: string): Omit<Delivery, 'note'> {
   return d;
 }
 
+// A note like  change line to "…"  /  say "…" instead  /  line: "…"  rewrites
+// the reader's words. The replacement is quoted in the note, so we pull it out
+// directly — no AI needed — as long as the note clearly reads like a rewrite
+// (a change verb + line/text/word, or "line to …", or "say … instead") rather
+// than a tone note that merely happens to quote something.
+const REWRITE_INTENT =
+  /\b(change|replace|rewrite|reword|swap|correct|fix|update|edit)\b[^"“”']*\b(line|lines|text|dialogue|dialog|word|words|it)\b|\bline\b[^"“”']*\bto\b|\bsay\b[\s\S]*\binstead\b|\binstead\b[\s\S]*\bsay\b/i;
+
+export function extractLineRewrite(note: string): string | null {
+  const quoted = note.match(/["“”']([^"“”']{1,400})["“”']/);
+  if (!quoted) return null;
+  return REWRITE_INTENT.test(note) ? quoted[1].trim() : null;
+}
+
+// The words a reader line should actually speak/show, applying a "change line
+// to …" rewrite when present. Prefers the stored rewrite, but also derives it
+// from the note text as a fallback so notes saved before rewrites existed still
+// take effect without re-saving.
+export function deliveredText(text: string, delivery?: Delivery): string {
+  if (!delivery) return text;
+  return delivery.rewrite ?? extractLineRewrite(delivery.note) ?? text;
+}
+
 // Turn a natural-language director's note into delivery parameters. Uses
 // Claude (via the server proxy) for a signed-in user; otherwise — signed out,
 // offline, or on any error — the keyword fallback, so the feature always works.
@@ -48,6 +71,12 @@ export async function interpretDirection(
   line: { character: string; text: string },
 ): Promise<Delivery> {
   const trimmed = note.trim();
+
+  // A line rewrite is unambiguous once the new text is quoted, so apply it
+  // straight away (with neutral delivery) instead of asking the AI to read
+  // tone out of an editing instruction.
+  const rewrite = extractLineRewrite(trimmed);
+  if (rewrite) return { note: trimmed, ...NO_CHANGE, rewrite };
 
   // Signed out → no server call to make; the keyword fallback still covers the
   // common notes. (Avoids a doomed round-trip the proxy would 401 anyway.)

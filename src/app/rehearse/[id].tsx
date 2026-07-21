@@ -20,7 +20,7 @@ import {
   speakCloud,
   voiceLabel,
 } from '@/lib/cloudVoice';
-import { interpretDirection } from '@/lib/director';
+import { deliveredText, interpretDirection } from '@/lib/director';
 import {
   disableNeuralVoice,
   enableNeuralVoice,
@@ -557,7 +557,7 @@ export default function RehearseScreen() {
                     {el.character}
                     {el.mine ? '  ← you' : ''}
                   </Text>
-                  <Text style={styles.lineText}>{el.text}</Text>
+                  <Text style={styles.lineText}>{deliveredText(el.text, el.delivery)}</Text>
                   {el.delivery && <Text style={styles.noteBadge}>🎬 {el.delivery.note}</Text>}
                 </View>
               )}

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { cloudVoiceActive, prefetchCloudLine, speakCloud } from './cloudVoice';
+import { deliveredText } from './director';
 import { neuralVoiceActive, prefetchNeuralLine, speakNeural } from './neuralVoice';
 import { loadVoices, speakOnce, stopSpeaking, voiceOptsFor } from './speech';
 import type { ScriptElement } from './types';
@@ -91,9 +92,10 @@ export function useRehearsal(elements: ScriptElement[], options: RehearsalOption
     // most for neural voices — in-browser synthesis takes real time on phones.
     const upcoming = els.slice(i + 1).find((e) => e.type === 'line' && !e.mine);
     if (upcoming?.type === 'line') {
+      const upcomingText = deliveredText(upcoming.text, upcoming.delivery);
       if (cloudAllowed()) {
         prefetchCloudLine({
-          text: upcoming.text,
+          text: upcomingText,
           character: upcoming.character,
           note: upcoming.delivery?.note,
           rate: rateRef.current * (upcoming.delivery?.rate ?? 1),
@@ -101,7 +103,7 @@ export function useRehearsal(elements: ScriptElement[], options: RehearsalOption
         });
       } else if (neuralVoiceActive() && !deviceVoiceOf(voicesRef.current, upcoming.character)) {
         prefetchNeuralLine({
-          text: upcoming.text,
+          text: upcomingText,
           character: upcoming.character,
           rate: rateRef.current * (upcoming.delivery?.rate ?? 1),
           voice: neuralVoiceOf(voicesRef.current, upcoming.character),
@@ -142,6 +144,9 @@ export function useRehearsal(elements: ScriptElement[], options: RehearsalOption
     }
 
     const d = el.delivery;
+    // A "change line to …" note swaps the spoken words; the element's own text
+    // is preserved so removing the note restores it.
+    const lineText = deliveredText(el.text, d);
     if (d && d.pauseBeforeMs > 0) {
       await new Promise((r) => setTimeout(r, d.pauseBeforeMs));
       if (run !== runId.current) return;
@@ -150,7 +155,7 @@ export function useRehearsal(elements: ScriptElement[], options: RehearsalOption
     let spoken =
       cloudAllowed() &&
       (await speakCloud({
-        text: el.text,
+        text: lineText,
         character: el.character,
         note: d?.note,
         rate: lineRate,
@@ -163,7 +168,7 @@ export function useRehearsal(elements: ScriptElement[], options: RehearsalOption
       spoken =
         neuralVoiceActive() &&
         (await speakNeural({
-          text: el.text,
+          text: lineText,
           character: el.character,
           rate: lineRate,
           voice: neuralVoiceOf(voicesRef.current, el.character),
@@ -172,7 +177,7 @@ export function useRehearsal(elements: ScriptElement[], options: RehearsalOption
     }
     if (!spoken) {
       const voice = voiceOptsFor(el.character, deviceVoiceOf(voicesRef.current, el.character));
-      await speakOnce(el.text, {
+      await speakOnce(lineText, {
         rate: lineRate,
         voice: voice.voice,
         pitch: (voice.pitch ?? 1) * (d?.pitch ?? 1),
