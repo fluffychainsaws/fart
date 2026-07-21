@@ -145,7 +145,6 @@ export default function RehearseScreen() {
     cancelCountdown(); // never stack two countdowns
     const token = { cancelled: false };
     countdownRef.current = token;
-    const target = statusRef.current === 'done' ? 0 : undefined;
     let n = from;
     setCountdown(n);
     const tick = () => {
@@ -154,7 +153,10 @@ export default function RehearseScreen() {
       if (n <= 0) {
         countdownRef.current = null;
         setCountdown(null);
-        engineRef.current.play(target);
+        // Always roll from the top: "FART start" (or the delay button) begins
+        // a fresh take, so after "FART stop" the scene restarts rather than
+        // resuming mid-line.
+        engineRef.current.play(0);
         return;
       }
       setCountdown(n);
@@ -201,15 +203,28 @@ export default function RehearseScreen() {
     // for my lines" instead of fighting it for the browser's single recognizer.
     const unsubscribe = subscribeRecognition((event) => {
       if (event.type === 'result') {
-        const transcript = (event.results?.[0]?.[0]?.transcript ?? '').toLowerCase();
+        // A continuous session keeps appending segments, so the newest command
+        // is the LAST non-empty result — not results[0]. Reading results[0]
+        // meant a second command ("FART stop", then "FART start" again) in the
+        // same session was never seen. Scan from the end for the latest speech.
+        const results = event.results;
+        const len = results?.length ?? 0;
+        let transcript = '';
+        for (let i = len - 1; i >= 0; i--) {
+          const seg = (results[i]?.[0]?.transcript ?? '').trim();
+          if (seg) {
+            transcript = seg.toLowerCase();
+            break;
+          }
+        }
         if (!transcript || Date.now() < voiceCooldownUntil.current) return;
         consecutiveErrors = 0;
         const state = statusRef.current;
         if ((state === 'idle' || state === 'done') && START_CMD.test(transcript)) {
-          voiceCooldownUntil.current = Date.now() + 4000;
-          startCountdownRef.current();
+          voiceCooldownUntil.current = Date.now() + 2500;
+          startCountdownRef.current(); // rolls the scene from the top
         } else if ((state === 'playing' || state === 'waiting') && CUT_CMD.test(transcript)) {
-          voiceCooldownUntil.current = Date.now() + 4000;
+          voiceCooldownUntil.current = Date.now() + 2500;
           engineRef.current.pause();
         }
       } else if (event.type === 'error') {
