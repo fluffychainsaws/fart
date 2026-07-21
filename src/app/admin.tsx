@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
+import { voiceLabel } from '@/lib/cloudVoice';
 import { getTier, TIER_ORDER, type Tier } from '@/lib/subscription';
 import { supabase } from '@/lib/supabase';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
@@ -28,11 +29,18 @@ interface TierRow {
   tts_chars: number;
 }
 
+interface VoiceRow {
+  voice: string;
+  uses: number;
+  chars: number;
+}
+
 export default function AdminScreen() {
   const t = useTheme();
   const shadow = useCardShadow();
   const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   const [rows, setRows] = useState<TierRow[] | null>(null);
+  const [voices, setVoices] = useState<VoiceRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useFocusEffect(
@@ -44,6 +52,10 @@ export default function AdminScreen() {
       supabase.rpc('admin_usage_summary').then(({ data, error: err }) => {
         if (err) setError(err.message.includes('not authorized') ? 'This page is for the site owner.' : err.message);
         else setRows((data as TierRow[]) ?? []);
+      });
+      // Voice popularity — best-effort; a failure just hides the panel.
+      supabase.rpc('admin_voice_usage').then(({ data }) => {
+        setVoices((data as VoiceRow[]) ?? []);
       });
     }, []),
   );
@@ -118,6 +130,23 @@ export default function AdminScreen() {
           👥 {totals.users} users · 🎬 {totals.auditions} auditions
         </Text>
       </View>
+
+      {voices.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.cardTier}>Top voices</Text>
+          <Text style={styles.voiceNote}>
+            By number of synthesized lines this month (cached replays aren&apos;t re-counted).
+          </Text>
+          {[...voices]
+            .sort((a, b) => b.uses - a.uses)
+            .map((v, i) => (
+              <Text key={v.voice} style={styles.cardLine}>
+                {i + 1}. {voiceLabel(v.voice)} — {v.uses.toLocaleString()} line
+                {v.uses === 1 ? '' : 's'} · {v.chars.toLocaleString()} chars
+              </Text>
+            ))}
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -143,4 +172,5 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     cardTier: { fontSize: 15, fontWeight: '800', color: t.accent, textTransform: 'uppercase', letterSpacing: 0.5 },
     cardRevenue: { fontSize: 13, fontWeight: '700', color: t.ink },
     cardLine: { fontSize: 13, color: t.ink, marginTop: 6 },
+    voiceNote: { fontSize: 12, color: t.inkSoft, marginTop: 4, marginBottom: 4, lineHeight: 17 },
   });

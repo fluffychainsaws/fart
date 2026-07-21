@@ -285,3 +285,38 @@ begin
   return coalesce(result, '[]'::jsonb);
 end;
 $$;
+
+-- Voice popularity for the /admin "Top voices" panel. Same admin gate as
+-- admin_usage_summary. Counts one row per paid synthesis (cache misses only,
+-- since cached replays don't re-log) — a good signal for which voices users
+-- actually pick, biased by caching rather than total playback. The 'voice'
+-- values are the internal slot ids (alloy, coral, …); the app maps them to
+-- display names (see VOICE_LABELS in src/lib/cloudVoice.ts).
+create or replace function public.admin_voice_usage(month_arg text default null)
+returns jsonb
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  m text := coalesce(month_arg, to_char(now(), 'YYYY-MM'));
+  result jsonb;
+begin
+  if not exists (select 1 from profiles where id = auth.uid() and is_admin) then
+    raise exception 'not authorized';
+  end if;
+  select jsonb_agg(t) into result from (
+    select
+      e.voice,
+      count(*) as uses,
+      coalesce(sum(e.chars), 0) as chars
+    from usage_events e
+    where e.kind = 'tts' and e.voice is not null
+      and to_char(e.created_at, 'YYYY-MM') = m
+    group by e.voice
+    order by uses desc
+  ) t;
+  return coalesce(result, '[]'::jsonb);
+end;
+$$;
+
+grant execute on function public.admin_voice_usage(text) to authenticated;
