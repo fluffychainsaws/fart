@@ -111,14 +111,7 @@ export default function RehearseScreen() {
       );
       return;
     }
-    // The word-count timer and real listening would race each other.
-    if (engine.autoAdvance) engine.toggleAuto();
     setFollowOn(true);
-  };
-
-  const toggleAuto = () => {
-    if (!engine.autoAdvance && followOn) setFollowOn(false);
-    engine.toggleAuto();
   };
 
   // Hands-free "FART start" / "FART stop" (SHART STAR): a continuous listener
@@ -135,10 +128,10 @@ export default function RehearseScreen() {
   const engineRef = useRef(engine);
   engineRef.current = engine;
 
-  // Countdown start: an audible "5…4…3…2…1" (spoken via device speech) before
-  // the scene rolls, so an actor working solo has time to get into frame and
-  // set. Triggered by the "FART start" voice command and by the manual
-  // "5-second delayed start" button (for people who don't want voice commands).
+  // Countdown start: a silent visual "5…4…3…2…1" (shown as a bubble over the
+  // scene) before it rolls, so an actor working solo has time to get into
+  // frame and set. Triggered by the "FART start" voice command and by the
+  // manual "5s delay" button (for people who don't want voice commands).
   const [countdown, setCountdown] = useState<number | null>(null);
   const countdownRef = useRef<{ cancelled: boolean } | null>(null);
 
@@ -146,7 +139,6 @@ export default function RehearseScreen() {
     if (countdownRef.current) countdownRef.current.cancelled = true;
     countdownRef.current = null;
     setCountdown(null);
-    stopSpeaking();
   };
 
   const startWithCountdown = (from = 5) => {
@@ -156,7 +148,6 @@ export default function RehearseScreen() {
     const target = statusRef.current === 'done' ? 0 : undefined;
     let n = from;
     setCountdown(n);
-    speakOnce(String(n), { rate: 1.1 });
     const tick = () => {
       if (token.cancelled) return;
       n -= 1;
@@ -167,7 +158,6 @@ export default function RehearseScreen() {
         return;
       }
       setCountdown(n);
-      speakOnce(String(n), { rate: 1.1 });
       setTimeout(tick, 1000);
     };
     setTimeout(tick, 1000);
@@ -465,23 +455,6 @@ export default function RehearseScreen() {
           <Text style={styles.smallButtonText}>{engine.rate}x</Text>
         </Pressable>
       </View>
-      {!playing && (
-        <View style={styles.delayRow}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.delayButton,
-              countdown != null && styles.delayButtonActive,
-              pressed && styles.pressed,
-            ]}
-            onPress={() => (countdown != null ? cancelCountdown() : startWithCountdown())}>
-            <Text style={[styles.delayButtonText, countdown != null && styles.delayButtonTextActive]}>
-              {countdown != null
-                ? `🎬 Rolling in ${countdown}…   ✕ Cancel`
-                : '⏱ 5-second delayed start'}
-            </Text>
-          </Pressable>
-        </View>
-      )}
       <View style={styles.toggleRow}>
         <Pressable
           style={[styles.toggle, engine.readDirections && styles.toggleOn]}
@@ -490,6 +463,15 @@ export default function RehearseScreen() {
             🎬 Read directions
           </Text>
         </Pressable>
+        {!playing && (
+          <Pressable
+            style={[styles.toggle, countdown != null && styles.toggleOn]}
+            onPress={() => (countdown != null ? cancelCountdown() : startWithCountdown())}>
+            <Text style={[styles.toggleText, countdown != null && styles.toggleTextOn]}>
+              {countdown != null ? '✕ Cancel countdown' : '⏱ 5s delay'}
+            </Text>
+          </Pressable>
+        )}
         {followSupported && (
           <Pressable style={[styles.toggle, followOn && styles.toggleOn]} onPress={toggleFollow}>
             <Text style={[styles.toggleText, followOn && styles.toggleTextOn]}>
@@ -504,13 +486,6 @@ export default function RehearseScreen() {
             </Text>
           </Pressable>
         )}
-        <Pressable
-          style={[styles.toggle, engine.autoAdvance && styles.toggleOn]}
-          onPress={toggleAuto}>
-          <Text style={[styles.toggleText, engine.autoAdvance && styles.toggleTextOn]}>
-            ⏱ Auto-continue my lines
-          </Text>
-        </Pressable>
         {neuralVoiceSupported() && (
           <Pressable
             style={[styles.toggle, neuralReady && styles.toggleOn]}
@@ -580,6 +555,15 @@ export default function RehearseScreen() {
           Tap any line to play from there. Double-tap (or hold) a reader&apos;s line to direct it.
         </Text>
       </ScrollView>
+
+      {countdown != null && (
+        <View pointerEvents="none" style={styles.countdownOverlay}>
+          <View style={styles.countdownBubble}>
+            <Text style={styles.countdownNumber}>{countdown}</Text>
+            <Text style={styles.countdownLabel}>Rolling…</Text>
+          </View>
+        </View>
+      )}
 
       {status === 'waiting' && current?.type === 'line' && (
         <View style={styles.banner}>
@@ -771,24 +755,26 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       justifyContent: 'center',
     },
     smallButtonText: { fontSize: 15, fontWeight: '700', color: t.ink },
-    delayRow: {
-      paddingHorizontal: 20,
-      paddingTop: 8,
-      maxWidth: 700,
-      width: '100%',
-      alignSelf: 'center',
-    },
-    delayButton: {
-      backgroundColor: t.card,
-      borderWidth: 1,
-      borderColor: t.border,
-      borderRadius: 14,
-      paddingVertical: 11,
+    countdownOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
       alignItems: 'center',
+      justifyContent: 'center',
     },
-    delayButtonActive: { backgroundColor: t.accentSoft, borderColor: t.accent },
-    delayButtonText: { fontSize: 14, fontWeight: '700', color: t.ink },
-    delayButtonTextActive: { color: t.accent },
+    countdownBubble: {
+      width: 140,
+      height: 140,
+      borderRadius: 70,
+      backgroundColor: t.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+      ...shadow,
+    },
+    countdownNumber: { fontSize: 64, fontWeight: '800', color: '#fff', lineHeight: 70 },
+    countdownLabel: { fontSize: 13, fontWeight: '700', color: '#fff', opacity: 0.9, marginTop: 2 },
     toggleRow: {
       flexDirection: 'row',
       flexWrap: 'wrap',
