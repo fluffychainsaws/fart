@@ -46,19 +46,24 @@ async function synthOpenAI(text: string, voice: string, instructions: string): P
 
 // Maps the app's OpenAI-style voice slot names to ElevenLabs voice IDs, so the
 // app keeps ONE naming scheme across providers and only this table changes when
-// we switch. Fill these with real ElevenLabs voice IDs during the ElevenLabs
-// week; until then everything falls back to ELEVEN_DEFAULT_VOICE.
+// we switch. These are ElevenLabs' long-standing premade voices (available to
+// every account). Swap any for a voice from your own library by pasting its ID.
 const ELEVEN_VOICE_MAP: Record<string, string> = {
-  // alloy: '...', ash: '...', ballad: '...', coral: '...', echo: '...',
-  // fable: '...', nova: '...', onyx: '...', sage: '...', shimmer: '...', verse: '...',
+  alloy: 'EXAVITQu4vr4xnSDxMaL', // Sarah — soft female
+  ash: 'pNInz6obpgDQGcFmaJgB', // Adam — deep male
+  ballad: 'XB0fDUnXU5powFXDhCwa', // Charlotte — female
+  coral: '21m00Tcm4TlvDq8ikWAM', // Rachel — calm female
+  echo: 'ErXwobaYiN019PkySvjV', // Antoni — male
+  fable: 'JBFqnCBsd6RMkjVDRZzb', // George — warm British male
+  nova: 'AZnzlk1XvdvUeBnXmlld', // Domi — strong female
+  onyx: '2EiwWnXFnvU5JabPnv8n', // Clyde — gravelly male
+  sage: 'IKne3meq5aSn9XLyUdCD', // Charlie — Australian male
+  shimmer: 'pFZP5JQG7iQjIQuC4Bku', // Lily — female
+  verse: 'N2lVS1w4EtoT3dr4eOWO', // Callum — male
 };
 const ELEVEN_DEFAULT_VOICE = 'EXAVITQu4vr4xnSDxMaL'; // ElevenLabs "Sarah"
 
-// ElevenLabs multilingual — instructions aren't a native field, so the acting
-// note is prepended as a lightweight cue.
-async function synthElevenLabs(text: string, voice: string, instructions: string): Promise<Uint8Array> {
-  const voiceId = ELEVEN_VOICE_MAP[voice] ?? ELEVEN_DEFAULT_VOICE;
-  const input = instructions ? `[${instructions}] ${text}` : text;
+async function elevenCall(voiceId: string, text: string): Promise<Uint8Array> {
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
     method: 'POST',
     headers: {
@@ -66,10 +71,26 @@ async function synthElevenLabs(text: string, voice: string, instructions: string
       'Content-Type': 'application/json',
       Accept: 'audio/mpeg',
     },
-    body: JSON.stringify({ text: input, model_id: 'eleven_multilingual_v2' }),
+    // multilingual_v2 has no "instructions" field — delivery comes from the
+    // voice itself, so the director note isn't sent (prepending it would make
+    // the voice read the note aloud).
+    body: JSON.stringify({ text, model_id: 'eleven_multilingual_v2' }),
   });
   if (!res.ok) throw new Error(`elevenlabs tts ${res.status}`);
   return new Uint8Array(await res.arrayBuffer());
+}
+
+// Tries the mapped voice; if that specific voice isn't available on the account
+// (bad/deprecated ID), retries with the default so the user still hears
+// ElevenLabs rather than dropping to the robotic device fallback.
+async function synthElevenLabs(text: string, voice: string): Promise<Uint8Array> {
+  const voiceId = ELEVEN_VOICE_MAP[voice] ?? ELEVEN_DEFAULT_VOICE;
+  try {
+    return await elevenCall(voiceId, text);
+  } catch (err) {
+    if (voiceId !== ELEVEN_DEFAULT_VOICE) return elevenCall(ELEVEN_DEFAULT_VOICE, text);
+    throw err;
+  }
 }
 
 function toBase64(bytes: Uint8Array): string {
@@ -116,7 +137,7 @@ Deno.serve(async (req) => {
   try {
     const audio =
       provider === 'elevenlabs'
-        ? await synthElevenLabs(text, voice, instructions)
+        ? await synthElevenLabs(text, voice)
         : await synthOpenAI(text, voice, instructions);
     return json({ audio: toBase64(audio), format: 'mp3' });
   } catch (err) {
