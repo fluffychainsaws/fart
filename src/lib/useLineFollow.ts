@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 
 import { isLineComplete, lineWords, matchedWordCount } from './lineMatch';
-import { getSpeechRecognitionCtor, type SpeechRecognitionLike } from './webSpeech';
+import { resetRecognitionSession, subscribeRecognition } from './sharedRecognition';
+import { getSpeechRecognitionCtor } from './webSpeech';
 
 // Voice follow: listens while the rehearsal engine waits on the user's line,
 // matches the recognized speech against the script text, and fires
@@ -100,16 +101,13 @@ export function useLineFollow(
     let cleanup: () => void;
 
     if (Platform.OS === 'web') {
-      const Ctor = getSpeechRecognitionCtor();
-      if (!Ctor) return;
-      let recognizer: SpeechRecognitionLike | null = null;
-      const startListening = () => {
-        const rec = new Ctor();
-        recognizer = rec;
-        rec.lang = 'en-US';
-        rec.continuous = true;
-        rec.interimResults = true;
-        rec.onresult = (event) => {
+      if (!getSpeechRecognitionCtor()) return;
+      // Start this line from a clean transcript even if the shared recognizer
+      // was already running for voice commands — otherwise words heard before
+      // the user's turn could count toward matching this line.
+      resetRecognitionSession();
+      const unsubscribe = subscribeRecognition((event) => {
+        if (event.type === 'result') {
           // A continuous session splits speech into segments; join them all
           // so a line spoken across a breath still matches end to end.
           let s = '';
@@ -118,24 +116,15 @@ export function useLineFollow(
           }
           sessionText = s;
           handleTranscript(accumulated + ' ' + sessionText);
-        };
-        rec.onend = () => {
+        } else if (event.type === 'sessionEnd') {
           accumulated = (accumulated + ' ' + sessionText).trim();
           sessionText = '';
-          // Fresh instance per restart — re-starting an ended one is unreliable.
-          if (!cancelled && !done) setTimeout(() => !cancelled && !done && startListening(), 250);
-        };
-        rec.onerror = () => {};
-        try {
-          rec.start();
-        } catch {
-          // already running
         }
-      };
-      startListening();
+        // Errors are ignored here — the shared recognizer keeps itself alive.
+      });
       setListening(true);
       cleanup = () => {
-        recognizer?.abort();
+        unsubscribe();
       };
     } else {
       const native = nativeSpeech();

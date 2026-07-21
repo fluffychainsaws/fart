@@ -40,8 +40,9 @@ import type { FartScript } from '@/lib/types';
 import { lineFollowSupported, requestLineFollowMic, useLineFollow } from '@/lib/useLineFollow';
 import { useRehearsal } from '@/lib/useRehearsal';
 import { directorNoteCount, directorNotesUnlimited, getUsageStatus, type UsageStatus } from '@/lib/usage';
+import { subscribeRecognition } from '@/lib/sharedRecognition';
 import { CUT_CMD, START_CMD } from '@/lib/voiceCommands';
-import { getSpeechRecognitionCtor, type SpeechRecognitionLike } from '@/lib/webSpeech';
+import { getSpeechRecognitionCtor } from '@/lib/webSpeech';
 
 const prettyVoice = (id: string | undefined, deviceNames: Record<string, string>): string => {
   if (!id) return 'Auto';
@@ -112,7 +113,6 @@ export default function RehearseScreen() {
     }
     // The word-count timer and real listening would race each other.
     if (engine.autoAdvance) engine.toggleAuto();
-    setVoiceCmdOn(false); // one speech recognizer at a time
     setFollowOn(true);
   };
 
@@ -122,8 +122,9 @@ export default function RehearseScreen() {
   };
 
   // Hands-free "FART start" / "FART cut" (SHART STAR): a continuous listener
-  // that plays/pauses the scene. Mutually exclusive with "Listen for my
-  // lines" — the browser gives us one speech recognizer at a time.
+  // that plays/pauses the scene. Runs on the shared recognizer, so it can be on
+  // at the same time as "Listen for my lines" — say "FART cut" to restart after
+  // a flubbed take without dropping the mic that's following your lines.
   const [voiceCmdOn, setVoiceCmdOn] = useState(false);
   const [voiceCmdErr, setVoiceCmdErr] = useState<string | null>(null);
   const voiceCommandsAllowed = Boolean(tier?.voiceCommands);
@@ -145,7 +146,6 @@ export default function RehearseScreen() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach((track) => track.stop());
-      if (followOn) setFollowOn(false);
       setVoiceCmdOn(true);
     } catch (e) {
       const name = e instanceof Error ? e.name : '';
@@ -159,18 +159,13 @@ export default function RehearseScreen() {
 
   useEffect(() => {
     if (!voiceCmdOn || !voiceCommandsAllowed || !speechSupported) return;
-    const Ctor = getSpeechRecognitionCtor();
-    if (!Ctor) return;
-    let cancelled = false;
-    let recognizer: SpeechRecognitionLike | null = null;
+    if (!getSpeechRecognitionCtor()) return;
     let consecutiveErrors = 0;
 
-    const startListening = () => {
-      recognizer = new Ctor();
-      recognizer.lang = 'en-US';
-      recognizer.continuous = true;
-      recognizer.interimResults = true;
-      recognizer.onresult = (event) => {
+    // Subscribe to the ONE shared recognizer so this can run alongside "Listen
+    // for my lines" instead of fighting it for the browser's single recognizer.
+    const unsubscribe = subscribeRecognition((event) => {
+      if (event.type === 'result') {
         const transcript = (event.results?.[0]?.[0]?.transcript ?? '').toLowerCase();
         if (!transcript || Date.now() < voiceCooldownUntil.current) return;
         consecutiveErrors = 0;
@@ -182,36 +177,22 @@ export default function RehearseScreen() {
           voiceCooldownUntil.current = Date.now() + 4000;
           engineRef.current.pause();
         }
-      };
-      recognizer.onend = () => {
-        if (cancelled || consecutiveErrors > 4) return;
-        setTimeout(startListening, 600);
-      };
-      recognizer.onerror = (event) => {
+      } else if (event.type === 'error') {
         consecutiveErrors += 1;
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-          cancelled = true;
           setVoiceCmdOn(false);
           setVoiceCmdErr(
             "Microphone access is blocked. Allow it for this site in your browser's settings, then try again.",
           );
         } else if (event.error !== 'no-speech' && consecutiveErrors > 4) {
-          cancelled = true;
           setVoiceCmdOn(false);
           setVoiceCmdErr('Voice commands stopped working — try again, or use the buttons instead.');
         }
-      };
-      try {
-        recognizer.start();
-      } catch {
-        // already running
       }
-    };
+    });
 
-    startListening();
     return () => {
-      cancelled = true;
-      recognizer?.abort();
+      unsubscribe();
     };
   }, [voiceCmdOn, voiceCommandsAllowed, speechSupported]);
 
