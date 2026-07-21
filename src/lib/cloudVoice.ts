@@ -2,11 +2,15 @@ import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-aud
 
 import { getCachedAudio, putCachedAudio } from './audioCache';
 import { logUsage } from './metrics';
+import { supabase } from './supabase';
 
-// Natural "ChatGPT" voices via OpenAI's TTS API (gpt-4o-mini-tts). Optional:
-// activates when EXPO_PUBLIC_OPENAI_API_KEY is set, and every call falls back
-// to device speech on failure so rehearsal never stalls. The model takes
-// plain-English acting instructions, so director notes become real delivery.
+// Natural premium voices via the synthesize-voice edge function, which holds
+// the TTS provider key server-side (a client key would ship in the public
+// bundle). The provider — ChatGPT (OpenAI) or ElevenLabs — is chosen by the
+// VOICE_PROVIDER server secret; the app is provider-agnostic and just sends a
+// voice slot name. Every call falls back to device speech on failure so
+// rehearsal never stalls. These slot names double as the ElevenLabs mapping
+// keys on the server.
 
 export const OPENAI_VOICES = [
   'alloy',
@@ -24,7 +28,11 @@ export const OPENAI_VOICES = [
 
 const NARRATOR_VOICE = 'sage';
 
-export const hasCloudVoice = () => Boolean(process.env.EXPO_PUBLIC_OPENAI_API_KEY);
+// Premium voices are available whenever the accounts backend is reachable (it
+// hosts the synthesize-voice proxy). Whether a given user actually gets them is
+// gated by tier in the rehearsal screen; if the server has no provider key set,
+// synthesis just fails and the caller falls back to device speech.
+export const hasCloudVoice = () => Boolean(supabase);
 
 let enabled = true;
 export const cloudVoiceActive = () => enabled && hasCloudVoice();
@@ -84,15 +92,6 @@ export function buildInstructions(opts: {
 
 const inflight = new Map<string, Promise<string>>();
 
-function blobToDataUri(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(blob);
-  });
-}
-
 async function synthesize(text: string, voice: string, instructions: string): Promise<string> {
   const key = `${voice}|${hash(instructions)}|${hash(text)}-${text.length}`;
   const cached = await getCachedAudio(key);
@@ -101,23 +100,13 @@ async function synthesize(text: string, voice: string, instructions: string): Pr
   if (pending) return pending;
 
   const job = (async () => {
-    const res = await fetch('https://api.openai.com/v1/audio/speech', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.EXPO_PUBLIC_OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini-tts',
-        voice,
-        input: text,
-        instructions,
-        response_format: 'mp3',
-      }),
+    if (!supabase) throw new Error('no accounts backend for voice synthesis');
+    const { data, error } = await supabase.functions.invoke('synthesize-voice', {
+      body: { text, voice, instructions },
     });
-    if (!res.ok) throw new Error(`TTS failed: ${res.status}`);
+    if (error || !data?.audio) throw new Error('TTS failed');
     logUsage('tts', text.length, voice); // paid synthesis only — cache hits never reach here
-    const dataUri = await blobToDataUri(await res.blob());
+    const dataUri = `data:audio/mpeg;base64,${data.audio}`;
     return putCachedAudio(key, dataUri);
   })();
 
