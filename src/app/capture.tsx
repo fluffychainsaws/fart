@@ -1,17 +1,19 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { fromByteArray } from 'base64-js';
 
 import { Text } from '@/lib/AppText';
 import { useSession } from '@/lib/auth';
 import { openCheckout } from '@/lib/billing';
+import { MicIcon } from '@/lib/MicIcon';
 import { parseScriptPdf, parseScriptPhotos } from '@/lib/parser';
-import { newId, saveScript } from '@/lib/storage';
+import { deleteScript, listScripts, newId, refreshScripts, saveScript } from '@/lib/storage';
 import { getTier, type Tier } from '@/lib/subscription';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
+import { charactersIn, myLineCount, type FartScript } from '@/lib/types';
 import { UpgradeModal } from '@/lib/UpgradeModal';
 import { getUsageStatus } from '@/lib/usage';
 
@@ -63,6 +65,7 @@ export default function CaptureScreen() {
   const [useCredit, setUseCredit] = useState(false);
   const [tier, setTier] = useState<Tier>('free');
   const [showUpgrade, setShowUpgrade] = useState(false);
+  const [scripts, setScripts] = useState<FartScript[]>([]);
   const session = useSession();
 
   useEffect(() => {
@@ -71,6 +74,31 @@ export default function CaptureScreen() {
       setTier(u.tier);
     });
   }, []);
+
+  // Saved scripts live here now (moved off Home). Local list first, then the
+  // account-merged list once sync lands.
+  useFocusEffect(
+    useCallback(() => {
+      listScripts().then(setScripts);
+      refreshScripts().then(setScripts);
+    }, []),
+  );
+
+  const openScript = (script: FartScript) => {
+    router.push({ pathname: '/assign/[id]', params: { id: script.id } });
+  };
+
+  const confirmDelete = (script: FartScript) => {
+    const reload = () => deleteScript(script.id).then(() => listScripts().then(setScripts));
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Delete "${script.title}"?`)) reload();
+      return;
+    }
+    Alert.alert('Delete script', `Delete "${script.title}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: reload },
+    ]);
+  };
 
   // Max pages this upload may have: the Audition Credit's cap when spending a
   // credit, otherwise the account tier's. The server enforces the same limit.
@@ -292,6 +320,43 @@ export default function CaptureScreen() {
               <Text style={styles.primaryButtonText}>✨ Create my script</Text>
             </Pressable>
           )}
+
+          {Platform.OS === 'web' && (
+            <Pressable
+              style={({ pressed }) => [styles.micTestButton, pressed && styles.pressed]}
+              onPress={() => router.push('/mictest')}>
+              <MicIcon size={18} />
+              <Text style={styles.micTestButtonText}>Test your microphone</Text>
+            </Pressable>
+          )}
+
+          {scripts.length > 0 && (
+            <>
+              <Text style={styles.scriptsTitle}>Your scripts</Text>
+              {scripts.map((item) => {
+                const cast = charactersIn(item.elements);
+                const mine = myLineCount(item.elements);
+                return (
+                  <Pressable
+                    key={item.id}
+                    style={({ pressed }) => [styles.scriptCard, pressed && styles.pressed]}
+                    onPress={() => openScript(item)}>
+                    <View style={styles.scriptBody}>
+                      <Text style={styles.scriptTitle}>{item.title}</Text>
+                      <Text style={styles.scriptMeta}>
+                        {item.myCharacter
+                          ? `You read ${item.myCharacter} · ${mine} lines highlighted`
+                          : `Cast: ${cast.join(', ')} · pick your role`}
+                      </Text>
+                    </View>
+                    <Pressable hitSlop={8} onPress={() => confirmDelete(item)}>
+                      <Text style={styles.scriptTrash}>🗑️</Text>
+                    </Pressable>
+                  </Pressable>
+                );
+              })}
+            </>
+          )}
         </>
       )}
 
@@ -418,6 +483,42 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     ...shadow,
   },
   primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  micTestButton: {
+    borderRadius: 16,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: t.border,
+  },
+  micTestButtonText: { color: t.inkSoft, fontSize: 14, fontWeight: '700' },
+  scriptsTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: t.inkSoft,
+    marginTop: 28,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  scriptCard: {
+    backgroundColor: t.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: t.border,
+    padding: 16,
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    ...shadow,
+  },
+  scriptBody: { flex: 1, marginRight: 12 },
+  scriptTitle: { fontSize: 16, fontWeight: '700', color: t.ink },
+  scriptMeta: { fontSize: 13, color: t.inkSoft, marginTop: 4 },
+  scriptTrash: { fontSize: 18 },
   loadingCard: {
     backgroundColor: t.card,
     borderRadius: 16,

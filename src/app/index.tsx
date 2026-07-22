@@ -1,52 +1,25 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, FlatList, Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
 import { ClapperIcon } from '@/lib/ClapperIcon';
 import { makeDemoScript } from '@/lib/demo';
-import { MicIcon } from '@/lib/MicIcon';
-import { deleteScript, listScripts, refreshScripts, saveScript } from '@/lib/storage';
+import { saveScript } from '@/lib/storage';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
-import { charactersIn, myLineCount, type FartScript } from '@/lib/types';
 import { getUsageStatus } from '@/lib/usage';
 
 export default function HomeScreen() {
   const t = useTheme();
   const shadow = useCardShadow();
   const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
-  const [scripts, setScripts] = useState<FartScript[]>([]);
   const [isPaid, setIsPaid] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
-      // Local list immediately, then the account-merged list when sync lands.
-      listScripts().then(setScripts);
-      refreshScripts().then(setScripts);
       getUsageStatus().then((status) => setIsPaid(status.tier !== 'free'));
     }, []),
   );
-
-  const openScript = (script: FartScript) => {
-    router.push({ pathname: '/assign/[id]', params: { id: script.id } });
-  };
-
-  const confirmDelete = (script: FartScript) => {
-    if (Platform.OS === 'web') {
-      if (window.confirm(`Delete "${script.title}"?`)) {
-        deleteScript(script.id).then(() => listScripts().then(setScripts));
-      }
-      return;
-    }
-    Alert.alert('Delete script', `Delete "${script.title}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => deleteScript(script.id).then(() => listScripts().then(setScripts)),
-      },
-    ]);
-  };
 
   const tryDemo = async () => {
     const demo = makeDemoScript();
@@ -55,83 +28,41 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={styles.screen}>
-      <FlatList
-        data={scripts}
-        keyExtractor={(s) => s.id}
-        contentContainerStyle={styles.listContent}
-        ListHeaderComponent={
-          <View>
-            <Text style={styles.tagline}>Friendly AI Reader To-Go!</Text>
-            <Text style={styles.blurb}>
-              Snap a photo of your sides, highlight your lines, and FART reads everyone else&apos;s —
-              so you can rehearse anywhere.
-            </Text>
-            {Platform.OS !== 'web' && (
-              <Pressable
-                style={({ pressed }) => [styles.webBanner, pressed && styles.pressed]}
-                onPress={() => Linking.openURL('https://selftapebuddy.com')}>
-                <Text style={styles.webBannerText}>🌐 Use FART on the web</Text>
-                <Text style={styles.webBannerSubtext}>Full features, no app install needed</Text>
-              </Pressable>
-            )}
-            <Pressable
-              style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
-              onPress={() => router.push('/capture')}>
-              <ClapperIcon size={20} />
-              <Text style={styles.primaryButtonText}>New script</Text>
-            </Pressable>
-            {!isPaid && (
-              <Pressable
-                style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
-                onPress={tryDemo}>
-                <Text style={styles.secondaryButtonText}>🎬 Try the demo scene</Text>
-              </Pressable>
-            )}
-            {Platform.OS === 'web' && (
-              <Pressable
-                style={({ pressed }) => [styles.micTestButton, pressed && styles.pressed]}
-                onPress={() => router.push('/mictest')}>
-                <MicIcon size={18} />
-                <Text style={styles.micTestButtonText}>Test your microphone</Text>
-              </Pressable>
-            )}
-            {scripts.length > 0 && <Text style={styles.sectionTitle}>Your scripts</Text>}
-          </View>
-        }
-        ListEmptyComponent={
-          <Text style={styles.empty}>No scripts yet. Snap your sides and let FART do the reading.</Text>
-        }
-        renderItem={({ item }) => {
-          const cast = charactersIn(item.elements);
-          const mine = myLineCount(item.elements);
-          return (
-            <Pressable
-              style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-              onPress={() => openScript(item)}>
-              <View style={styles.cardBody}>
-                <Text style={styles.cardTitle}>{item.title}</Text>
-                <Text style={styles.cardMeta}>
-                  {item.myCharacter
-                    ? `You read ${item.myCharacter} · ${mine} lines highlighted`
-                    : `Cast: ${cast.join(', ')} · pick your role`}
-                </Text>
-              </View>
-              <Pressable hitSlop={8} onPress={() => confirmDelete(item)}>
-                <Text style={styles.trash}>🗑️</Text>
-              </Pressable>
-            </Pressable>
-          );
-        }}
-      />
-    </View>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Text style={styles.tagline}>Friendly AI Reader To-Go!</Text>
+      <Text style={styles.blurb}>
+        Snap a photo of your sides, highlight your lines, and FART reads everyone else&apos;s — so
+        you can rehearse anywhere.
+      </Text>
+      {Platform.OS !== 'web' && (
+        <Pressable
+          style={({ pressed }) => [styles.webBanner, pressed && styles.pressed]}
+          onPress={() => Linking.openURL('https://selftapebuddy.com')}>
+          <Text style={styles.webBannerText}>🌐 Use FART on the web</Text>
+          <Text style={styles.webBannerSubtext}>Full features, no app install needed</Text>
+        </Pressable>
+      )}
+      <Pressable
+        style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
+        onPress={() => router.push('/capture')}>
+        <ClapperIcon size={20} />
+        <Text style={styles.primaryButtonText}>New script</Text>
+      </Pressable>
+      {!isPaid && (
+        <Pressable
+          style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
+          onPress={tryDemo}>
+          <Text style={styles.secondaryButtonText}>🎬 Try the demo scene</Text>
+        </Pressable>
+      )}
+    </ScrollView>
   );
 }
 
 const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.bg },
-    listContent: { padding: 20, paddingBottom: 40, maxWidth: 700, width: '100%', alignSelf: 'center' },
+    content: { padding: 20, paddingBottom: 40, maxWidth: 700, width: '100%', alignSelf: 'center' },
     tagline: { fontSize: 15, fontWeight: '700', color: t.accent, letterSpacing: 0.5, textAlign: 'center' },
     blurb: { fontSize: 15, color: t.inkSoft, marginTop: 6, lineHeight: 21 },
     webBanner: {
@@ -169,34 +100,5 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       borderColor: t.border,
     },
     secondaryButtonText: { color: t.accent, fontSize: 15, fontWeight: '700' },
-    micTestButton: {
-      borderRadius: 16,
-      paddingVertical: 12,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      marginTop: 10,
-      borderWidth: 1,
-      borderColor: t.border,
-    },
-    micTestButtonText: { color: t.inkSoft, fontSize: 14, fontWeight: '700' },
-    sectionTitle: { fontSize: 13, fontWeight: '700', color: t.inkSoft, marginTop: 28, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 },
-    empty: { color: t.inkSoft, fontSize: 14, marginTop: 28, textAlign: 'center' },
-    card: {
-      backgroundColor: t.card,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: t.border,
-      padding: 16,
-      marginBottom: 10,
-      flexDirection: 'row',
-      alignItems: 'center',
-      ...shadow,
-    },
-    cardBody: { flex: 1, marginRight: 12 },
-    cardTitle: { fontSize: 16, fontWeight: '700', color: t.ink },
-    cardMeta: { fontSize: 13, color: t.inkSoft, marginTop: 4 },
-    trash: { fontSize: 18 },
     pressed: { opacity: 0.7 },
   });
