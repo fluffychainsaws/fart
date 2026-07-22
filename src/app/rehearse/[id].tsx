@@ -48,6 +48,9 @@ import { getSpeechRecognitionCtor } from '@/lib/webSpeech';
 const IMPROV_DELAYS = [750, 1000, 1500, 2000];
 const fmtDelay = (ms: number) => `${ms / 1000}s`;
 
+// Count-in lengths (seconds) offered by the "Delay Start" dropdown.
+const DELAY_STARTS = [5, 10];
+
 const VOICE_CMD_LINES = [
   '🎙 Say "FART start" — roll the scene',
   '🔁 Say "FART restart" — start over from the top',
@@ -111,6 +114,7 @@ export default function RehearseScreen() {
   const [improvOn, setImprovOn] = useState(false);
   const [improvDelayMs, setImprovDelayMs] = useState(750);
   const [improvMenuOpen, setImprovMenuOpen] = useState(false);
+  const [delayMenuOpen, setDelayMenuOpen] = useState(false);
   const [followErr, setFollowErr] = useState<string | null>(null);
   const followSupported = useMemo(() => lineFollowSupported(), []);
   const waitingEl = status === 'waiting' ? script?.elements[idx] : undefined;
@@ -524,13 +528,36 @@ export default function RehearseScreen() {
           </Text>
         </Pressable>
         {!playing && (
-          <Pressable
-            style={[styles.toggle, countdown != null && styles.toggleOn]}
-            onPress={() => (countdown != null ? cancelCountdown() : startWithCountdown())}>
-            <Text style={[styles.toggleText, countdown != null && styles.toggleTextOn]}>
-              {countdown != null ? '✕ Cancel countdown' : '⏱ 5s delay'}
-            </Text>
-          </Pressable>
+          <View style={styles.improvAnchor}>
+            <Pressable
+              style={[styles.toggle, countdown != null && styles.toggleOn]}
+              onPress={() => {
+                if (countdown != null) {
+                  cancelCountdown();
+                  return;
+                }
+                setDelayMenuOpen((v) => !v);
+              }}>
+              <Text style={[styles.toggleText, countdown != null && styles.toggleTextOn]}>
+                {countdown != null ? `⏱ Rolling in ${countdown}…  ✕` : '⏱ Delay Start ▾'}
+              </Text>
+            </Pressable>
+            {delayMenuOpen && countdown == null && (
+              <View style={styles.improvMenu}>
+                {DELAY_STARTS.map((s) => (
+                  <Pressable
+                    key={s}
+                    style={styles.improvItem}
+                    onPress={() => {
+                      setDelayMenuOpen(false);
+                      startWithCountdown(s);
+                    }}>
+                    <Text style={styles.improvItemText}>{s}s</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+          </View>
         )}
         {followSupported && (
           <Pressable style={[styles.toggle, followOn && styles.toggleOn]} onPress={toggleFollow}>
