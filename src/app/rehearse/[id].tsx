@@ -197,6 +197,12 @@ export default function RehearseScreen() {
   useEffect(() => {
     if (!voiceCmdOn || !voiceCommandsAllowed || !speechSupported) return;
     if (!getSpeechRecognitionCtor()) return;
+    // Release the mic while the AI is actively reading. An open capture stream
+    // makes the browser/OS duck and garble playback (the "broken/low AI voice"
+    // when both mic features are on), and voice commands don't need to listen
+    // mid-line — "FART start" fires from idle/done and "FART stop" from your
+    // turn. The mic reopens the instant it's your line or the scene stops.
+    if (status === 'playing') return;
     let consecutiveErrors = 0;
 
     // Subscribe to the ONE shared recognizer so this can run alongside "Listen
@@ -244,7 +250,7 @@ export default function RehearseScreen() {
     return () => {
       unsubscribe();
     };
-  }, [voiceCmdOn, voiceCommandsAllowed, speechSupported]);
+  }, [voiceCmdOn, voiceCommandsAllowed, speechSupported, status]);
 
   // In-browser neural voices: module-level engine, mirrored into local state.
   const [neuralState, setNeuralState] = useState(neuralVoiceState());
