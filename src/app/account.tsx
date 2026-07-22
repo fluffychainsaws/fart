@@ -131,6 +131,7 @@ export default function AccountScreen() {
                   ? 'Unlimited auditions'
                   : `${tier.auditionsPerMonth} audition${tier.auditionsPerMonth === 1 ? '' : 's'}/month`}
               </Text>
+              <Text style={styles.planFeature}>📄 Up to {tier.pagesPerScript} pages per script</Text>
               <Text style={styles.planFeature}>🔊 {tier.voiceLabel}</Text>
               <Text style={styles.planFeature}>
                 📝{' '}
@@ -165,6 +166,7 @@ export default function AccountScreen() {
         </View>
         <Text style={styles.planTagline}>{dayPass.tagline}</Text>
         <View style={styles.planFeatures}>
+          <Text style={styles.planFeature}>📄 Up to {dayPass.pagesPerScript} pages per script</Text>
           <Text style={styles.planFeature}>🔊 {dayPass.voiceLabel}</Text>
           <Text style={styles.planFeature}>📝 {dayPass.directorNotesPerAudition} director notes</Text>
           <Text style={styles.planFeature}>🎙 Hands-free voice commands</Text>

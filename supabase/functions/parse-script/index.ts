@@ -18,6 +18,7 @@
 
 import Anthropic from 'npm:@anthropic-ai/sdk@0.111';
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
+import { PDFDocument } from 'npm:pdf-lib@1';
 
 // Monthly audition limits per tier — keep in sync with src/lib/subscription.ts
 // (TIERS[*].auditionsPerMonth). Infinity means the tier is unlimited and skips
@@ -29,6 +30,29 @@ const AUDITION_LIMITS: Record<string, number> = {
   fartpro: 14,
   shartstar: Infinity,
 };
+
+// Max pages per uploaded script per tier — keep in sync with the
+// pagesPerScript values in src/lib/subscription.ts. An Audition Credit upload
+// gets the daypass cap regardless of the account's tier.
+const PAGE_LIMITS: Record<string, number> = {
+  free: 3,
+  fart: 6,
+  fartpro: 12,
+  shartstar: 150,
+};
+const DAYPASS_PAGES = 150;
+
+// Reliable page count for a PDF (base64). Returns 0 if it can't be read, which
+// fails open — the parser will surface a friendlier error than a bad count.
+async function countPdfPages(base64: string): Promise<number> {
+  try {
+    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    const doc = await PDFDocument.load(bytes, { ignoreEncryption: true, updateMetadata: false });
+    return doc.getPageCount();
+  } catch {
+    return 0;
+  }
+}
 
 // 'YYYY-MM' in UTC — the key the audition counter rolls over on.
 function monthKey(): string {
@@ -212,12 +236,25 @@ async function gateAndParse(
   client: Anthropic,
   userId: string,
   useCredit: boolean,
+  pageCount: number,
   content: Anthropic.Messages.ContentBlockParam[],
   noun: 'photos' | 'PDF',
 ): Promise<Response> {
   const { data: profile } = await admin.from('profiles').select('tier').eq('id', userId).single();
   const tier = (profile?.tier as string) ?? 'free';
   const month = monthKey();
+
+  // Page cap — checked before spending any quota/credit or Claude money.
+  const pageCap = useCredit ? DAYPASS_PAGES : PAGE_LIMITS[tier] ?? PAGE_LIMITS.free;
+  if (pageCount > pageCap) {
+    return json(
+      {
+        error: `This script is ${pageCount} pages, but your plan allows up to ${pageCap} per script. Upgrade for longer scripts.`,
+      },
+      413,
+    );
+  }
+
   let consumed: 'credit' | 'audition' | 'none' = 'none';
 
   if (useCredit) {
@@ -306,6 +343,7 @@ Deno.serve(async (req) => {
         client,
         user.id,
         useCredit,
+        await countPdfPages(pdf),
         [
           { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdf } },
           { type: 'text', text: scriptInstructions('PDF') },
@@ -321,6 +359,7 @@ Deno.serve(async (req) => {
         client,
         user.id,
         useCredit,
+        photos.length,
         [
           ...photos.map((photo) => ({
             type: 'image' as const,

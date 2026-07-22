@@ -15,6 +15,9 @@ export interface TierConfig {
   priceLabel: string;
   tagline: string;
   auditionsPerMonth: number;
+  // Max pages (photos, or PDF pages) allowed per uploaded script. Enforced
+  // server-side in the parse-script edge function before any Claude spend.
+  pagesPerScript: number;
   // How many premium (OpenAI) voices this tier unlocks — 0 means device
   // voices only. voiceLabel is the marketing copy for the plan card, since
   // "All device voices + 2 premium AI voices" can't be derived from a count.
@@ -32,6 +35,7 @@ export const TIERS: Record<Tier, TierConfig> = {
     priceLabel: 'Free',
     tagline: 'Script upload and the essentials.',
     auditionsPerMonth: 1,
+    pagesPerScript: 3,
     aiVoiceCount: 0,
     voiceLabel: 'Basic device voice',
     directorNotesPerAudition: 0,
@@ -44,6 +48,7 @@ export const TIERS: Record<Tier, TierConfig> = {
     priceLabel: '$5/mo',
     tagline: 'For actors just getting started.',
     auditionsPerMonth: 6,
+    pagesPerScript: 6,
     aiVoiceCount: 0,
     voiceLabel: 'All device voices',
     directorNotesPerAudition: 5,
@@ -56,6 +61,7 @@ export const TIERS: Record<Tier, TierConfig> = {
     priceLabel: '$10/mo',
     tagline: 'More auditions, more direction.',
     auditionsPerMonth: 14,
+    pagesPerScript: 12,
     aiVoiceCount: 2,
     voiceLabel: 'All device voices + 2 Premium AI voices',
     directorNotesPerAudition: 20,
@@ -68,6 +74,7 @@ export const TIERS: Record<Tier, TierConfig> = {
     priceLabel: '$25/mo',
     tagline: 'Less than a dollar a day to have a reader always ready!',
     auditionsPerMonth: Infinity,
+    pagesPerScript: 150,
     aiVoiceCount: OPENAI_VOICES.length,
     voiceLabel: 'All voices + ALL Premium voices',
     directorNotesPerAudition: Infinity,
@@ -80,6 +87,7 @@ export const TIERS: Record<Tier, TierConfig> = {
     priceLabel: '$3.99',
     tagline: 'One script, full SHART STAR treatment.',
     auditionsPerMonth: Infinity, // scoped to its own script, not a monthly quota
+    pagesPerScript: 150,
     aiVoiceCount: OPENAI_VOICES.length,
     voiceLabel: 'All voices + ALL Premium voices',
     directorNotesPerAudition: 10,

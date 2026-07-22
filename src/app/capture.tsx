@@ -10,7 +10,7 @@ import { useSession } from '@/lib/auth';
 import { openCheckout } from '@/lib/billing';
 import { parseScriptPdf, parseScriptPhotos } from '@/lib/parser';
 import { newId, saveScript } from '@/lib/storage';
-import { type Tier } from '@/lib/subscription';
+import { getTier, type Tier } from '@/lib/subscription';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 import { UpgradeModal } from '@/lib/UpgradeModal';
 import { getUsageStatus } from '@/lib/usage';
@@ -72,6 +72,10 @@ export default function CaptureScreen() {
     });
   }, []);
 
+  // Max pages this upload may have: the Audition Credit's cap when spending a
+  // credit, otherwise the account tier's. The server enforces the same limit.
+  const pageCap = getTier(useCredit && premiumCredits > 0 ? 'daypass' : tier).pagesPerScript;
+
   const handleUpgrade = (target: Tier) => {
     if (session) openCheckout(target, session.user.id, session.user.email);
     setShowUpgrade(false);
@@ -83,8 +87,17 @@ export default function CaptureScreen() {
       .filter((a) => a.base64)
       .map((a) => ({ uri: a.uri, base64: a.base64 as string, mimeType: a.mimeType ?? null }));
     setPdf(null); // a script is either a PDF or a set of photos, not both
-    setPages((prev) => [...prev, ...added]);
-    setError(null);
+    setPages((prev) => {
+      const combined = [...prev, ...added];
+      if (combined.length > pageCap) {
+        setError(
+          `Your plan allows up to ${pageCap} page${pageCap === 1 ? '' : 's'} per script. The extra ones weren't added — upgrade for longer scripts.`,
+        );
+        return combined.slice(0, pageCap);
+      }
+      setError(null);
+      return combined;
+    });
   };
 
   const takePhoto = async () => {
@@ -105,7 +118,7 @@ export default function CaptureScreen() {
         quality: 0.5,
         base64: true,
         allowsMultipleSelection: true,
-        selectionLimit: 8,
+        selectionLimit: Math.max(1, pageCap - pages.length),
         orderedSelection: true,
       }),
     );
@@ -173,8 +186,9 @@ export default function CaptureScreen() {
       const msg = e instanceof Error ? e.message : 'Something went wrong. Try again.';
       setError(msg);
       // Covers the race where the client pre-check passed but the server (the
-      // real gate) rejected the upload as over-quota.
-      if (msg.includes('out of auditions')) setShowUpgrade(true);
+      // real gate) rejected the upload as over-quota — or a PDF that turned out
+      // to exceed the page cap (counted server-side).
+      if (msg.includes('out of auditions') || /allows up to \d+/.test(msg)) setShowUpgrade(true);
     } finally {
       setBusy(false);
     }
@@ -242,7 +256,7 @@ export default function CaptureScreen() {
           {pages.length > 0 && (
             <>
               <Text style={styles.sectionTitle}>
-                {pages.length} page{pages.length === 1 ? '' : 's'} ready
+                {pages.length} / {pageCap} page{pageCap === 1 ? '' : 's'} ready
               </Text>
               <View style={styles.thumbGrid}>
                 {pages.map((page, i) => (

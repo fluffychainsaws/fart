@@ -11,6 +11,7 @@ function benefits(id: Tier): string[] {
   const t = getTier(id);
   const lines: string[] = [
     t.auditionsPerMonth === Infinity ? 'Unlimited auditions' : `${t.auditionsPerMonth} auditions/month`,
+    `Up to ${t.pagesPerScript} pages per script`,
     t.voiceLabel,
   ];
   if (t.directorNotesPerAudition === Infinity) lines.push('Unlimited director notes');
