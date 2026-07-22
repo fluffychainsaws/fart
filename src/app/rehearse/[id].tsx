@@ -106,6 +106,7 @@ export default function RehearseScreen() {
 
   // Voice follow: listen while the engine waits on the user's line and
   // continue the moment they finish it, instead of guessing with a timer.
+  const [hideDirections, setHideDirections] = useState(false);
   const [followOn, setFollowOn] = useState(false);
   const [improvOn, setImprovOn] = useState(false);
   const [improvDelayMs, setImprovDelayMs] = useState(750);
@@ -515,6 +516,13 @@ export default function RehearseScreen() {
             🎬 Read directions
           </Text>
         </Pressable>
+        <Pressable
+          style={[styles.toggle, hideDirections && styles.toggleOn]}
+          onPress={() => setHideDirections((v) => !v)}>
+          <Text style={[styles.toggleText, hideDirections && styles.toggleTextOn]}>
+            📄 Dialogue only
+          </Text>
+        </Pressable>
         {!playing && (
           <Pressable
             style={[styles.toggle, countdown != null && styles.toggleOn]}
@@ -642,6 +650,7 @@ export default function RehearseScreen() {
 
       <ScrollView ref={scrollRef} style={styles.script} contentContainerStyle={styles.scriptContent}>
         {script.elements.map((el, i) => {
+          if (el.type === 'direction' && hideDirections) return null;
           const isCurrent = i === idx && status !== 'idle';
           return (
             <Pressable
