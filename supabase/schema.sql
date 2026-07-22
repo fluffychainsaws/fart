@@ -227,6 +227,53 @@ $$;
 
 grant execute on function public.spend_premium_credit_for(uuid) to service_role;
 
+-- Per-user monthly usage meter for the paid outside APIs, so one account can't
+-- loop the premium-voice or director-note endpoints and run up the OpenAI /
+-- ElevenLabs / Anthropic bill. Not a data risk — purely a spend cap. Keyed by
+-- (user, kind, month): kind is 'tts_chars' (characters synthesized) or
+-- 'direction' (director-note calls). The edge functions are the only callers.
+create table if not exists public.rate_limits (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  kind text not null,
+  month text not null, -- 'YYYY-MM' UTC, matches the edge functions' clock
+  amount bigint not null default 0,
+  primary key (user_id, kind, month)
+);
+
+alter table public.rate_limits enable row level security;
+-- No client policies: only the edge functions (service role) touch this.
+
+-- Atomically add p_amount to this month's counter and report whether it stayed
+-- within p_limit. Over the cap, the increment is rolled back and it returns
+-- false so the caller skips the paid API. Row-locked on the primary key, so
+-- concurrent calls for the same user can't race past the limit. service_role
+-- only — a client can't call it to reset its own meter or pass a fake limit.
+create or replace function public.consume_rate_limit(
+  p_user_id uuid, p_kind text, p_month text, p_amount bigint, p_limit bigint
+)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  new_total bigint;
+begin
+  insert into public.rate_limits (user_id, kind, month, amount)
+    values (p_user_id, p_kind, p_month, p_amount)
+    on conflict (user_id, kind, month)
+      do update set amount = rate_limits.amount + excluded.amount
+    returning amount into new_total;
+  if new_total > p_limit then
+    update public.rate_limits set amount = amount - p_amount
+      where user_id = p_user_id and kind = p_kind and month = p_month;
+    return false;
+  end if;
+  return true;
+end;
+$$;
+
+grant execute on function public.consume_rate_limit(uuid, text, text, bigint, bigint) to service_role;
+
 -- Owner/admin flag. Flip it on your own row once, in Table Editor:
 -- profiles -> your row -> is_admin = true. Users cannot set it from the app —
 -- but ONLY because of the column-level UPDATE grant in the security-hardening
@@ -355,3 +402,4 @@ revoke execute on function public.increment_premium_credits(uuid, integer) from 
 revoke execute on function public.consume_audition(uuid, text, integer) from public, anon, authenticated;
 revoke execute on function public.refund_audition(uuid, text) from public, anon, authenticated;
 revoke execute on function public.spend_premium_credit_for(uuid) from public, anon, authenticated;
+revoke execute on function public.consume_rate_limit(uuid, text, text, bigint, bigint) from public, anon, authenticated;

@@ -8,9 +8,21 @@
 //   VOICE_PROVIDER      - 'openai' (default) or 'elevenlabs'
 //   OPENAI_API_KEY      - platform.openai.com key (openai provider)
 //   ELEVENLABS_API_KEY  - elevenlabs.io key (elevenlabs provider)
-// SUPABASE_URL / SUPABASE_ANON_KEY are injected automatically.
+// SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY are injected
+// automatically (service role is used for the per-user monthly spend cap).
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
+
+// Per-account monthly ceiling on synthesized characters — a spend cap so one
+// user can't loop this endpoint and run up the TTS bill. Generous enough that
+// real use (even unlimited-audition SHART STAR) won't hit it; tune here.
+const TTS_MONTHLY_CHAR_LIMIT = 200_000;
+
+// 'YYYY-MM' in UTC — the key the monthly meter rolls over on.
+function monthKey(): string {
+  const n = new Date();
+  return `${n.getUTCFullYear()}-${String(n.getUTCMonth() + 1).padStart(2, '0')}`;
+}
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -132,6 +144,23 @@ Deno.serve(async (req) => {
   const voice = String(payload.voice ?? 'coral');
   const instructions = String(payload.instructions ?? '');
   if (!text.trim()) return json({ error: 'no text' }, 400);
+
+  // Per-user monthly spend cap. The RPC is service_role-only, so use a
+  // service-role client (the auth client above only verifies identity).
+  const admin = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  );
+  const { data: withinLimit } = await admin.rpc('consume_rate_limit', {
+    p_user_id: user.id,
+    p_kind: 'tts_chars',
+    p_month: monthKey(),
+    p_amount: text.length,
+    p_limit: TTS_MONTHLY_CHAR_LIMIT,
+  });
+  if (withinLimit !== true) {
+    return json({ error: "You've hit this month's premium-voice limit." }, 429);
+  }
 
   const provider = (Deno.env.get('VOICE_PROVIDER') ?? 'openai').toLowerCase();
   try {

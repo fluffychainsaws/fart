@@ -46,6 +46,12 @@ const SCRIPT_MODEL_PRIMARY = 'claude-haiku-4-5';
 const SCRIPT_MODEL_FALLBACK = 'claude-opus-4-8';
 const DIRECTION_MODEL = 'claude-opus-4-8';
 
+// Per-account monthly ceiling on director-note (Opus) calls — a spend cap so
+// one user can't loop this endpoint. Uploads are already bounded by the
+// audition quota; this covers the one paid path that isn't. Generous for real
+// use (a handful of notes per script); tune here.
+const DIRECTION_MONTHLY_LIMIT = 300;
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -331,6 +337,17 @@ Deno.serve(async (req) => {
     }
 
     if (mode === 'direction') {
+      // Spend cap: bound director-note calls per user per month.
+      const { data: withinLimit } = await admin.rpc('consume_rate_limit', {
+        p_user_id: user.id,
+        p_kind: 'direction',
+        p_month: monthKey(),
+        p_amount: 1,
+        p_limit: DIRECTION_MONTHLY_LIMIT,
+      });
+      if (withinLimit !== true) {
+        return json({ error: "You've made a lot of director notes this month — try again later." }, 429);
+      }
       const note = String(payload.note ?? '').trim();
       const line = (payload.line as { character: string; text: string }) ?? { character: '', text: '' };
       const response = await client.messages.create({
