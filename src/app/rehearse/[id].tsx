@@ -906,6 +906,10 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       maxWidth: 700,
       width: '100%',
       alignSelf: 'center',
+      // Sit above the script ScrollView so open dropdowns (Improv delay) can be
+      // tapped where they overlap it — otherwise the scroll area swallows taps.
+      position: 'relative',
+      zIndex: 10,
     },
     voiceCmdCard: {
       backgroundColor: t.accentSoft,
@@ -922,7 +926,7 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       alignSelf: 'center',
     },
     voiceCmdCardText: { color: t.accent, fontSize: 11, fontWeight: '700' },
-    improvAnchor: { position: 'relative' },
+    improvAnchor: { position: 'relative', zIndex: 20 },
     improvMenu: {
       position: 'absolute',
       top: '110%',
