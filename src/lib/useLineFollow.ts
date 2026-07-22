@@ -57,18 +57,20 @@ export interface LineFollowState {
 
 // Improv mode: after the actor has said something, this much silence is taken
 // as "I'm done" and the reader continues — even if the words never matched the
-// script (full improvisation). Generous, because improvising means pausing to
-// think mid-thought; too short and it cuts the actor off before they finish.
-const IMPROV_SILENCE_MS = 750;
+// script (full improvisation). User-adjustable via the Improv dropdown; this is
+// the fallback when none is passed.
+const IMPROV_SILENCE_DEFAULT_MS = 750;
 
 export function useLineFollow(
   enabled: boolean,
   // The user's line to listen for; null whenever it isn't their turn.
   line: { text: string; key: number } | null,
   onComplete: () => void,
-  // Looser matching + pause-to-continue, for going off-script. Opt-in so the
-  // default strict matching (exact scripted lines) is unchanged.
+  // Pause-to-continue, for going off-script. Opt-in so the default strict
+  // matching (exact scripted lines) is unchanged.
   improv = false,
+  // How long a silence (ms) counts as "done" in improv mode.
+  improvSilenceMs = IMPROV_SILENCE_DEFAULT_MS,
 ): LineFollowState {
   const [listening, setListening] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -123,7 +125,7 @@ export function useLineFollow(
       if (improv) {
         if (spoken.length > 0) {
           clearSilence();
-          silenceTimer = setTimeout(complete, IMPROV_SILENCE_MS);
+          silenceTimer = setTimeout(complete, improvSilenceMs);
         }
         return;
       }
@@ -201,7 +203,7 @@ export function useLineFollow(
       setListening(false);
       cleanup();
     };
-  }, [enabled, text, key, improv]);
+  }, [enabled, text, key, improv, improvSilenceMs]);
 
   return { listening, progress, heard };
 }

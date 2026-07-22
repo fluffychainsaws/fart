@@ -44,6 +44,10 @@ import { subscribeRecognition } from '@/lib/sharedRecognition';
 import { CUT_CMD, RESTART_CMD, START_CMD } from '@/lib/voiceCommands';
 import { getSpeechRecognitionCtor } from '@/lib/webSpeech';
 
+// Selectable improv pause lengths (ms) and their labels, e.g. 750 -> "0.75s".
+const IMPROV_DELAYS = [750, 1000, 1500, 2000];
+const fmtDelay = (ms: number) => `${ms / 1000}s`;
+
 const VOICE_CMD_LINES = [
   '🎙 Say "FART start" — roll the scene',
   '🔁 Say "FART restart" — start over from the top',
@@ -104,12 +108,14 @@ export default function RehearseScreen() {
   // continue the moment they finish it, instead of guessing with a timer.
   const [followOn, setFollowOn] = useState(false);
   const [improvOn, setImprovOn] = useState(false);
+  const [improvDelayMs, setImprovDelayMs] = useState(750);
+  const [improvMenuOpen, setImprovMenuOpen] = useState(false);
   const [followErr, setFollowErr] = useState<string | null>(null);
   const followSupported = useMemo(() => lineFollowSupported(), []);
   const waitingEl = status === 'waiting' ? script?.elements[idx] : undefined;
   const waitingLine =
     waitingEl?.type === 'line' && waitingEl.mine ? { text: waitingEl.text, key: idx } : null;
-  const follow = useLineFollow(followOn, waitingLine, engine.continueMyLine, improvOn);
+  const follow = useLineFollow(followOn, waitingLine, engine.continueMyLine, improvOn, improvDelayMs);
 
   const toggleFollow = async () => {
     if (followOn) {
@@ -526,13 +532,46 @@ export default function RehearseScreen() {
           </Pressable>
         )}
         {followSupported && followOn && (
-          <Pressable
-            style={[styles.toggle, improvOn && styles.toggleOn]}
-            onPress={() => setImprovOn((v) => !v)}>
-            <Text style={[styles.toggleText, improvOn && styles.toggleTextOn]}>
-              🎭 Improv
-            </Text>
-          </Pressable>
+          <View style={styles.improvAnchor}>
+            <Pressable
+              style={[styles.toggle, improvOn && styles.toggleOn]}
+              onPress={() => setImprovMenuOpen((v) => !v)}>
+              <Text style={[styles.toggleText, improvOn && styles.toggleTextOn]}>
+                🎭 Improv{improvOn ? ` · ${fmtDelay(improvDelayMs)}` : ''} ▾
+              </Text>
+            </Pressable>
+            {improvMenuOpen && (
+              <View style={styles.improvMenu}>
+                <Pressable
+                  style={styles.improvItem}
+                  onPress={() => {
+                    setImprovOn(false);
+                    setImprovMenuOpen(false);
+                  }}>
+                  <Text style={[styles.improvItemText, !improvOn && styles.improvItemTextSel]}>
+                    Off{!improvOn ? '  ✓' : ''}
+                  </Text>
+                </Pressable>
+                {IMPROV_DELAYS.map((ms) => {
+                  const sel = improvOn && improvDelayMs === ms;
+                  return (
+                    <Pressable
+                      key={ms}
+                      style={styles.improvItem}
+                      onPress={() => {
+                        setImprovOn(true);
+                        setImprovDelayMs(ms);
+                        setImprovMenuOpen(false);
+                      }}>
+                      <Text style={[styles.improvItemText, sel && styles.improvItemTextSel]}>
+                        {fmtDelay(ms)} pause{sel ? '  ✓' : ''}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </View>
         )}
         {voiceCommandsAllowed && speechSupported && (
           <View style={styles.voiceCmdAnchor}>
@@ -883,6 +922,23 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       alignSelf: 'center',
     },
     voiceCmdCardText: { color: t.accent, fontSize: 11, fontWeight: '700' },
+    improvAnchor: { position: 'relative' },
+    improvMenu: {
+      position: 'absolute',
+      top: '110%',
+      left: 0,
+      zIndex: 30,
+      backgroundColor: t.card,
+      borderWidth: 1,
+      borderColor: t.border,
+      borderRadius: 12,
+      paddingVertical: 4,
+      minWidth: 150,
+      ...shadow,
+    },
+    improvItem: { paddingVertical: 9, paddingHorizontal: 14 },
+    improvItemText: { fontSize: 13, fontWeight: '700', color: t.ink },
+    improvItemTextSel: { color: t.accent },
     voiceCmdAnchor: { position: 'relative' },
     voiceCmdPopover: {
       position: 'absolute',
