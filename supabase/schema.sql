@@ -37,9 +37,11 @@ create policy "update own profile"
   on public.profiles for update
   using (auth.uid() = id)
   with check (auth.uid() = id and tier = (select tier from public.profiles where id = auth.uid()));
--- Note the check: users can update their profile but NOT their own tier —
--- tier changes must come from the server (billing webhook / dashboard),
--- otherwise anyone could grant themselves SHART STAR from the console.
+-- Note the check pins `tier`, but a row-level policy CANNOT restrict which
+-- other columns a user writes. The column-level GRANT in the security-hardening
+-- section at the bottom of this file is what actually stops a user from setting
+-- their own is_admin / premium_credits / auditions_used — do not rely on this
+-- policy alone.
 
 -- Auto-create a profile row whenever someone signs up.
 create or replace function public.handle_new_user()
@@ -226,9 +228,9 @@ $$;
 grant execute on function public.spend_premium_credit_for(uuid) to service_role;
 
 -- Owner/admin flag. Flip it on your own row once, in Table Editor:
--- profiles -> your row -> is_admin = true. Nobody can set it from the app
--- (the update policy already blocks profile edits beyond what it allows,
--- and this column is only readable via the RLS-scoped own-row select).
+-- profiles -> your row -> is_admin = true. Users cannot set it from the app —
+-- but ONLY because of the column-level UPDATE grant in the security-hardening
+-- section at the bottom of this file (the RLS policy alone does not stop it).
 alter table public.profiles add column if not exists is_admin boolean not null default false;
 
 -- Usage telemetry for the monthly cost analysis: one row per billable-ish
@@ -320,3 +322,36 @@ end;
 $$;
 
 grant execute on function public.admin_voice_usage(text) to authenticated;
+
+-- ============================================================================
+-- Security hardening — REQUIRED. The policies and grants above are not enough
+-- on their own; without this block a signed-in user can escalate privileges
+-- and hand themselves paid features. Safe to re-run.
+-- ============================================================================
+
+-- (1) Column-level write lock on profiles.
+-- Row Level Security pins WHICH ROW a user may update (their own), but a
+-- row-level policy cannot restrict WHICH COLUMNS they set — so the "update own
+-- profile" policy only pinned `tier`, leaving is_admin, premium_credits, and
+-- auditions_used/auditions_month freely writable by the row's owner via a plain
+-- PATCH (e.g. grant yourself admin, unlimited credits, or reset your quota).
+-- Column privileges are the real fix: revoke blanket UPDATE and grant only the
+-- two columns the app writes directly (the profile photo). tier / credits /
+-- quota / is_admin change only through the Stripe webhook and the SECURITY
+-- DEFINER functions, which run as the table owner and are unaffected by this.
+revoke update on public.profiles from anon, authenticated;
+grant update (photo_url, photo_updated_at) on public.profiles to authenticated;
+
+-- (2) Lock down the service-role-only functions.
+-- A freshly created function grants EXECUTE to PUBLIC by default, so these
+-- helpers — which take an arbitrary user id and mutate credits/quota, bypassing
+-- RLS as SECURITY DEFINER — were in fact callable by any signed-in user through
+-- PostgREST rpc(). That let a user mint their own Audition Credits, reset their
+-- monthly audition quota, or drain another user's credits. Revoke PUBLIC (and
+-- the API roles) so only the webhook / edge functions (service_role) can call
+-- them. spend_premium_credit() (no args, acts on auth.uid() only) stays callable
+-- by authenticated on purpose.
+revoke execute on function public.increment_premium_credits(uuid, integer) from public, anon, authenticated;
+revoke execute on function public.consume_audition(uuid, text, integer) from public, anon, authenticated;
+revoke execute on function public.refund_audition(uuid, text) from public, anon, authenticated;
+revoke execute on function public.spend_premium_credit_for(uuid) from public, anon, authenticated;
