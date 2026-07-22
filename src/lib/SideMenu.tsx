@@ -29,7 +29,7 @@ const HINT_SEEN_KEY = 'fart.sideMenuHintSeen.v1';
 const DRAWER_WIDTH = 232;
 const EDGE_WIDTH = 16;
 
-type Href = '/' | '/capture' | '/mictest' | '/profile' | '/settings' | '/account';
+type Href = '/' | '/capture' | '/mictest' | '/profile' | '/settings' | '/account' | '/privacy' | '/terms';
 
 const LINKS: { href: Href; label: string; icon: string }[] = [
   { href: '/', label: 'Home', icon: '🏠' },
@@ -347,6 +347,23 @@ export function SideMenu() {
               <Text style={styles.linkLabel}>Sign in</Text>
             </Pressable>
           )}
+
+          <View style={styles.legalRow}>
+            {(['/privacy', '/terms'] as const).map((href, i) => (
+              <Pressable
+                key={href}
+                onPress={() => {
+                  dismissHint.current();
+                  setOpen(false);
+                  router.push(href);
+                }}>
+                <Text style={styles.legalLink}>
+                  {i > 0 ? '·  ' : ''}
+                  {href === '/privacy' ? 'Privacy' : 'Terms'}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
         </Animated.View>
       </View>
     </View>
@@ -498,6 +515,8 @@ function makeStyles(t: Theme, shadow: ReturnType<typeof useCardShadow>) {
     linkIcon: { fontSize: 18 },
     linkLabel: { fontSize: 15, fontWeight: '600', color: t.ink },
     linkLabelActive: { color: t.accent },
+    legalRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingTop: 10 },
+    legalLink: { fontSize: 11, color: t.inkSoft, fontWeight: '600' },
     pressed: { opacity: 0.7 },
   });
 }

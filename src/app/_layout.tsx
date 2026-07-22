@@ -63,6 +63,8 @@ export default function RootLayout() {
         <Stack.Screen name="login" options={{ title: 'Account' }} />
         <Stack.Screen name="admin" options={{ title: 'Monthly analysis' }} />
         <Stack.Screen name="mictest" options={{ title: 'Mic test' }} />
+        <Stack.Screen name="privacy" options={{ title: 'Privacy Policy' }} />
+        <Stack.Screen name="terms" options={{ title: 'Terms of Service' }} />
       </Stack>
       <SideMenu />
     </>

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
 import { useSession } from '@/lib/auth';
@@ -188,6 +188,16 @@ export default function AccountScreen() {
             : 'Your plan is tied to your account. Paid checkout opens soon.'
           : 'Signed out: plan switching is a local stand-in. Sign in to keep a real plan.'}
       </Text>
+
+      <View style={styles.legalRow}>
+        <Pressable onPress={() => router.push('/terms')}>
+          <Text style={styles.legalLink}>Terms of Service</Text>
+        </Pressable>
+        <Text style={styles.legalDot}>·</Text>
+        <Pressable onPress={() => router.push('/privacy')}>
+          <Text style={styles.legalLink}>Privacy Policy</Text>
+        </Pressable>
+      </View>
     </ScrollView>
   );
 }
@@ -263,5 +273,8 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     planButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
     planButtonTextActive: { color: t.accent },
     devNote: { fontSize: 12, color: t.inkSoft, textAlign: 'center', marginTop: 8, fontStyle: 'italic' },
+    legalRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 20 },
+    legalLink: { fontSize: 12, color: t.accent, fontWeight: '600' },
+    legalDot: { fontSize: 12, color: t.inkSoft },
     pressed: { opacity: 0.7 },
   });
