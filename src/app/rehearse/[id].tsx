@@ -44,6 +44,20 @@ import { subscribeRecognition } from '@/lib/sharedRecognition';
 import { CUT_CMD, RESTART_CMD, START_CMD } from '@/lib/voiceCommands';
 import { getSpeechRecognitionCtor } from '@/lib/webSpeech';
 
+const VOICE_CMD_LINES = [
+  '🎙 Say "FART start" — roll the scene',
+  '🔁 Say "FART restart" — start over from the top',
+  '🛑 Say "FART stop" — pause the scene',
+];
+
+// Desktop pointers can hover; touch screens can't. On hover-capable devices
+// the command list is a popover that opens when you point at the toggle; on
+// touch it stays as an always-visible card while voice commands are on.
+const CAN_HOVER =
+  Platform.OS === 'web' &&
+  typeof window !== 'undefined' &&
+  Boolean(window.matchMedia?.('(hover: hover)').matches);
+
 const prettyVoice = (id: string | undefined, deviceNames: Record<string, string>): string => {
   if (!id) return 'Auto';
   if (id.startsWith('openai:')) {
@@ -120,6 +134,7 @@ export default function RehearseScreen() {
   // a flubbed take without dropping the mic that's following your lines.
   const [voiceCmdOn, setVoiceCmdOn] = useState(false);
   const [voiceCmdErr, setVoiceCmdErr] = useState<string | null>(null);
+  const [voiceHelpOpen, setVoiceHelpOpen] = useState(false);
   const voiceCommandsAllowed = Boolean(tier?.voiceCommands);
   const speechSupported = Boolean(getSpeechRecognitionCtor());
   const voiceCooldownUntil = useRef(0);
@@ -504,11 +519,26 @@ export default function RehearseScreen() {
           </Pressable>
         )}
         {voiceCommandsAllowed && speechSupported && (
-          <Pressable style={[styles.toggle, voiceCmdOn && styles.toggleOn]} onPress={toggleVoiceCmd}>
-            <Text style={[styles.toggleText, voiceCmdOn && styles.toggleTextOn]}>
-              🎙 Voice commands
-            </Text>
-          </Pressable>
+          <View style={styles.voiceCmdAnchor}>
+            <Pressable
+              style={[styles.toggle, voiceCmdOn && styles.toggleOn]}
+              onPress={toggleVoiceCmd}
+              onHoverIn={() => setVoiceHelpOpen(true)}
+              onHoverOut={() => setVoiceHelpOpen(false)}>
+              <Text style={[styles.toggleText, voiceCmdOn && styles.toggleTextOn]}>
+                🎙 Voice commands
+              </Text>
+            </Pressable>
+            {CAN_HOVER && voiceHelpOpen && (
+              <View style={styles.voiceCmdPopover}>
+                {VOICE_CMD_LINES.map((line) => (
+                  <Text key={line} style={styles.voiceCmdCardText}>
+                    {line}
+                  </Text>
+                ))}
+              </View>
+            )}
+          </View>
         )}
         {neuralVoiceSupported() && (
           <Pressable
@@ -542,11 +572,13 @@ export default function RehearseScreen() {
       </View>
       {followErr && <Text style={styles.followError}>{followErr}</Text>}
       {voiceCmdErr && <Text style={styles.followError}>{voiceCmdErr}</Text>}
-      {voiceCmdOn && (
+      {voiceCmdOn && !CAN_HOVER && (
         <View style={styles.voiceCmdCard}>
-          <Text style={styles.voiceCmdCardText}>{'🎙 Say "FART start" — roll the scene'}</Text>
-          <Text style={styles.voiceCmdCardText}>{'🔁 Say "FART restart" — start over from the top'}</Text>
-          <Text style={styles.voiceCmdCardText}>{'🛑 Say "FART stop" — pause the scene'}</Text>
+          {VOICE_CMD_LINES.map((line) => (
+            <Text key={line} style={styles.voiceCmdCardText}>
+              {line}
+            </Text>
+          ))}
         </View>
       )}
 
@@ -827,6 +859,22 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       alignSelf: 'center',
     },
     voiceCmdCardText: { color: t.accent, fontSize: 11, fontWeight: '700' },
+    voiceCmdAnchor: { position: 'relative' },
+    voiceCmdPopover: {
+      position: 'absolute',
+      top: '110%',
+      left: 0,
+      zIndex: 30,
+      backgroundColor: t.accentSoft,
+      borderWidth: 1,
+      borderColor: t.accent,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      gap: 2,
+      minWidth: 260,
+      ...shadow,
+    },
     followError: {
       color: t.danger,
       fontSize: 12,
