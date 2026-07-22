@@ -41,7 +41,7 @@ import { lineFollowSupported, requestLineFollowMic, useLineFollow } from '@/lib/
 import { useRehearsal } from '@/lib/useRehearsal';
 import { directorNoteCount, directorNotesUnlimited, getUsageStatus, type UsageStatus } from '@/lib/usage';
 import { subscribeRecognition } from '@/lib/sharedRecognition';
-import { CUT_CMD, START_CMD } from '@/lib/voiceCommands';
+import { CUT_CMD, RESTART_CMD, START_CMD } from '@/lib/voiceCommands';
 import { getSpeechRecognitionCtor } from '@/lib/webSpeech';
 
 const prettyVoice = (id: string | undefined, deviceNames: Record<string, string>): string => {
@@ -226,7 +226,13 @@ export default function RehearseScreen() {
         if (!transcript || Date.now() < voiceCooldownUntil.current) return;
         consecutiveErrors = 0;
         const state = statusRef.current;
-        if ((state === 'idle' || state === 'done') && START_CMD.test(transcript)) {
+        // "FART restart" is the one-shot redo: from anywhere, roll again from
+        // the top — so a flub mid-take needs a single command, not stop+start.
+        // Checked first (and before START, though the two never overlap).
+        if (RESTART_CMD.test(transcript)) {
+          voiceCooldownUntil.current = Date.now() + 2500;
+          startCountdownRef.current(); // counts in, then plays from the top
+        } else if ((state === 'idle' || state === 'done') && START_CMD.test(transcript)) {
           voiceCooldownUntil.current = Date.now() + 2500;
           startCountdownRef.current(); // rolls the scene from the top
         } else if ((state === 'playing' || state === 'waiting') && CUT_CMD.test(transcript)) {
@@ -539,7 +545,7 @@ export default function RehearseScreen() {
       {voiceCmdOn && (
         <View style={styles.voiceCmdCard}>
           <Text style={styles.voiceCmdCardText}>{'🎙 Say "FART start" — roll the scene'}</Text>
-          <Text style={styles.voiceCmdCardText}>{'🛑 Say "FART stop" — stop the scene and restarts the scene'}</Text>
+          <Text style={styles.voiceCmdCardText}>{'🔁 Say "FART restart" — start over from the top'}</Text>
         </View>
       )}
 
