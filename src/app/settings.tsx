@@ -1,7 +1,9 @@
-import { useMemo } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
+import { deleteAccount, useSession } from '@/lib/auth';
 import {
   type ColorMode,
   getColorMode,
@@ -25,6 +27,34 @@ export default function SettingsScreen() {
   const shadow = useCardShadow();
   const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   const activeMode = getColorMode();
+  const session = useSession();
+  const [deleting, setDeleting] = useState(false);
+
+  const runDelete = async () => {
+    setDeleting(true);
+    const err = await deleteAccount();
+    setDeleting(false);
+    if (err) {
+      if (Platform.OS === 'web') window.alert(err);
+      else Alert.alert('Delete account', err);
+      return;
+    }
+    if (Platform.OS === 'web') window.alert('Your account and data have been deleted.');
+    router.replace('/');
+  };
+
+  const confirmDelete = () => {
+    const msg =
+      'This permanently deletes your account, your scripts, and your plan. This cannot be undone. Continue?';
+    if (Platform.OS === 'web') {
+      if (window.confirm(msg)) runDelete();
+      return;
+    }
+    Alert.alert('Delete account', msg, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: runDelete },
+    ]);
+  };
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -69,6 +99,26 @@ export default function SettingsScreen() {
           })}
         </View>
       </View>
+
+      {session && (
+        <>
+          <Text style={styles.sectionTitle}>Account</Text>
+          <View style={styles.dangerCard}>
+            <Text style={styles.dangerText}>
+              Delete your account and all your data — scripts, plan, and profile. This can&apos;t be
+              undone.
+            </Text>
+            <Pressable
+              disabled={deleting}
+              style={({ pressed }) => [styles.dangerButton, (pressed || deleting) && styles.pressed]}
+              onPress={confirmDelete}>
+              <Text style={styles.dangerButtonText}>
+                {deleting ? 'Deleting…' : 'Delete my account'}
+              </Text>
+            </Pressable>
+          </View>
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -121,5 +171,24 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     swatch: { width: 28, height: 28, borderRadius: 14 },
     swatchName: { fontSize: 10, color: t.inkSoft, marginTop: 4, textAlign: 'center' },
     swatchNameActive: { color: t.ink, fontWeight: '700' },
+    dangerCard: {
+      backgroundColor: t.card,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: 'rgba(214,69,69,0.35)',
+      padding: 16,
+      ...shadow,
+    },
+    dangerText: { fontSize: 13, color: t.inkSoft, lineHeight: 19 },
+    dangerButton: {
+      marginTop: 14,
+      backgroundColor: 'rgba(214,69,69,0.12)',
+      borderWidth: 1,
+      borderColor: 'rgba(214,69,69,0.5)',
+      borderRadius: 12,
+      paddingVertical: 12,
+      alignItems: 'center',
+    },
+    dangerButtonText: { color: '#d64545', fontSize: 14, fontWeight: '800' },
     pressed: { opacity: 0.7 },
   });

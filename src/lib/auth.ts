@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session } from '@supabase/supabase-js';
 
 import { supabase } from './supabase';
@@ -44,6 +45,23 @@ export async function signOut(): Promise<string | null> {
   if (!supabase) return null;
   const { error } = await supabase.auth.signOut();
   return error ? friendly(error.message) : null;
+}
+
+// Permanently deletes the signed-in user's account. The edge function removes
+// the auth user (all their database rows cascade from that); on success we wipe
+// this device's local copy of scripts/photo and sign out. Returns null on
+// success or a friendly error string.
+export async function deleteAccount(): Promise<string | null> {
+  if (!supabase) return 'Accounts are not configured yet.';
+  const { error } = await supabase.functions.invoke('delete-account', { method: 'POST' });
+  if (error) return friendly(error.message);
+  await AsyncStorage.multiRemove([
+    'fart.scripts.v1',
+    'fart.profilePhoto.v2',
+    'fart.profilePhoto.v1',
+  ]).catch(() => {});
+  await supabase.auth.signOut().catch(() => {});
+  return null;
 }
 
 export async function requestPasswordReset(email: string): Promise<string | null> {
