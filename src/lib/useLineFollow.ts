@@ -57,8 +57,9 @@ export interface LineFollowState {
 
 // Improv mode: after the actor has said something, this much silence is taken
 // as "I'm done" and the reader continues — even if the words never matched the
-// script (full improvisation). Long enough not to trip on mid-line breaths.
-const IMPROV_SILENCE_MS = 1200;
+// script (full improvisation). Generous, because improvising means pausing to
+// think mid-thought; too short and it cuts the actor off before they finish.
+const IMPROV_SILENCE_MS = 2800;
 
 export function useLineFollow(
   enabled: boolean,
