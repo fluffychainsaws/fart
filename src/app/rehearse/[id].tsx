@@ -542,6 +542,10 @@ export default function RehearseScreen() {
             </Pressable>
             {improvMenuOpen && (
               <View style={styles.improvMenu}>
+                <Text style={styles.improvMenuHeader}>
+                  How long a pause means you&apos;re done — the reader waits this
+                  long, then continues.
+                </Text>
                 <Pressable
                   style={styles.improvItem}
                   onPress={() => {
@@ -939,6 +943,19 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       paddingVertical: 4,
       minWidth: 150,
       ...shadow,
+    },
+    improvMenuHeader: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: t.inkSoft,
+      lineHeight: 15,
+      paddingHorizontal: 14,
+      paddingTop: 8,
+      paddingBottom: 6,
+      maxWidth: 220,
+      borderBottomWidth: 1,
+      borderBottomColor: t.border,
+      marginBottom: 4,
     },
     improvItem: { paddingVertical: 9, paddingHorizontal: 14 },
     improvItemText: { fontSize: 13, fontWeight: '700', color: t.ink },
