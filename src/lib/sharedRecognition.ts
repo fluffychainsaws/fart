@@ -74,7 +74,13 @@ function stopRecognizer() {
   const rec = recognizer;
   recognizer = null;
   try {
-    rec?.abort();
+    if (rec) {
+      // Detach first so this intentional abort doesn't emit onend/onerror
+      // ('aborted') to subscribers as if the mic had failed.
+      rec.onend = null;
+      rec.onerror = null;
+      rec.abort();
+    }
   } catch {
     // already stopped
   }
@@ -105,7 +111,10 @@ export function resetRecognitionSession() {
   recognizer = null;
   try {
     if (rec) {
-      rec.onend = null; // don't let the abort's onend trigger its own restart
+      // Detach so this intentional abort neither restarts itself (onend) nor
+      // surfaces as an 'aborted' failure to subscribers (onerror).
+      rec.onend = null;
+      rec.onerror = null;
       rec.abort();
     }
   } catch {

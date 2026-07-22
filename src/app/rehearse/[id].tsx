@@ -255,13 +255,19 @@ export default function RehearseScreen() {
           engineRef.current.pause();
         }
       } else if (event.type === 'error') {
-        consecutiveErrors += 1;
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
           setVoiceCmdOn(false);
           setVoiceCmdErr(
             "Microphone access is blocked. Allow it for this site in your browser's settings, then try again.",
           );
-        } else if (event.error !== 'no-speech' && consecutiveErrors > 4) {
+          return;
+        }
+        // 'no-speech' (silence) and 'aborted' (our own mic-gating / session
+        // resets abort the recognizer constantly) are normal — never count
+        // them as failures, or a routine pause would look like a breakdown.
+        if (event.error === 'no-speech' || event.error === 'aborted') return;
+        consecutiveErrors += 1;
+        if (consecutiveErrors > 4) {
           setVoiceCmdOn(false);
           setVoiceCmdErr('Voice commands stopped working — try again, or use the buttons instead.');
         }
