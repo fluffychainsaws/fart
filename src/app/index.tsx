@@ -1,5 +1,5 @@
 import { createElement, useCallback, useMemo, useState } from 'react';
-import { Linking, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Linking, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
@@ -13,7 +13,12 @@ export default function HomeScreen() {
   const t = useTheme();
   const shadow = useCardShadow();
   const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
+  const { width } = useWindowDimensions();
   const [isPaid, setIsPaid] = useState(false);
+  // Show the desktop/web demo on wide screens, the phone demo on narrow ones —
+  // matching the docked-menu breakpoint so the video reflects what they see.
+  const wideDemo = width >= 700;
+  const demoBase = wideDemo ? 'demo-web' : 'demo-phone';
 
   useFocusEffect(
     useCallback(() => {
@@ -39,6 +44,8 @@ export default function HomeScreen() {
           {createElement(
             'video',
             {
+              // Remount when switching phone/web so the new sources load.
+              key: demoBase,
               autoPlay: true,
               loop: true,
               muted: true,
@@ -49,11 +56,16 @@ export default function HomeScreen() {
               ref: (el: HTMLVideoElement | null) => {
                 if (el) el.muted = true;
               },
-              style: { width: '100%', maxWidth: 320, borderRadius: 18, display: 'block' },
+              style: {
+                width: '100%',
+                maxWidth: wideDemo ? 560 : 300,
+                borderRadius: 18,
+                display: 'block',
+              },
             },
             // mp4 (H.264) first for iOS/Safari; webm fallback for everything else.
-            createElement('source', { key: 'mp4', src: '/demo.mp4', type: 'video/mp4' }),
-            createElement('source', { key: 'webm', src: '/demo.webm', type: 'video/webm' }),
+            createElement('source', { key: 'mp4', src: `/${demoBase}.mp4`, type: 'video/mp4' }),
+            createElement('source', { key: 'webm', src: `/${demoBase}.webm`, type: 'video/webm' }),
           )}
           <Text style={styles.videoCaption}>See how it works</Text>
         </View>
