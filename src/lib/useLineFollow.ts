@@ -59,7 +59,7 @@ export interface LineFollowState {
 // as "I'm done" and the reader continues — even if the words never matched the
 // script (full improvisation). Generous, because improvising means pausing to
 // think mid-thought; too short and it cuts the actor off before they finish.
-const IMPROV_SILENCE_MS = 500;
+const IMPROV_SILENCE_MS = 750;
 
 export function useLineFollow(
   enabled: boolean,
