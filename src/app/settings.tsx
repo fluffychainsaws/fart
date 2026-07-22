@@ -103,7 +103,7 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      {session && width >= 900 && (
+      {session && width >= 700 && (
         <>
           <Text style={styles.sectionTitle}>Side menu</Text>
           <Pressable

@@ -20,7 +20,7 @@ import { loadSavedPalette, useEffectiveScheme, useTheme } from '@/lib/theme';
 
 // Below this width the docked sidebar would crowd the content, so we fall back
 // to the slide-out drawer (phones, small windows) regardless of preference.
-const DOCK_MIN_WIDTH = 900;
+const DOCK_MIN_WIDTH = 700;
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 loadSavedPalette();
