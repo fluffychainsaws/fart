@@ -103,12 +103,13 @@ export default function RehearseScreen() {
   // Voice follow: listen while the engine waits on the user's line and
   // continue the moment they finish it, instead of guessing with a timer.
   const [followOn, setFollowOn] = useState(false);
+  const [improvOn, setImprovOn] = useState(false);
   const [followErr, setFollowErr] = useState<string | null>(null);
   const followSupported = useMemo(() => lineFollowSupported(), []);
   const waitingEl = status === 'waiting' ? script?.elements[idx] : undefined;
   const waitingLine =
     waitingEl?.type === 'line' && waitingEl.mine ? { text: waitingEl.text, key: idx } : null;
-  const follow = useLineFollow(followOn, waitingLine, engine.continueMyLine);
+  const follow = useLineFollow(followOn, waitingLine, engine.continueMyLine, improvOn);
 
   const toggleFollow = async () => {
     if (followOn) {
@@ -524,6 +525,15 @@ export default function RehearseScreen() {
             </Text>
           </Pressable>
         )}
+        {followSupported && followOn && (
+          <Pressable
+            style={[styles.toggle, improvOn && styles.toggleOn]}
+            onPress={() => setImprovOn((v) => !v)}>
+            <Text style={[styles.toggleText, improvOn && styles.toggleTextOn]}>
+              🎭 Improv
+            </Text>
+          </Pressable>
+        )}
         {voiceCommandsAllowed && speechSupported && (
           <View style={styles.voiceCmdAnchor}>
             <Pressable
@@ -634,11 +644,19 @@ export default function RehearseScreen() {
           <Text style={styles.bannerTitle}>🫵 Your line, {current.character}!</Text>
           {followOn && follow.listening && (
             <View style={styles.followWrap}>
-              <View style={styles.followTrack}>
-                <View style={[styles.followFill, { width: `${Math.round(follow.progress * 100)}%` }]} />
-              </View>
+              {!improvOn && (
+                <View style={styles.followTrack}>
+                  <View style={[styles.followFill, { width: `${Math.round(follow.progress * 100)}%` }]} />
+                </View>
+              )}
               <Text style={styles.followHeard} numberOfLines={1}>
-                {follow.heard ? `🎤 …${follow.heard}` : '🎤 Listening — say your line'}
+                {improvOn
+                  ? follow.heard
+                    ? `🎭 …${follow.heard}`
+                    : '🎭 Improv — say it your way, pause when done'
+                  : follow.heard
+                    ? `🎤 …${follow.heard}`
+                    : '🎤 Listening — say your line'}
               </Text>
             </View>
           )}

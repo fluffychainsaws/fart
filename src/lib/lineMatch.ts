@@ -32,7 +32,14 @@ export function matchedWordCount(line: string[], spoken: string[]): number {
 // The tail allowance scales with line length: recognition routinely misses a
 // final word or two, and waiting for a perfect match would add exactly the
 // kind of dead air voice follow exists to remove.
-export function isLineComplete(line: string[], matched: number): boolean {
+//
+// Improv mode loosens the bar to ~60% of the line's words (in order), so a
+// paraphrased or partly off-script delivery still counts as "done" — paired
+// with the pause fallback in useLineFollow, which continues on silence even
+// when the words don't match at all.
+export function isLineComplete(line: string[], matched: number, improv = false): boolean {
+  if (line.length === 0) return true;
+  if (improv) return matched >= Math.max(1, Math.ceil(line.length * 0.6));
   const missing = line.length - matched;
   if (line.length <= 3) return missing <= 0;
   if (line.length <= 8) return missing <= 1;

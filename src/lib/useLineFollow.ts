@@ -55,11 +55,19 @@ export interface LineFollowState {
   heard: string; // last few words recognized, for on-screen feedback
 }
 
+// Improv mode: after the actor has said something, this much silence is taken
+// as "I'm done" and the reader continues — even if the words never matched the
+// script (full improvisation). Long enough not to trip on mid-line breaths.
+const IMPROV_SILENCE_MS = 1200;
+
 export function useLineFollow(
   enabled: boolean,
   // The user's line to listen for; null whenever it isn't their turn.
   line: { text: string; key: number } | null,
   onComplete: () => void,
+  // Looser matching + pause-to-continue, for going off-script. Opt-in so the
+  // default strict matching (exact scripted lines) is unchanged.
+  improv = false,
 ): LineFollowState {
   const [listening, setListening] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -85,6 +93,21 @@ export function useLineFollow(
     // transcript is accumulated across session restarts within this line.
     let accumulated = '';
     let sessionText = '';
+    let silenceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const clearSilence = () => {
+      if (silenceTimer) {
+        clearTimeout(silenceTimer);
+        silenceTimer = null;
+      }
+    };
+
+    const complete = () => {
+      if (done || cancelled) return;
+      done = true;
+      clearSilence();
+      onCompleteRef.current();
+    };
 
     const handleTranscript = (full: string) => {
       if (done || cancelled) return;
@@ -92,9 +115,16 @@ export function useLineFollow(
       setHeard(spoken.slice(-6).join(' '));
       const matched = matchedWordCount(words, spoken);
       setProgress(words.length === 0 ? 1 : matched / words.length);
-      if (isLineComplete(words, matched)) {
-        done = true;
-        onCompleteRef.current();
+      if (isLineComplete(words, matched, improv)) {
+        complete();
+        return;
+      }
+      // Improv pause fallback: once they've said anything, a beat of silence
+      // (the transcript stops growing) means they've finished — continue even
+      // if it never matched the script. Each new word resets the timer.
+      if (improv && spoken.length > 0) {
+        clearSilence();
+        silenceTimer = setTimeout(complete, IMPROV_SILENCE_MS);
       }
     };
 
@@ -163,10 +193,11 @@ export function useLineFollow(
 
     return () => {
       cancelled = true;
+      clearSilence();
       setListening(false);
       cleanup();
     };
-  }, [enabled, text, key]);
+  }, [enabled, text, key, improv]);
 
   return { listening, progress, heard };
 }
