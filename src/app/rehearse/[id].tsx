@@ -546,6 +546,7 @@ export default function RehearseScreen() {
         <View style={styles.voiceCmdCard}>
           <Text style={styles.voiceCmdCardText}>{'🎙 Say "FART start" — roll the scene'}</Text>
           <Text style={styles.voiceCmdCardText}>{'🔁 Say "FART restart" — start over from the top'}</Text>
+          <Text style={styles.voiceCmdCardText}>{'🛑 Say "FART stop" — pause the scene'}</Text>
         </View>
       )}
 
