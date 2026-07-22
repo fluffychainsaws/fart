@@ -52,7 +52,7 @@ const fmtDelay = (ms: number) => `${ms / 1000}s`;
 const DELAY_STARTS = [5, 10];
 
 const VOICE_CMD_LINES = [
-  '🎙 Say "FART start" — roll the scene',
+  '🎙 Say "FART start" — roll the scene (5s delay start)',
   '🔁 Say "FART restart" — start over from the top',
   '🛑 Say "FART stop" — pause the scene',
 ];
