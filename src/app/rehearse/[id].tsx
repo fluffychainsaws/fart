@@ -564,7 +564,7 @@ export default function RehearseScreen() {
                         setImprovMenuOpen(false);
                       }}>
                       <Text style={[styles.improvItemText, sel && styles.improvItemTextSel]}>
-                        {fmtDelay(ms)} pause{sel ? '  ✓' : ''}
+                        {fmtDelay(ms)}{sel ? '  ✓' : ''}
                       </Text>
                     </Pressable>
                   );
