@@ -115,6 +115,7 @@ export default function RehearseScreen() {
   const [improvDelayMs, setImprovDelayMs] = useState(750);
   const [improvMenuOpen, setImprovMenuOpen] = useState(false);
   const [delayMenuOpen, setDelayMenuOpen] = useState(false);
+  const [startDelay, setStartDelay] = useState(0); // 0 = off; else count-in seconds
   const [followErr, setFollowErr] = useState<string | null>(null);
   const followSupported = useMemo(() => lineFollowSupported(), []);
   const waitingEl = status === 'waiting' ? script?.elements[idx] : undefined;
@@ -168,7 +169,10 @@ export default function RehearseScreen() {
     setCountdown(null);
   };
 
-  const startWithCountdown = (from = 5) => {
+  // Runs a count-in bubble, then plays. target is where to roll to: 0 restarts
+  // from the top (voice "FART start"/"restart" — a fresh take), undefined
+  // resumes from the current position (the delayed Play button).
+  const startWithCountdown = (from = 5, target: number | undefined = 0) => {
     cancelCountdown(); // never stack two countdowns
     const token = { cancelled: false };
     countdownRef.current = token;
@@ -180,10 +184,7 @@ export default function RehearseScreen() {
       if (n <= 0) {
         countdownRef.current = null;
         setCountdown(null);
-        // Always roll from the top: "FART start" (or the delay button) begins
-        // a fresh take, so after "FART stop" the scene restarts rather than
-        // resuming mid-line.
-        engineRef.current.play(0);
+        engineRef.current.play(target);
         return;
       }
       setCountdown(n);
@@ -495,12 +496,25 @@ export default function RehearseScreen() {
         <Pressable
           style={({ pressed }) => [styles.playButton, pressed && styles.pressed]}
           onPress={() => {
-            cancelCountdown();
-            if (playing) engine.pause();
-            else engine.play(status === 'done' ? 0 : undefined);
+            if (playing) {
+              cancelCountdown();
+              engine.pause();
+            } else if (countdown != null) {
+              cancelCountdown(); // counting in — tap to abort
+            } else {
+              const target = status === 'done' ? 0 : undefined;
+              if (startDelay > 0) startWithCountdown(startDelay, target);
+              else engine.play(target);
+            }
           }}>
           <Text style={styles.playButtonText}>
-            {playing ? '⏸ Pause' : status === 'done' ? '↻ Run it back' : '▶ Play'}
+            {playing
+              ? '⏸ Pause'
+              : countdown != null
+                ? '✕ Cancel'
+                : status === 'done'
+                  ? `↻ Run it back${startDelay > 0 ? ` (${startDelay}s)` : ''}`
+                  : `▶ Play${startDelay > 0 ? ` (${startDelay}s)` : ''}`}
           </Text>
         </Pressable>
         <Pressable
@@ -527,38 +541,48 @@ export default function RehearseScreen() {
             📄 Dialogue only
           </Text>
         </Pressable>
-        {!playing && (
-          <View style={styles.improvAnchor}>
-            <Pressable
-              style={[styles.toggle, countdown != null && styles.toggleOn]}
-              onPress={() => {
-                if (countdown != null) {
-                  cancelCountdown();
-                  return;
-                }
-                setDelayMenuOpen((v) => !v);
-              }}>
-              <Text style={[styles.toggleText, countdown != null && styles.toggleTextOn]}>
-                {countdown != null ? `⏱ Rolling in ${countdown}…  ✕` : '⏱ Delay Start ▾'}
+        <View style={styles.improvAnchor}>
+          <Pressable
+            style={[styles.toggle, startDelay > 0 && styles.toggleOn]}
+            onPress={() => setDelayMenuOpen((v) => !v)}>
+            <Text style={[styles.toggleText, startDelay > 0 && styles.toggleTextOn]}>
+              {startDelay > 0 ? `⏱ Delay Start · ${startDelay}s ▾` : '⏱ Delay Start ▾'}
+            </Text>
+          </Pressable>
+          {delayMenuOpen && (
+            <View style={styles.improvMenu}>
+              <Text style={styles.improvMenuHeader}>
+                Count-in before Play rolls the scene.
               </Text>
-            </Pressable>
-            {delayMenuOpen && countdown == null && (
-              <View style={styles.improvMenu}>
-                {DELAY_STARTS.map((s) => (
+              <Pressable
+                style={styles.improvItem}
+                onPress={() => {
+                  setStartDelay(0);
+                  setDelayMenuOpen(false);
+                }}>
+                <Text style={[styles.improvItemText, startDelay === 0 && styles.improvItemTextSel]}>
+                  Off{startDelay === 0 ? '  ✓' : ''}
+                </Text>
+              </Pressable>
+              {DELAY_STARTS.map((s) => {
+                const sel = startDelay === s;
+                return (
                   <Pressable
                     key={s}
                     style={styles.improvItem}
                     onPress={() => {
+                      setStartDelay(s);
                       setDelayMenuOpen(false);
-                      startWithCountdown(s);
                     }}>
-                    <Text style={styles.improvItemText}>{s}s</Text>
+                    <Text style={[styles.improvItemText, sel && styles.improvItemTextSel]}>
+                      {s}s{sel ? '  ✓' : ''}
+                    </Text>
                   </Pressable>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
+                );
+              })}
+            </View>
+          )}
+        </View>
         {followSupported && (
           <Pressable style={[styles.toggle, followOn && styles.toggleOn]} onPress={toggleFollow}>
             <Text style={[styles.toggleText, followOn && styles.toggleTextOn]}>
