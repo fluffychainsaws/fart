@@ -14,7 +14,7 @@ import { useTheme, type Theme } from '@/lib/theme';
 // them over before you rely on them.
 export const SERVICE_NAME = 'Self Tape Buddy';
 export const SITE = 'selftapebuddy.com';
-export const SUPPORT_EMAIL = 'support@selftapebuddy.com';
+export const SUPPORT_EMAIL = 'selftapebuddy@hotmail.com';
 export const JURISDICTION = 'the United States';
 export const EFFECTIVE_DATE = 'July 22, 2026';
 
