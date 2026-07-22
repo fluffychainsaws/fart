@@ -10,7 +10,16 @@ import { useSession } from '@/lib/auth';
 import { openCheckout } from '@/lib/billing';
 import { MicIcon } from '@/lib/MicIcon';
 import { parseScriptPdf, parseScriptPhotos } from '@/lib/parser';
-import { deleteScript, listScripts, newId, refreshScripts, saveScript } from '@/lib/storage';
+import {
+  deleteScript,
+  FREE_SCRIPT_TTL_DAYS,
+  listScripts,
+  maintainLibrary,
+  newId,
+  PAID_LIBRARY_CAP,
+  refreshScripts,
+  saveScript,
+} from '@/lib/storage';
 import { getTier, type Tier } from '@/lib/subscription';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 import { charactersIn, myLineCount, type FartScript } from '@/lib/types';
@@ -68,19 +77,29 @@ export default function CaptureScreen() {
   const [scripts, setScripts] = useState<FartScript[]>([]);
   const session = useSession();
 
-  useEffect(() => {
-    getUsageStatus().then((u) => {
-      setPremiumCredits(u.premiumCredits);
-      setTier(u.tier);
-    });
-  }, []);
-
-  // Saved scripts live here now (moved off Home). Local list first, then the
-  // account-merged list once sync lands.
+  // Saved scripts live here now (moved off Home). On focus: load the tier,
+  // prune the library per policy (Free = rolling 30-day window; paid = keep the
+  // newest PAID_LIBRARY_CAP), sync with the account, then prune once more in
+  // case the merge pulled in anything that's now aged out.
   useFocusEffect(
     useCallback(() => {
-      listScripts().then(setScripts);
-      refreshScripts().then(setScripts);
+      let alive = true;
+      (async () => {
+        const u = await getUsageStatus();
+        if (!alive) return;
+        setPremiumCredits(u.premiumCredits);
+        setTier(u.tier);
+        const opts =
+          u.tier === 'free' ? { ttlDays: FREE_SCRIPT_TTL_DAYS } : { maxCount: PAID_LIBRARY_CAP };
+        const pruned = await maintainLibrary(opts);
+        if (alive) setScripts(pruned);
+        await refreshScripts();
+        const cleaned = await maintainLibrary(opts);
+        if (alive) setScripts(cleaned);
+      })();
+      return () => {
+        alive = false;
+      };
     }, []),
   );
 
@@ -333,6 +352,11 @@ export default function CaptureScreen() {
           {scripts.length > 0 && (
             <>
               <Text style={styles.scriptsTitle}>Your scripts</Text>
+              <Text style={styles.scriptsNote}>
+                {tier === 'free'
+                  ? `Free scripts clear about ${FREE_SCRIPT_TTL_DAYS} days after you create them — upgrade to keep a lasting library.`
+                  : `Your ${PAID_LIBRARY_CAP} most recent scripts are kept.`}
+              </Text>
               {scripts.map((item) => {
                 const cast = charactersIn(item.elements);
                 const mine = myLineCount(item.elements);
@@ -500,10 +524,11 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     fontWeight: '700',
     color: t.inkSoft,
     marginTop: 28,
-    marginBottom: 10,
+    marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
+  scriptsNote: { fontSize: 12, color: t.inkSoft, marginBottom: 12, lineHeight: 17 },
   scriptCard: {
     backgroundColor: t.card,
     borderRadius: 16,
