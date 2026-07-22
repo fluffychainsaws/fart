@@ -116,16 +116,19 @@ export function useLineFollow(
       setHeard(spoken.slice(-6).join(' '));
       const matched = matchedWordCount(words, spoken);
       setProgress(words.length === 0 ? 1 : matched / words.length);
-      if (isLineComplete(words, matched, improv)) {
-        complete();
+      // Improv: the pause is the ONLY trigger — word matching is ignored so a
+      // paraphrase that happens to hit the script's words doesn't cut in early.
+      // Once they've said anything, a beat of silence (transcript stops growing)
+      // means they've finished; each new word resets the timer.
+      if (improv) {
+        if (spoken.length > 0) {
+          clearSilence();
+          silenceTimer = setTimeout(complete, IMPROV_SILENCE_MS);
+        }
         return;
       }
-      // Improv pause fallback: once they've said anything, a beat of silence
-      // (the transcript stops growing) means they've finished — continue even
-      // if it never matched the script. Each new word resets the timer.
-      if (improv && spoken.length > 0) {
-        clearSilence();
-        silenceTimer = setTimeout(complete, IMPROV_SILENCE_MS);
+      if (isLineComplete(words, matched)) {
+        complete();
       }
     };
 
