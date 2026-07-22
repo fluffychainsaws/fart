@@ -21,15 +21,29 @@ const HINT_SEEN_KEY = 'fart.sideMenuHintSeen.v1';
 // like a native app's collapsed sidebar); on touch, tapping the edge tab
 // toggles it since there's no hover to detect. A tap outside closes it.
 //
+// On wide screens the menu can instead be DOCKED permanently open (DockedMenu,
+// placed in the row layout by app/_layout) — signed-out visitors always get it
+// docked so they can't miss it, and signed-in users toggle it in Settings.
+//
 // Two-layer structure: the outer layer spans the full screen (so the
 // backdrop can catch a tap anywhere to close), while the inner hover
 // layer is sized to exactly the edge tab / open drawer width, since a
 // View with only absolutely-positioned children has no intrinsic size
 // and needs an explicit width to be hoverable/tappable at all.
-const DRAWER_WIDTH = 232;
+export const MENU_WIDTH = 232;
+const DRAWER_WIDTH = MENU_WIDTH;
 const EDGE_WIDTH = 16;
 
-type Href = '/' | '/capture' | '/mictest' | '/profile' | '/settings' | '/account' | '/privacy' | '/terms';
+type Href =
+  | '/'
+  | '/capture'
+  | '/mictest'
+  | '/profile'
+  | '/settings'
+  | '/account'
+  | '/privacy'
+  | '/terms'
+  | '/login';
 
 const LINKS: { href: Href; label: string; icon: string }[] = [
   { href: '/', label: 'Home', icon: '🏠' },
@@ -46,31 +60,159 @@ const BOTTOM_LINKS: { href: Href; label: string; icon: string }[] = [
   { href: '/account', label: 'Plan', icon: '🎫' },
 ];
 
-export function SideMenu() {
+// The menu body (profile, credits, nav links, sign in/out, legal), shared by
+// the slide-out drawer and the docked column. onNavigate lets the drawer close
+// itself when a link is tapped; the docked column passes nothing.
+function MenuContent({ onNavigate }: { onNavigate?: () => void }) {
   const t = useTheme();
   const shadow = useCardShadow();
   const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   const pathname = usePathname();
   const session = useSession();
   const photo = useProfilePhoto();
-  const [open, setOpen] = useState(false);
   const [tierName, setTierName] = useState<string | null>(null);
   const [credits, setCredits] = useState(0);
+
+  useEffect(() => {
+    getUsageStatus().then((status) => {
+      setTierName(getTier(status.tier).name);
+      setCredits(status.premiumCredits);
+    });
+    refreshProfilePhoto();
+  }, [session]);
+
+  const go = (href: Href) => {
+    onNavigate?.();
+    router.push(href);
+  };
+
+  return (
+    <>
+      <Pressable
+        style={({ pressed }) => [
+          styles.profileRow,
+          pathname === '/profile' && styles.linkActive,
+          pressed && styles.pressed,
+        ]}
+        onPress={() => go('/profile')}>
+        {photo ? (
+          <Image source={{ uri: photo }} style={styles.avatarImage} />
+        ) : (
+          <View style={styles.avatarPlaceholder}>
+            <Text style={styles.avatarPlaceholderText}>👤</Text>
+          </View>
+        )}
+        <View>
+          <Text style={[styles.linkLabel, pathname === '/profile' && styles.linkLabelActive]}>
+            Profile
+          </Text>
+          {tierName && <Text style={styles.profileTier}>{tierName}</Text>}
+        </View>
+      </Pressable>
+
+      <Pressable
+        style={({ pressed }) => [styles.creditsRow, pressed && styles.pressed]}
+        onPress={() => go('/account')}>
+        <CoinIcon size={20} />
+        <Text style={styles.creditsText}>
+          {credits} Audition Credit{credits === 1 ? '' : 's'}
+        </Text>
+      </Pressable>
+
+      <Text style={styles.brand}>F.A.R.T.</Text>
+      {LINKS.map((link) => {
+        const active = pathname === link.href;
+        return (
+          <Pressable
+            key={link.href}
+            style={({ pressed }) => [styles.link, active && styles.linkActive, pressed && styles.pressed]}
+            onPress={() => go(link.href)}>
+            {link.href === '/mictest' ? (
+              <MicIcon size={18} />
+            ) : link.href === '/capture' ? (
+              <ClapperIcon size={18} />
+            ) : link.href === '/' ? (
+              <HomeIcon size={18} />
+            ) : (
+              <Text style={styles.linkIcon}>{link.icon}</Text>
+            )}
+            <Text style={[styles.linkLabel, active && styles.linkLabelActive]}>{link.label}</Text>
+          </Pressable>
+        );
+      })}
+
+      <View style={styles.spacer} />
+      <View style={styles.divider} />
+
+      {BOTTOM_LINKS.map((link) => {
+        const active = pathname === link.href;
+        return (
+          <Pressable
+            key={link.href}
+            style={({ pressed }) => [styles.link, active && styles.linkActive, pressed && styles.pressed]}
+            onPress={() => go(link.href)}>
+            <Text style={styles.linkIcon}>{link.icon}</Text>
+            <Text style={[styles.linkLabel, active && styles.linkLabelActive]}>{link.label}</Text>
+          </Pressable>
+        );
+      })}
+
+      {session ? (
+        <Pressable
+          style={({ pressed }) => [styles.link, pressed && styles.pressed]}
+          onPress={() => {
+            onNavigate?.();
+            signOut();
+          }}>
+          <LogoutIcon size={18} />
+          <Text style={styles.linkLabel}>Log out</Text>
+        </Pressable>
+      ) : (
+        <Pressable
+          style={({ pressed }) => [styles.link, pressed && styles.pressed]}
+          onPress={() => go('/login')}>
+          <Text style={styles.linkIcon}>🔑</Text>
+          <Text style={styles.linkLabel}>Sign in</Text>
+        </Pressable>
+      )}
+
+      <View style={styles.legalRow}>
+        {(['/privacy', '/terms'] as const).map((href, i) => (
+          <Pressable key={href} onPress={() => go(href)}>
+            <Text style={styles.legalLink}>
+              {i > 0 ? '·  ' : ''}
+              {href === '/privacy' ? 'Privacy' : 'Terms'}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    </>
+  );
+}
+
+// The permanently-open column, placed beside the app content on wide screens.
+export function DockedMenu() {
+  const t = useTheme();
+  const shadow = useCardShadow();
+  const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
+  return (
+    <View style={styles.dockedColumn}>
+      <MenuContent />
+    </View>
+  );
+}
+
+export function SideMenu() {
+  const t = useTheme();
+  const shadow = useCardShadow();
+  const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
+  const [open, setOpen] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
   const pulse = useRef(new Animated.Value(0)).current;
 
   const edgeRef = useRef<View>(null);
   const backdropRef = useRef<View>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    getUsageStatus().then((status) => {
-      setTierName(getTier(status.tier).name);
-      setCredits(status.premiumCredits);
-    });
-    refreshProfilePhoto();
-  }, [open, session]);
 
   useEffect(() => {
     Animated.timing(anim, {
@@ -213,10 +355,7 @@ export function SideMenu() {
           {showHint && (
             <Animated.View
               pointerEvents="none"
-              style={[
-                styles.pulseRing,
-                { opacity: pulseOpacity, transform: [{ scale: pulseScale }] },
-              ]}
+              style={[styles.pulseRing, { opacity: pulseOpacity, transform: [{ scale: pulseScale }] }]}
             />
           )}
           <View style={styles.edgeGrip} />
@@ -231,139 +370,12 @@ export function SideMenu() {
         )}
 
         <Animated.View style={[styles.drawer, shadow, { transform: [{ translateX }] }]}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.profileRow,
-              pathname === '/profile' && styles.linkActive,
-              pressed && styles.pressed,
-            ]}
-            onPress={() => {
+          <MenuContent
+            onNavigate={() => {
               dismissHint.current();
               setOpen(false);
-              router.push('/profile');
-            }}>
-            {photo ? (
-              <Image source={{ uri: photo }} style={styles.avatarImage} />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarPlaceholderText}>👤</Text>
-              </View>
-            )}
-            <View>
-              <Text style={[styles.linkLabel, pathname === '/profile' && styles.linkLabelActive]}>
-                Profile
-              </Text>
-              {tierName && <Text style={styles.profileTier}>{tierName}</Text>}
-            </View>
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [styles.creditsRow, pressed && styles.pressed]}
-            onPress={() => {
-              dismissHint.current();
-              setOpen(false);
-              router.push('/account');
-            }}>
-            <CoinIcon size={20} />
-            <Text style={styles.creditsText}>
-              {credits} Audition Credit{credits === 1 ? '' : 's'}
-            </Text>
-          </Pressable>
-
-          <Text style={styles.brand}>F.A.R.T.</Text>
-          {LINKS.map((link) => {
-            const active = pathname === link.href;
-            return (
-              <Pressable
-                key={link.href}
-                style={({ pressed }) => [
-                  styles.link,
-                  active && styles.linkActive,
-                  pressed && styles.pressed,
-                ]}
-                onPress={() => {
-                  dismissHint.current();
-                  setOpen(false);
-                  router.push(link.href);
-                }}>
-                {link.href === '/mictest' ? (
-                  <MicIcon size={18} />
-                ) : link.href === '/capture' ? (
-                  <ClapperIcon size={18} />
-                ) : link.href === '/' ? (
-                  <HomeIcon size={18} />
-                ) : (
-                  <Text style={styles.linkIcon}>{link.icon}</Text>
-                )}
-                <Text style={[styles.linkLabel, active && styles.linkLabelActive]}>{link.label}</Text>
-              </Pressable>
-            );
-          })}
-
-          <View style={styles.spacer} />
-          <View style={styles.divider} />
-
-          {BOTTOM_LINKS.map((link) => {
-            const active = pathname === link.href;
-            return (
-              <Pressable
-                key={link.href}
-                style={({ pressed }) => [
-                  styles.link,
-                  active && styles.linkActive,
-                  pressed && styles.pressed,
-                ]}
-                onPress={() => {
-                  dismissHint.current();
-                  setOpen(false);
-                  router.push(link.href);
-                }}>
-                <Text style={styles.linkIcon}>{link.icon}</Text>
-                <Text style={[styles.linkLabel, active && styles.linkLabelActive]}>{link.label}</Text>
-              </Pressable>
-            );
-          })}
-
-          {session ? (
-            <Pressable
-              style={({ pressed }) => [styles.link, pressed && styles.pressed]}
-              onPress={() => {
-                dismissHint.current();
-                setOpen(false);
-                signOut();
-              }}>
-              <LogoutIcon size={18} />
-              <Text style={styles.linkLabel}>Log out</Text>
-            </Pressable>
-          ) : (
-            <Pressable
-              style={({ pressed }) => [styles.link, pressed && styles.pressed]}
-              onPress={() => {
-                dismissHint.current();
-                setOpen(false);
-                router.push('/login');
-              }}>
-              <Text style={styles.linkIcon}>🔑</Text>
-              <Text style={styles.linkLabel}>Sign in</Text>
-            </Pressable>
-          )}
-
-          <View style={styles.legalRow}>
-            {(['/privacy', '/terms'] as const).map((href, i) => (
-              <Pressable
-                key={href}
-                onPress={() => {
-                  dismissHint.current();
-                  setOpen(false);
-                  router.push(href);
-                }}>
-                <Text style={styles.legalLink}>
-                  {i > 0 ? '·  ' : ''}
-                  {href === '/privacy' ? 'Privacy' : 'Terms'}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+            }}
+          />
         </Animated.View>
       </View>
     </View>
@@ -447,6 +459,15 @@ function makeStyles(t: Theme, shadow: ReturnType<typeof useCardShadow>) {
       borderRightWidth: 1,
       borderRightColor: t.border,
       paddingTop: 56,
+      paddingBottom: 20,
+      paddingHorizontal: 12,
+    },
+    dockedColumn: {
+      width: DRAWER_WIDTH,
+      backgroundColor: t.card,
+      borderRightWidth: 1,
+      borderRightColor: t.border,
+      paddingTop: 24,
       paddingBottom: 20,
       paddingHorizontal: 12,
     },

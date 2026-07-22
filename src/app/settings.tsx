@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
 import { deleteAccount, useSession } from '@/lib/auth';
+import { setMenuDocked, useMenuDocked } from '@/lib/menuPref';
 import {
   type ColorMode,
   getColorMode,
@@ -28,6 +29,8 @@ export default function SettingsScreen() {
   const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   const activeMode = getColorMode();
   const session = useSession();
+  const { width } = useWindowDimensions();
+  const menuDocked = useMenuDocked();
   const [deleting, setDeleting] = useState(false);
 
   const runDelete = async () => {
@@ -100,6 +103,23 @@ export default function SettingsScreen() {
         </View>
       </View>
 
+      {session && width >= 900 && (
+        <>
+          <Text style={styles.sectionTitle}>Side menu</Text>
+          <Pressable
+            style={styles.rowCard}
+            onPress={() => setMenuDocked(!menuDocked)}>
+            <View style={styles.rowText}>
+              <Text style={styles.rowTitle}>Keep the menu open</Text>
+              <Text style={styles.rowSub}>Dock it beside the app instead of sliding out from the edge.</Text>
+            </View>
+            <View style={[styles.switchTrack, menuDocked && styles.switchTrackOn]}>
+              <View style={[styles.switchThumb, menuDocked && styles.switchThumbOn]} />
+            </View>
+          </Pressable>
+        </>
+      )}
+
       {session && (
         <>
           <Text style={styles.sectionTitle}>Account</Text>
@@ -171,6 +191,36 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     swatch: { width: 28, height: 28, borderRadius: 14 },
     swatchName: { fontSize: 10, color: t.inkSoft, marginTop: 4, textAlign: 'center' },
     swatchNameActive: { color: t.ink, fontWeight: '700' },
+    rowCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: t.card,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: t.border,
+      padding: 16,
+      ...shadow,
+    },
+    rowText: { flex: 1 },
+    rowTitle: { fontSize: 15, fontWeight: '700', color: t.ink },
+    rowSub: { fontSize: 12, color: t.inkSoft, marginTop: 3, lineHeight: 17 },
+    switchTrack: {
+      width: 46,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: t.border,
+      padding: 3,
+      justifyContent: 'center',
+    },
+    switchTrackOn: { backgroundColor: t.accent },
+    switchThumb: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: '#fff',
+    },
+    switchThumbOn: { alignSelf: 'flex-end' },
     dangerCard: {
       backgroundColor: t.card,
       borderRadius: 16,
