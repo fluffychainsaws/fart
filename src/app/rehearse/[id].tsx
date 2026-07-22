@@ -543,8 +543,7 @@ export default function RehearseScreen() {
             {improvMenuOpen && (
               <View style={styles.improvMenu}>
                 <Text style={styles.improvMenuHeader}>
-                  How long a pause means you&apos;re done — the reader waits this
-                  long, then continues.
+                  How long the AI waits after a pause to start their line.
                 </Text>
                 <Pressable
                   style={styles.improvItem}
