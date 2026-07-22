@@ -36,10 +36,13 @@ jobs:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
 
-      - name: Add SPA fallback and disable Jekyll
+      - name: Add SPA fallback, custom domain, and disable Jekyll
         run: |
           cp dist/index.html dist/404.html
           touch dist/.nojekyll
+          # Keep the custom domain attached on every Actions deploy — without a
+          # CNAME in the artifact, GitHub can drop the domain setting.
+          echo 'selftapebuddy.com' > dist/CNAME
 
       - uses: actions/configure-pages@v5
         with:
