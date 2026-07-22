@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
@@ -128,11 +128,7 @@ export default function CaptureScreen() {
     setShowUpgrade(false);
   };
 
-  const addAssets = (result: ImagePicker.ImagePickerResult) => {
-    if (result.canceled) return;
-    const added = (result.assets ?? [])
-      .filter((a) => a.base64)
-      .map((a) => ({ uri: a.uri, base64: a.base64 as string, mimeType: a.mimeType ?? null }));
+  const appendPages = (added: Page[]) => {
     setPdf(null); // a script is either a PDF or a set of photos, not both
     setPages((prev) => {
       const combined = [...prev, ...added];
@@ -146,6 +142,90 @@ export default function CaptureScreen() {
       return combined;
     });
   };
+
+  const addAssets = (result: ImagePicker.ImagePickerResult) => {
+    if (result.canceled) return;
+    appendPages(
+      (result.assets ?? [])
+        .filter((a) => a.base64)
+        .map((a) => ({ uri: a.uri, base64: a.base64 as string, mimeType: a.mimeType ?? null })),
+    );
+  };
+
+  // ---- Drag-and-drop (web) --------------------------------------------------
+  // A dropped PDF becomes the upload; dropped images become pages (same as the
+  // buttons, so page caps still apply). Kept in a ref so the DOM drop listener
+  // always calls the current handler (fresh pageCap), not a stale closure.
+  const [dragging, setDragging] = useState(false);
+  const dropRef = useRef<View>(null);
+
+  const readImageFile = (file: File) =>
+    new Promise<Page>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(reader.error);
+      reader.onload = () => {
+        const dataUrl = String(reader.result);
+        resolve({ uri: dataUrl, base64: dataUrl.split(',')[1] ?? '', mimeType: file.type || null });
+      };
+      reader.readAsDataURL(file);
+    });
+
+  const handleDroppedFiles = async (files: File[]) => {
+    const pdfFile = files.find(
+      (f) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'),
+    );
+    if (pdfFile) {
+      try {
+        const buf = await pdfFile.arrayBuffer();
+        setPages([]);
+        setPdf({ name: pdfFile.name, base64: fromByteArray(new Uint8Array(buf)) });
+        setError(null);
+      } catch {
+        setError("Couldn't read that PDF. Try again.");
+      }
+      return;
+    }
+    const images = files.filter((f) => f.type.startsWith('image/'));
+    if (images.length === 0) {
+      setError('Drop a PDF or image files (PNG/JPG).');
+      return;
+    }
+    try {
+      appendPages(await Promise.all(images.map(readImageFile)));
+    } catch {
+      setError("Couldn't read those images. Try again.");
+    }
+  };
+  const dropHandlerRef = useRef(handleDroppedFiles);
+  dropHandlerRef.current = handleDroppedFiles;
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const el = dropRef.current as unknown as HTMLElement | null;
+    if (!el) return;
+    const onOver = (e: Event) => {
+      e.preventDefault();
+      setDragging(true);
+    };
+    const onLeave = (e: Event) => {
+      e.preventDefault();
+      setDragging(false);
+    };
+    const onDrop = (e: Event) => {
+      e.preventDefault();
+      setDragging(false);
+      const files = (e as DragEvent).dataTransfer?.files;
+      if (files && files.length) dropHandlerRef.current(Array.from(files));
+    };
+    el.addEventListener('dragover', onOver);
+    el.addEventListener('dragleave', onLeave);
+    el.addEventListener('drop', onDrop);
+    return () => {
+      el.removeEventListener('dragover', onOver);
+      el.removeEventListener('dragleave', onLeave);
+      el.removeEventListener('drop', onDrop);
+    };
+  }, [busy]);
 
   const takePhoto = async () => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
@@ -265,6 +345,17 @@ export default function CaptureScreen() {
         <LoadingCard />
       ) : (
         <>
+          {Platform.OS === 'web' && (
+            <View
+              ref={dropRef}
+              style={[styles.dropZone, dragging && styles.dropZoneActive]}
+              pointerEvents="box-none">
+              <Text style={styles.dropZoneEmoji}>📥</Text>
+              <Text style={styles.dropZoneText}>Drag a PDF or photos here</Text>
+              <Text style={styles.dropZoneSub}>or use the options below</Text>
+            </View>
+          )}
+
           <Pressable
             style={({ pressed }) => [styles.pdfButton, pressed && styles.pressed]}
             onPress={pickPdf}>
@@ -402,6 +493,20 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
   screen: { flex: 1, backgroundColor: t.bg },
   content: { padding: 20, paddingBottom: 40, maxWidth: 700, width: '100%', alignSelf: 'center' },
   blurb: { fontSize: 15, color: t.inkSoft, lineHeight: 21 },
+  dropZone: {
+    borderWidth: 2,
+    borderColor: t.border,
+    borderStyle: 'dashed',
+    borderRadius: 16,
+    paddingVertical: 26,
+    alignItems: 'center',
+    marginTop: 20,
+    backgroundColor: t.card,
+  },
+  dropZoneActive: { borderColor: t.accent, backgroundColor: t.accentSoft },
+  dropZoneEmoji: { fontSize: 26 },
+  dropZoneText: { fontSize: 15, fontWeight: '700', color: t.ink, marginTop: 6 },
+  dropZoneSub: { fontSize: 12, color: t.inkSoft, marginTop: 2 },
   pdfButton: {
     backgroundColor: t.accent,
     borderRadius: 16,
