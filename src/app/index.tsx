@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
-import { Linking, Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { createElement, useCallback, useMemo, useState } from 'react';
+import { Linking, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
@@ -34,6 +34,30 @@ export default function HomeScreen() {
         Snap a photo of your sides, highlight your lines, and FART reads everyone else&apos;s — so
         you can rehearse anywhere.
       </Text>
+      {Platform.OS === 'web' && (
+        <View style={styles.videoWrap}>
+          {createElement(
+            'video',
+            {
+              autoPlay: true,
+              loop: true,
+              muted: true,
+              playsInline: true,
+              controls: false,
+              preload: 'auto',
+              // React's `muted` prop is unreliable for autoplay; set it on the node too.
+              ref: (el: HTMLVideoElement | null) => {
+                if (el) el.muted = true;
+              },
+              style: { width: '100%', maxWidth: 320, borderRadius: 18, display: 'block' },
+            },
+            // mp4 (H.264) first for iOS/Safari; webm fallback for everything else.
+            createElement('source', { key: 'mp4', src: '/demo.mp4', type: 'video/mp4' }),
+            createElement('source', { key: 'webm', src: '/demo.webm', type: 'video/webm' }),
+          )}
+          <Text style={styles.videoCaption}>See how it works</Text>
+        </View>
+      )}
       {Platform.OS !== 'web' && (
         <Pressable
           style={({ pressed }) => [styles.webBanner, pressed && styles.pressed]}
@@ -65,6 +89,8 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     content: { padding: 20, paddingBottom: 40, maxWidth: 700, width: '100%', alignSelf: 'center' },
     tagline: { fontSize: 15, fontWeight: '700', color: t.accent, letterSpacing: 0.5, textAlign: 'center' },
     blurb: { fontSize: 15, color: t.inkSoft, marginTop: 6, lineHeight: 21 },
+    videoWrap: { alignItems: 'center', marginTop: 18 },
+    videoCaption: { fontSize: 12, color: t.inkSoft, marginTop: 6, fontWeight: '600' },
     webBanner: {
       backgroundColor: '#e8f5ff',
       borderRadius: 14,
