@@ -539,7 +539,7 @@ export default function RehearseScreen() {
       {voiceCmdOn && (
         <View style={styles.voiceCmdCard}>
           <Text style={styles.voiceCmdCardText}>{'🎙 Say "FART start" — roll the scene'}</Text>
-          <Text style={styles.voiceCmdCardText}>{'🛑 Say "FART stop" — stop the scene'}</Text>
+          <Text style={styles.voiceCmdCardText}>{'🛑 Say "FART stop" — stop the scene and restarts the scene'}</Text>
         </View>
       )}
 
@@ -809,17 +809,17 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       backgroundColor: t.accentSoft,
       borderWidth: 1,
       borderColor: t.accent,
-      borderRadius: 12,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
+      borderRadius: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
       marginHorizontal: 20,
       marginTop: 6,
-      gap: 3,
+      gap: 1,
       maxWidth: 700,
       width: '100%',
       alignSelf: 'center',
     },
-    voiceCmdCardText: { color: t.accent, fontSize: 13, fontWeight: '700' },
+    voiceCmdCardText: { color: t.accent, fontSize: 11, fontWeight: '700' },
     followError: {
       color: t.danger,
       fontSize: 12,
