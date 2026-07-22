@@ -525,7 +525,7 @@ export default function RehearseScreen() {
             </Text>
           </Pressable>
         )}
-        {followSupported && followOn && (
+        {followSupported && (
           <Pressable
             style={[styles.toggle, improvOn && styles.toggleOn]}
             onPress={() => setImprovOn((v) => !v)}>
