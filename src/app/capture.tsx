@@ -346,13 +346,14 @@ export default function CaptureScreen() {
       ) : (
         <>
           {Platform.OS === 'web' && (
-            <View
-              ref={dropRef}
-              style={[styles.dropZone, dragging && styles.dropZoneActive]}
-              pointerEvents="box-none">
-              <Text style={styles.dropZoneEmoji}>📥</Text>
-              <Text style={styles.dropZoneText}>Drag a PDF or photos here</Text>
-              <Text style={styles.dropZoneSub}>or use the options below</Text>
+            <View ref={dropRef} style={[styles.dropZone, dragging && styles.dropZoneActive]}>
+              {/* Non-interactive so drag/drop registers across the WHOLE box,
+                  not just where the labels are. */}
+              <View pointerEvents="none" style={styles.dropZoneInner}>
+                <Text style={styles.dropZoneEmoji}>📥</Text>
+                <Text style={styles.dropZoneText}>Drag a PDF or photos here</Text>
+                <Text style={styles.dropZoneSub}>or use the options below</Text>
+              </View>
             </View>
           )}
 
@@ -504,6 +505,7 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     backgroundColor: t.card,
   },
   dropZoneActive: { borderColor: t.accent, backgroundColor: t.accentSoft },
+  dropZoneInner: { alignItems: 'center' },
   dropZoneEmoji: { fontSize: 26 },
   dropZoneText: { fontSize: 15, fontWeight: '700', color: t.ink, marginTop: 6 },
   dropZoneSub: { fontSize: 12, color: t.inkSoft, marginTop: 2 },
