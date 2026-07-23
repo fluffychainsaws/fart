@@ -582,7 +582,7 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     marginTop: 18,
     marginBottom: 10,
   },
-  buttonRow: { flexDirection: 'row', gap: 18, marginTop: 12 },
+  buttonRow: { flexDirection: 'row', gap: 18, marginTop: 18 },
   pickButton: {
     flex: 1,
     backgroundColor: t.card,
