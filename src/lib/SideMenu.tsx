@@ -48,7 +48,6 @@ type Href =
 const LINKS: { href: Href; label: string; icon: string }[] = [
   { href: '/', label: 'Home', icon: '🏠' },
   { href: '/capture', label: 'New Script', icon: '📸' },
-  { href: '/mictest', label: 'Mic Test', icon: '🎙' },
 ];
 
 // Account-related actions, pinned to the bottom of the drawer and set off
