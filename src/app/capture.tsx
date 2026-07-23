@@ -369,14 +369,6 @@ export default function CaptureScreen() {
             </View>
           )}
 
-          <Pressable
-            style={({ pressed }) => [styles.pdfButton, pressed && styles.pressed]}
-            onPress={pickPdf}>
-            <Text style={styles.pdfEmoji}>📄</Text>
-            <Text style={styles.pdfLabel}>Upload PDF</Text>
-          </Pressable>
-
-          <Text style={styles.orDivider}>or snap it instead</Text>
           <View style={styles.buttonRow}>
             <Pressable
               style={({ pressed }) => [styles.pickButton, pressed && styles.pressed]}
@@ -391,6 +383,14 @@ export default function CaptureScreen() {
               <Text style={styles.pickLabel}>From photos</Text>
             </Pressable>
           </View>
+
+          <Text style={styles.orDivider}>or upload a PDF</Text>
+          <Pressable
+            style={({ pressed }) => [styles.pdfButton, pressed && styles.pressed]}
+            onPress={pickPdf}>
+            <Text style={styles.pdfEmoji}>📄</Text>
+            <Text style={styles.pdfLabel}>Upload PDF</Text>
+          </Pressable>
 
           {pdf && (
             <View style={styles.pdfChip}>
