@@ -327,15 +327,22 @@ export default function CaptureScreen() {
     <>
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       {Platform.OS === 'web' && (
-        <>
-          <Pressable
-            style={({ pressed }) => [styles.micTestButton, pressed && styles.pressed]}
-            onPress={() => router.push('/mictest')}>
-            <MicIcon size={18} />
-            <Text style={styles.micTestButtonText}>Test your microphone</Text>
-          </Pressable>
-          <Text style={styles.micTestHint}>Do this first — make sure FART can hear you before you upload.</Text>
-        </>
+        <View style={styles.stepRow}>
+          <View style={styles.stepBadge}>
+            <Text style={styles.stepBadgeText}>1</Text>
+          </View>
+          <View style={styles.stepContent}>
+            <Pressable
+              style={({ pressed }) => [styles.micTestButton, pressed && styles.pressed]}
+              onPress={() => router.push('/mictest')}>
+              <MicIcon size={18} />
+              <Text style={styles.micTestButtonText}>Test your microphone</Text>
+            </Pressable>
+            <Text style={styles.micTestHint}>
+              Do this first — make sure FART can hear you before you upload.
+            </Text>
+          </View>
+        </View>
       )}
 
       <Text style={styles.blurb}>
@@ -357,40 +364,58 @@ export default function CaptureScreen() {
         <LoadingCard />
       ) : (
         <>
-          {Platform.OS === 'web' && (
-            <View ref={dropRef} style={[styles.dropZone, dragging && styles.dropZoneActive]}>
-              {/* Non-interactive so drag/drop registers across the WHOLE box,
-                  not just where the labels are. */}
-              <View pointerEvents="none" style={styles.dropZoneInner}>
-                <Text style={styles.dropZoneEmoji}>📥</Text>
-                <Text style={styles.dropZoneText}>Drag a PDF or photos here</Text>
-                <Text style={styles.dropZoneSub}>or use the options below</Text>
+          <View style={[styles.stepRow, styles.stepRowSpaced]}>
+            {Platform.OS === 'web' && (
+              <View style={styles.stepBadge}>
+                <Text style={styles.stepBadgeText}>2</Text>
+              </View>
+            )}
+            <View style={styles.stepContent}>
+              {Platform.OS === 'web' && (
+                <View ref={dropRef} style={[styles.dropZone, dragging && styles.dropZoneActive]}>
+                  {/* Non-interactive so drag/drop registers across the WHOLE box,
+                      not just where the labels are. */}
+                  <View pointerEvents="none" style={styles.dropZoneInner}>
+                    <Text style={styles.dropZoneEmoji}>📥</Text>
+                    <Text style={styles.dropZoneText}>Drag a PDF or photos here</Text>
+                    <Text style={styles.dropZoneSub}>or use the options below</Text>
+                  </View>
+                </View>
+              )}
+
+              <View style={styles.buttonRow}>
+                <Pressable
+                  style={({ pressed }) => [styles.pickButton, pressed && styles.pressed]}
+                  onPress={takePhoto}>
+                  <Text style={styles.pickEmoji}>📷</Text>
+                  <Text style={styles.pickLabel}>Take photo</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.pickButton, pressed && styles.pressed]}
+                  onPress={pickFromLibrary}>
+                  <Text style={styles.pickEmoji}>🖼️</Text>
+                  <Text style={styles.pickLabel}>From photos</Text>
+                </Pressable>
               </View>
             </View>
-          )}
-
-          <View style={styles.buttonRow}>
-            <Pressable
-              style={({ pressed }) => [styles.pickButton, pressed && styles.pressed]}
-              onPress={takePhoto}>
-              <Text style={styles.pickEmoji}>📷</Text>
-              <Text style={styles.pickLabel}>Take photo</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.pickButton, pressed && styles.pressed]}
-              onPress={pickFromLibrary}>
-              <Text style={styles.pickEmoji}>🖼️</Text>
-              <Text style={styles.pickLabel}>From photos</Text>
-            </Pressable>
           </View>
 
           <Text style={styles.orDivider}>or upload a PDF</Text>
-          <Pressable
-            style={({ pressed }) => [styles.pdfButton, pressed && styles.pressed]}
-            onPress={pickPdf}>
-            <Text style={styles.pdfEmoji}>📄</Text>
-            <Text style={styles.pdfLabel}>Upload PDF</Text>
-          </Pressable>
+          <View style={styles.stepRow}>
+            {Platform.OS === 'web' && (
+              <View style={styles.stepBadge}>
+                <Text style={styles.stepBadgeText}>3</Text>
+              </View>
+            )}
+            <View style={styles.stepContent}>
+              <Pressable
+                style={({ pressed }) => [styles.pdfButton, pressed && styles.pressed]}
+                onPress={pickPdf}>
+                <Text style={styles.pdfEmoji}>📄</Text>
+                <Text style={styles.pdfLabel}>Upload PDF</Text>
+              </Pressable>
+            </View>
+          </View>
 
           {pdf && (
             <View style={styles.pdfChip}>
@@ -504,7 +529,21 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
   StyleSheet.create({
   screen: { flex: 1, backgroundColor: t.bg },
   content: { padding: 20, paddingBottom: 40, maxWidth: 700, width: '100%', alignSelf: 'center' },
-  blurb: { fontSize: 15, color: t.inkSoft, lineHeight: 21 },
+  blurb: { fontSize: 15, color: t.inkSoft, lineHeight: 21, marginTop: 16 },
+  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  stepBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: t.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: t.bg,
+  },
+  stepBadgeText: { fontSize: 15, fontWeight: '800', color: t.accent },
+  stepContent: { flex: 1 },
+  stepRowSpaced: { marginTop: 20 },
   dropZone: {
     borderWidth: 2,
     borderColor: t.border,
@@ -512,7 +551,6 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     borderRadius: 16,
     paddingVertical: 26,
     alignItems: 'center',
-    marginTop: 20,
     backgroundColor: t.card,
   },
   dropZoneActive: { borderColor: t.accent, backgroundColor: t.accentSoft },
@@ -527,7 +565,6 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     borderColor: 'rgba(0,0,0,0.15)',
     alignItems: 'center',
     paddingVertical: 22,
-    marginTop: 20,
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 10,
@@ -545,7 +582,7 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     marginTop: 18,
     marginBottom: 10,
   },
-  buttonRow: { flexDirection: 'row', gap: 18 },
+  buttonRow: { flexDirection: 'row', gap: 18, marginTop: 12 },
   pickButton: {
     flex: 1,
     backgroundColor: t.card,
