@@ -427,12 +427,20 @@ export default function CaptureScreen() {
             <Pressable
               style={[styles.creditToggle, useCredit && styles.creditToggleOn]}
               onPress={() => setUseCredit((v) => !v)}>
-              <Text style={[styles.creditToggleText, useCredit && styles.creditToggleTextOn]}>
-                ✨ Use an Audition Credit for this script ({premiumCredits} left)
-              </Text>
-              <Text style={styles.creditToggleSub}>
-                Every voice, hands-free commands, and more director notes — just for this one.
-              </Text>
+              <View style={[styles.creditCheckbox, useCredit && styles.creditCheckboxOn]}>
+                {useCredit && <Text style={styles.creditCheckboxMark}>✓</Text>}
+              </View>
+              <View style={styles.creditToggleBody}>
+                <Text style={[styles.creditToggleText, useCredit && styles.creditToggleTextOn]}>
+                  ✨ Use an Audition Credit for this script ({premiumCredits} left)
+                </Text>
+                <Text style={styles.creditToggleSub}>
+                  Every voice, hands-free commands, and more director notes — just for this one.
+                </Text>
+                {!useCredit && (
+                  <Text style={styles.creditToggleHint}>Check the box to use a credit.</Text>
+                )}
+              </View>
             </Pressable>
           )}
 
@@ -595,6 +603,9 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
   },
   thumbRemoveText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   creditToggle: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
     backgroundColor: t.card,
     borderRadius: 14,
     borderWidth: 1,
@@ -603,9 +614,24 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     marginTop: 20,
   },
   creditToggleOn: { backgroundColor: t.accentSoft, borderColor: t.accent },
+  creditCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: t.inkSoft,
+    backgroundColor: t.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  creditCheckboxOn: { backgroundColor: t.accent, borderColor: t.accent },
+  creditCheckboxMark: { color: '#fff', fontSize: 15, fontWeight: '900', lineHeight: 18 },
+  creditToggleBody: { flex: 1 },
   creditToggleText: { fontSize: 14, fontWeight: '700', color: t.ink },
   creditToggleTextOn: { color: t.accent },
   creditToggleSub: { fontSize: 12, color: t.inkSoft, marginTop: 4, lineHeight: 17 },
+  creditToggleHint: { fontSize: 12, color: t.accent, fontWeight: '700', marginTop: 6 },
   primaryButton: {
     backgroundColor: t.accent,
     borderRadius: 16,
