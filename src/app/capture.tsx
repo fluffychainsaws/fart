@@ -326,6 +326,18 @@ export default function CaptureScreen() {
   return (
     <>
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      {Platform.OS === 'web' && (
+        <>
+          <Pressable
+            style={({ pressed }) => [styles.micTestButton, pressed && styles.pressed]}
+            onPress={() => router.push('/mictest')}>
+            <MicIcon size={18} />
+            <Text style={styles.micTestButtonText}>Test your microphone</Text>
+          </Pressable>
+          <Text style={styles.micTestHint}>Do this first — make sure FART can hear you before you upload.</Text>
+        </>
+      )}
+
       <Text style={styles.blurb}>
         Upload your sides as a PDF — most sides already are one, and FART reads the real text
         directly instead of a photo of it. No PDF handy? Snap a photo or pull one from your
@@ -429,15 +441,6 @@ export default function CaptureScreen() {
               style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
               onPress={createScript}>
               <Text style={styles.primaryButtonText}>✨ Create my script</Text>
-            </Pressable>
-          )}
-
-          {Platform.OS === 'web' && (
-            <Pressable
-              style={({ pressed }) => [styles.micTestButton, pressed && styles.pressed]}
-              onPress={() => router.push('/mictest')}>
-              <MicIcon size={18} />
-              <Text style={styles.micTestButtonText}>Test your microphone</Text>
             </Pressable>
           )}
 
@@ -616,16 +619,24 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
   primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
   micTestButton: {
     borderRadius: 16,
-    paddingVertical: 12,
+    paddingVertical: 13,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginTop: 12,
+    backgroundColor: t.accentSoft,
     borderWidth: 1,
-    borderColor: t.border,
+    borderColor: t.accent,
   },
-  micTestButtonText: { color: t.inkSoft, fontSize: 14, fontWeight: '700' },
+  micTestButtonText: { color: t.accent, fontSize: 15, fontWeight: '800' },
+  micTestHint: {
+    fontSize: 12,
+    color: t.inkSoft,
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: 4,
+    fontWeight: '600',
+  },
   scriptsTitle: {
     fontSize: 13,
     fontWeight: '700',
