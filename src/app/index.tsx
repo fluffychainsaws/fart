@@ -5,6 +5,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { Text } from '@/lib/AppText';
 import { ClapperIcon } from '@/lib/ClapperIcon';
 import { makeDemoScript } from '@/lib/demo';
+import { InstallPrompt } from '@/lib/InstallPrompt';
 import { saveScript } from '@/lib/storage';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 import { getUsageStatus } from '@/lib/usage';
@@ -34,6 +35,7 @@ export default function HomeScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <InstallPrompt />
       <Text style={styles.tagline}>Friendly AI Reader To-Go!</Text>
       <Text style={styles.blurb}>
         Snap a photo of your sides, highlight your lines, and FART reads everyone else&apos;s — so

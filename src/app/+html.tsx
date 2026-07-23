@@ -27,11 +27,21 @@ export default function Root({ children }: { children: React.ReactNode }) {
         {/* PWA / "Add to Home Screen" support */}
         <link rel="manifest" href="manifest.json" />
         <meta name="theme-color" content="#0FA47A" />
-        <link rel="apple-touch-icon" href="icon-1024.png" />
+        <link rel="apple-touch-icon" href="icon-180.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="FART" />
         <meta name="mobile-web-app-capable" content="yes" />
+        {/* Capture the install prompt as early as possible — Chrome can fire
+            beforeinstallprompt before the app mounts. The InstallPrompt
+            component reads window.__bipEvent and listens for __bipReady. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__bipEvent=e;window.dispatchEvent(new Event('__bipReady'));});" +
+              "if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}",
+          }}
+        />
       </head>
       <body {...bodyAttributes}>
         {children}
