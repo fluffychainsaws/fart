@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Animated, Easing, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
@@ -16,12 +16,37 @@ export default function AccountScreen() {
   const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   const [status, setStatus] = useState<UsageStatus | null>(null);
   const session = useSession();
+  const promoOpen = signupPromoOpen();
 
   const refresh = useCallback(() => {
     getUsageStatus().then(setStatus);
   }, []);
 
   useFocusEffect(refresh);
+
+  // Slow attention-grabbing pulse for the launch banner (matches Home).
+  const pulse = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!promoOpen) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 0.45,
+          duration: 1100,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 1100,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [promoOpen, pulse]);
 
   const switchTier = async (tier: Tier) => {
     // Dev-only: stands in for a real purchase until RevenueCat is wired up.
@@ -78,7 +103,6 @@ export default function AccountScreen() {
 
   if (!status) return <View style={styles.screen} />;
   const dayPass = getTier('daypass');
-  const promoOpen = signupPromoOpen();
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -117,11 +141,11 @@ export default function AccountScreen() {
 
       <Text style={styles.sectionTitle}>Plans</Text>
       {promoOpen && (
-        <View style={styles.promoBanner}>
+        <Animated.View style={[styles.promoBanner, { opacity: pulse }]}>
           <Text style={styles.promoText}>
             🎁 Launch bonus — join now and get free premium credits on your first plan.
           </Text>
-        </View>
+        </Animated.View>
       )}
       {TIER_ORDER.map((id) => {
         const tier = getTier(id);
@@ -278,15 +302,13 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     planFeature: { fontSize: 13, color: t.ink },
     planBonus: { fontSize: 13, color: t.accent, fontWeight: '800', marginTop: 2 },
     promoBanner: {
-      backgroundColor: t.accentSoft,
-      borderWidth: 1,
-      borderColor: t.accent,
+      backgroundColor: '#DC2626',
       borderRadius: 12,
-      paddingVertical: 10,
+      paddingVertical: 11,
       paddingHorizontal: 12,
       marginBottom: 12,
     },
-    promoText: { fontSize: 13, color: t.accent, fontWeight: '700', textAlign: 'center', lineHeight: 18 },
+    promoText: { fontSize: 13, color: '#fff', fontWeight: '800', textAlign: 'center', lineHeight: 18 },
     dayPassBalance: { fontSize: 12, color: t.inkSoft, marginTop: 10, fontStyle: 'italic' },
     planButton: {
       backgroundColor: t.accent,
