@@ -24,11 +24,13 @@ import { deliveredText, interpretDirection } from '@/lib/director';
 import {
   disableNeuralVoice,
   enableNeuralVoice,
+  FREE_NEURAL_VOICE_IDS,
   NEURAL_VOICES,
   neuralVoiceProgress,
   neuralVoiceState,
   neuralVoiceSupported,
   resumeNeuralVoiceIfEnabled,
+  setNeuralCastAllowlist,
   speakNeural,
   subscribeNeuralVoice,
 } from '@/lib/neuralVoice';
@@ -99,6 +101,12 @@ export default function RehearseScreen() {
   const tier = script?.premiumCredit ? getTier('daypass') : usage ? getTier(usage.tier) : null;
   const aiVoicesAllowed = tier ? tier.aiVoiceCount > 0 : false;
   const allowedOpenAiVoices = tier ? OPENAI_VOICES.slice(0, tier.aiVoiceCount) : [];
+  // Free accounts are limited to two natural voices (Aoede + Onyx); paid tiers
+  // keep the full set. tier == null (still loading) stays unrestricted.
+  const freeVoiceOnly = tier?.id === 'free';
+  const allowedNeuralVoices = freeVoiceOnly
+    ? NEURAL_VOICES.filter((v) => FREE_NEURAL_VOICE_IDS.includes(v.id))
+    : NEURAL_VOICES;
 
   const engine = useRehearsal(script?.elements ?? [], {
     voices: script?.voices,
@@ -303,6 +311,13 @@ export default function RehearseScreen() {
     return unsubscribe;
   }, []);
   const neuralReady = neuralState === 'ready';
+
+  // Restrict auto-casting (and the directions narrator) to Aoede + Onyx for
+  // Free accounts; lift the restriction for paid tiers.
+  useEffect(() => {
+    setNeuralCastAllowlist(freeVoiceOnly ? FREE_NEURAL_VOICE_IDS : null);
+    return () => setNeuralCastAllowlist(null);
+  }, [freeVoiceOnly]);
 
   useEffect(() => {
     getScript(id).then(setScript);
@@ -811,7 +826,7 @@ export default function RehearseScreen() {
                       }))
                     : []),
                   ...(neuralReady
-                    ? NEURAL_VOICES.map((v) => ({
+                    ? allowedNeuralVoices.map((v) => ({
                         id: `neural:${v.id}` as string | null,
                         label: `✨ ${v.label}`,
                       }))

@@ -182,11 +182,37 @@ function hash(s: string): number {
   return h;
 }
 
+// The two natural voices Free accounts are limited to (Aoede + Onyx).
+export const FREE_NEURAL_VOICE_IDS = ['af_aoede', 'am_onyx'];
+
+// When set (Free tier), every auto-cast — and the directions narrator — is
+// restricted to this pool so only these voices are ever heard.
+let castAllowlist: string[] | null = null;
+export function setNeuralCastAllowlist(ids: string[] | null) {
+  const next = ids && ids.length ? ids : null;
+  const changed = JSON.stringify(next) !== JSON.stringify(castAllowlist);
+  castAllowlist = next;
+  // Drop any prior auto-casts that fall outside the new pool so characters
+  // get re-assigned to an allowed voice.
+  if (changed && castAllowlist) {
+    for (const [character, voice] of assigned) {
+      if (!castAllowlist.includes(voice)) assigned.delete(character);
+    }
+  }
+}
+
+// Narrator voice for stage directions, kept inside the allowlist when set.
+function narratorVoice(): string {
+  if (castAllowlist && !castAllowlist.includes(NARRATOR_VOICE)) return castAllowlist[0];
+  return NARRATOR_VOICE;
+}
+
 function voiceFor(character: string): string {
   const existing = assigned.get(character);
   if (existing) return existing;
   // Auto-casting draws only from the strongest voices; the weaker ones and
-  // the derived young voices stay explicit picks in the full list.
+  // the derived young voices stay explicit picks in the full list. When an
+  // allowlist is active (Free tier) it wins and defines the whole pool.
   const AUTO_CAST = new Set([
     'af_heart',
     'af_sarah',
@@ -198,7 +224,9 @@ function voiceFor(character: string): string {
     'bm_george',
     'bm_fable',
   ]);
-  const autoPool = NEURAL_VOICES.filter((v) => AUTO_CAST.has(v.id));
+  const autoPool = castAllowlist
+    ? NEURAL_VOICES.filter((v) => castAllowlist!.includes(v.id))
+    : NEURAL_VOICES.filter((v) => AUTO_CAST.has(v.id));
   const taken = new Set(assigned.values());
   let i = hash(character) % autoPool.length;
   for (let step = 0; step < autoPool.length && taken.has(autoPool[i].id); step++) {
@@ -248,7 +276,12 @@ const clampSpeed = (rate?: number) => Math.min(1.5, Math.max(0.6, rate ?? 1));
 // Fire-and-forget: warm the cache for an upcoming line so playback is seamless.
 export function prefetchNeuralLine(opts: { text: string; character?: string; rate?: number; voice?: string }) {
   if (!neuralVoiceActive()) return;
-  const voice = opts.voice ?? (opts.character ? voiceFor(opts.character) : NARRATOR_VOICE);
+  let voice = opts.voice ?? (opts.character ? voiceFor(opts.character) : narratorVoice());
+  // Hard gate: an explicit pick outside the allowlist (e.g. a stale save from
+  // a paid session) is clamped back into the allowed pool for Free accounts.
+  if (castAllowlist && !castAllowlist.includes(voice)) {
+    voice = opts.character ? voiceFor(opts.character) : castAllowlist[0];
+  }
   synthesize(opts.text, voice, clampSpeed(opts.rate)).catch(() => {});
 }
 
@@ -314,7 +347,12 @@ export async function speakNeural(opts: {
 }): Promise<boolean> {
   if (!neuralVoiceActive()) return false;
   try {
-    const voice = opts.voice ?? (opts.character ? voiceFor(opts.character) : NARRATOR_VOICE);
+    let voice = opts.voice ?? (opts.character ? voiceFor(opts.character) : narratorVoice());
+  // Hard gate: an explicit pick outside the allowlist (e.g. a stale save from
+  // a paid session) is clamped back into the allowed pool for Free accounts.
+  if (castAllowlist && !castAllowlist.includes(voice)) {
+    voice = opts.character ? voiceFor(opts.character) : castAllowlist[0];
+  }
     const uri = await synthesize(opts.text, voice, clampSpeed(opts.rate));
     if (!audioModeSet) {
       audioModeSet = true;
