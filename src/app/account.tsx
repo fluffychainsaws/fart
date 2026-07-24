@@ -5,6 +5,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { Text } from '@/lib/AppText';
 import { useSession } from '@/lib/auth';
 import { billingConfigured, openCheckout } from '@/lib/billing';
+import { signupBonusFor, signupPromoOpen } from '@/lib/promo';
 import { getTier, TIER_ORDER, type Tier } from '@/lib/subscription';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 import { devGrantPremiumCredit, getUsageStatus, setCurrentTier, type UsageStatus } from '@/lib/usage';
@@ -77,6 +78,7 @@ export default function AccountScreen() {
 
   if (!status) return <View style={styles.screen} />;
   const dayPass = getTier('daypass');
+  const promoOpen = signupPromoOpen();
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -114,9 +116,17 @@ export default function AccountScreen() {
       </View>
 
       <Text style={styles.sectionTitle}>Plans</Text>
+      {promoOpen && (
+        <View style={styles.promoBanner}>
+          <Text style={styles.promoText}>
+            🎁 Launch bonus — join now and get free premium credits on your first plan.
+          </Text>
+        </View>
+      )}
       {TIER_ORDER.map((id) => {
         const tier = getTier(id);
         const active = tier.id === status.tier;
+        const bonus = promoOpen ? signupBonusFor(id) : 0;
         return (
           <View key={id} style={[styles.planCard, active && styles.planCardActive]}>
             <View style={styles.planHeader}>
@@ -142,6 +152,11 @@ export default function AccountScreen() {
                     : `${tier.directorNotesPerAudition} director notes/audition`}
               </Text>
               {tier.voiceCommands && <Text style={styles.planFeature}>🎙 Hands-free voice commands</Text>}
+              {bonus > 0 && (
+                <Text style={styles.planBonus}>
+                  🎁 Launch bonus: {bonus} free premium credit{bonus === 1 ? '' : 's'}
+                </Text>
+              )}
             </View>
             <Pressable
               disabled={active}
@@ -261,6 +276,17 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     planTagline: { fontSize: 13, color: t.inkSoft, marginTop: 4 },
     planFeatures: { marginTop: 12, gap: 4 },
     planFeature: { fontSize: 13, color: t.ink },
+    planBonus: { fontSize: 13, color: t.accent, fontWeight: '800', marginTop: 2 },
+    promoBanner: {
+      backgroundColor: t.accentSoft,
+      borderWidth: 1,
+      borderColor: t.accent,
+      borderRadius: 12,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      marginBottom: 12,
+    },
+    promoText: { fontSize: 13, color: t.accent, fontWeight: '700', textAlign: 'center', lineHeight: 18 },
     dayPassBalance: { fontSize: 12, color: t.inkSoft, marginTop: 10, fontStyle: 'italic' },
     planButton: {
       backgroundColor: t.accent,
