@@ -128,7 +128,7 @@ function MenuContent({ onNavigate }: { onNavigate?: () => void }) {
       <Pressable
         style={({ pressed }) => [styles.creditsRow, pressed && styles.pressed]}
         onPress={() => go('/account')}>
-        <Animated.View style={{ transform: [{ rotate: spinDeg }] }}>
+        <Animated.View style={{ transform: [{ perspective: 400 }, { rotateY: spinDeg }] }}>
           <CoinIcon size={20} />
         </Animated.View>
         <Text style={styles.creditsText}>
