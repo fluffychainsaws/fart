@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { Text } from '@/lib/AppText';
 import { makeDemoScript } from '@/lib/demo';
 import { InstallPrompt } from '@/lib/InstallPrompt';
+import { signupPromoOpen } from '@/lib/promo';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 
 const FEATURES = [
@@ -47,6 +48,7 @@ export default function HomeScreen() {
   const { width } = useWindowDimensions();
   const wideDemo = width >= 700;
   const demoBase = wideDemo ? 'demo-web' : 'demo-phone';
+  const promoOpen = signupPromoOpen();
 
   const tryDemo = async () => {
     const demo = makeDemoScript();
@@ -56,6 +58,17 @@ export default function HomeScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      {promoOpen && (
+        <Pressable
+          style={({ pressed }) => [styles.promoBanner, pressed && styles.pressed]}
+          onPress={() => router.push('/account')}>
+          <Text style={styles.promoText}>
+            🎁 Launch offer — get free premium credits on your first plan
+          </Text>
+          <Text style={styles.promoCta}>See plans →</Text>
+        </Pressable>
+      )}
+
       <InstallPrompt />
 
       {Platform.OS !== 'web' && (
@@ -150,6 +163,17 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.bg },
     content: { padding: 20, paddingBottom: 56, maxWidth: 720, width: '100%', alignSelf: 'center' },
+    promoBanner: {
+      backgroundColor: t.accent,
+      borderRadius: 14,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      marginBottom: 14,
+      alignItems: 'center',
+      ...shadow,
+    },
+    promoText: { color: '#fff', fontSize: 14, fontWeight: '800', textAlign: 'center', lineHeight: 19 },
+    promoCta: { color: '#fff', fontSize: 12, fontWeight: '700', marginTop: 3, opacity: 0.9 },
     webBanner: {
       backgroundColor: '#e8f5ff',
       borderRadius: 14,
