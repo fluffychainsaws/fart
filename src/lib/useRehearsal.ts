@@ -113,10 +113,10 @@ export function useRehearsal(elements: ScriptElement[], options: RehearsalOption
 
     if (el.type === 'direction') {
       if (readDirectionsRef.current) {
-        let spoken = cloudAllowed() && (await speakCloud({ text: el.text, rate: rateRef.current }));
-        if (!spoken && run === runId.current) {
-          spoken = neuralVoiceActive() && (await speakNeural({ text: el.text, rate: rateRef.current }));
-        }
+        // Directions are read with a free voice (local neural if available,
+        // otherwise the device voice) so they never spend premium TTS.
+        let spoken =
+          neuralVoiceActive() && (await speakNeural({ text: el.text, rate: rateRef.current }));
         if (!spoken && run === runId.current) {
           await speakOnce(el.text, { rate: rateRef.current, pitch: 0.95 });
         }
