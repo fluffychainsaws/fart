@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 
 import { isLineComplete, lineWords, matchedWordCount } from './lineMatch';
-import { resetRecognitionSession, subscribeRecognition } from './sharedRecognition';
+import { currentResultsLength, subscribeRecognition } from './sharedRecognition';
 import { getSpeechRecognitionCtor } from './webSpeech';
 
 // Voice follow: listens while the rehearsal engine waits on the user's line,
@@ -138,16 +138,20 @@ export function useLineFollow(
 
     if (Platform.OS === 'web') {
       if (!getSpeechRecognitionCtor()) return;
-      // Start this line from a clean transcript even if the shared recognizer
-      // was already running for voice commands — otherwise words heard before
-      // the user's turn could count toward matching this line.
-      resetRecognitionSession();
+      // Don't force a recognizer restart here: the mic is already closed while
+      // the reader speaks (see the status!=='playing' gate in the rehearse
+      // screen), so each of the user's turns starts from a fresh session
+      // anyway. Restarting would fire iOS's mic-listening tone a second time
+      // per line — audible beeping during a take — for no benefit. We simply
+      // baseline on the first result below so pre-turn stragglers don't count.
+      let base = 0;
       const unsubscribe = subscribeRecognition((event) => {
         if (event.type === 'result') {
           // A continuous session splits speech into segments; join them all
-          // so a line spoken across a breath still matches end to end.
+          // (from `base` on, so pre-turn words are skipped) so a line spoken
+          // across a breath still matches end to end.
           let s = '';
-          for (let i = 0; i < (event.results.length ?? 1); i++) {
+          for (let i = base; i < (event.results.length ?? 0); i++) {
             s += ' ' + (event.results[i]?.[0]?.transcript ?? '');
           }
           sessionText = s;
@@ -155,9 +159,14 @@ export function useLineFollow(
         } else if (event.type === 'sessionEnd') {
           accumulated = (accumulated + ' ' + sessionText).trim();
           sessionText = '';
+          base = 0; // the next session starts from a clean transcript
         }
         // Errors are ignored here — the shared recognizer keeps itself alive.
       });
+      // Snapshot AFTER subscribing: if that call started a fresh recognizer the
+      // count is already 0; if the mic was already open (voice commands), it's
+      // the number of pre-turn segments to skip.
+      base = currentResultsLength();
       setListening(true);
       cleanup = () => {
         unsubscribe();

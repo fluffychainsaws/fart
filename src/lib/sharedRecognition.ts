@@ -27,6 +27,13 @@ const listeners = new Set<Listener>();
 let recognizer: SpeechRecognitionLike | null = null;
 let restartTimer: ReturnType<typeof setTimeout> | null = null;
 let stopped = true;
+// How many result segments the LIVE session has emitted. A consumer starting
+// mid-session (e.g. "Listen for my lines" when the user's turn begins while
+// voice commands already had the mic open) snapshots this so words heard before
+// its turn don't count — a software baseline that replaces the old audio
+// restart, which fired iOS's mic-listening tone an extra time each line.
+let liveResultsLen = 0;
+export const currentResultsLength = () => liveResultsLen;
 
 function emit(event: RecognitionEvent) {
   // Iterate a copy so a listener that unsubscribes mid-dispatch can't cause
@@ -47,11 +54,16 @@ function startRecognizer() {
   if (!Ctor) return;
   const rec = new Ctor();
   recognizer = rec;
+  liveResultsLen = 0; // fresh session starts with an empty transcript
   rec.lang = 'en-US';
   rec.continuous = true;
   rec.interimResults = true;
-  rec.onresult = (event) => emit({ type: 'result', results: event.results });
+  rec.onresult = (event) => {
+    liveResultsLen = event.results.length;
+    emit({ type: 'result', results: event.results });
+  };
   rec.onend = () => {
+    liveResultsLen = 0;
     emit({ type: 'sessionEnd' });
     // Recognition sessions auto-end after a few seconds of silence; keep the
     // one shared recognizer alive as long as anyone is still listening.
@@ -67,6 +79,7 @@ function startRecognizer() {
 
 function stopRecognizer() {
   stopped = true;
+  liveResultsLen = 0;
   if (restartTimer) {
     clearTimeout(restartTimer);
     restartTimer = null;
@@ -98,29 +111,4 @@ export function subscribeRecognition(listener: Listener): () => void {
     listeners.delete(listener);
     if (listeners.size === 0) stopRecognizer();
   };
-}
-
-// Force a fresh recognition session, discarding the transcript accumulated so
-// far. "Listen for my lines" calls this when the user's turn begins so words
-// picked up earlier (e.g. while voice commands were already listening) don't
-// count toward matching the new line. No-op when nothing is listening — the
-// next subscriber will start clean anyway.
-export function resetRecognitionSession() {
-  if (stopped) return;
-  const rec = recognizer;
-  recognizer = null;
-  try {
-    if (rec) {
-      // Detach so this intentional abort neither restarts itself (onend) nor
-      // surfaces as an 'aborted' failure to subscribers (onerror).
-      rec.onend = null;
-      rec.onerror = null;
-      rec.abort();
-    }
-  } catch {
-    // already stopped
-  }
-  // Small gap lets the aborted instance release before a new one starts,
-  // avoiding the browser's "recognition already started" error.
-  scheduleRestart(150);
 }
