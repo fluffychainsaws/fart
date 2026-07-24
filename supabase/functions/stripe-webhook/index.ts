@@ -39,6 +39,45 @@ function isDayPassPrice(priceId: string | undefined): boolean {
   return !!priceId && priceId === Deno.env.get('PRICE_DAYPASS');
 }
 
+// ---- Launch signup promo -------------------------------------------------
+// Bonus Audition Credits granted the FIRST time a user buys a paid tier, only
+// while the promo window is open. One-time per user (enforced in the DB by
+// grant_signup_bonus), never expires once granted.
+//
+// Configure via secrets (leave PROMO_SIGNUP_START unset to keep the promo OFF —
+// safe default before launch):
+//   PROMO_SIGNUP_START - ISO date/time the promo opens, e.g. 2026-08-01
+//   PROMO_SIGNUP_END   - ISO date/time it closes; optional, defaults to
+//                        START + 30 days. Set/extend this to run longer.
+const SIGNUP_BONUS_BY_TIER: Record<string, number> = {
+  fart: 1, // $5 tier -> 1 credit
+  fartpro: 2, // $10 tier -> 2 credits
+  shartstar: 3, // top tier -> 3 credits (adjust to taste)
+};
+
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+function signupPromoOpen(now = Date.now()): boolean {
+  const startRaw = Deno.env.get('PROMO_SIGNUP_START');
+  if (!startRaw) return false; // promo disabled until a start date is set
+  const start = Date.parse(startRaw);
+  if (Number.isNaN(start)) return false;
+  const endRaw = Deno.env.get('PROMO_SIGNUP_END');
+  const end = endRaw ? Date.parse(endRaw) : start + THIRTY_DAYS_MS;
+  if (Number.isNaN(end)) return false;
+  return now >= start && now <= end;
+}
+
+async function grantSignupBonus(userId: string, tier: string) {
+  const amount = SIGNUP_BONUS_BY_TIER[tier] ?? 0;
+  if (amount <= 0 || !signupPromoOpen()) return;
+  const { error } = await supabase.rpc('grant_signup_bonus', {
+    p_user_id: userId,
+    p_amount: amount,
+  });
+  if (error) throw new Error(`grant_signup_bonus failed: ${error.message}`);
+}
+
 async function setTier(userId: string, tier: string) {
   const { error } = await supabase.from('profiles').update({ tier }).eq('id', userId);
   if (error) throw new Error(`profiles update failed: ${error.message}`);
@@ -86,6 +125,9 @@ Deno.serve(async (req) => {
         const tier = tierForPrice(priceId);
         if (tier) {
           await setTier(userId, tier);
+          // First paid tier during the launch window earns bonus credits
+          // (one-time per user, deduped in the DB).
+          await grantSignupBonus(userId, tier);
           // Remember the mapping so subscription cancellations can find the user.
           if (session.customer) {
             await stripe.customers.update(session.customer as string, {

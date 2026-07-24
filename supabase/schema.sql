@@ -155,6 +155,34 @@ $$;
 
 grant execute on function public.increment_premium_credits(uuid, integer) to service_role;
 
+-- Launch signup promo: the first time a user buys a paid tier (during the promo
+-- window enforced by the stripe-webhook function), they get bonus Audition
+-- Credits. It must fire AT MOST ONCE per user for all time — no expiration, and
+-- immune to Stripe's at-least-once delivery and to a user re-subscribing — so
+-- the grant is gated on a one-way flag flipped in the same UPDATE. Returns
+-- whether this call actually granted (false if the user already had the bonus).
+alter table public.profiles
+  add column if not exists signup_bonus_granted boolean not null default false;
+
+create or replace function public.grant_signup_bonus(p_user_id uuid, p_amount integer)
+returns boolean
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  updated_rows integer;
+begin
+  update public.profiles
+  set premium_credits = premium_credits + p_amount,
+      signup_bonus_granted = true
+  where id = p_user_id and signup_bonus_granted = false;
+  get diagnostics updated_rows = row_count;
+  return updated_rows > 0;
+end;
+$$;
+
+grant execute on function public.grant_signup_bonus(uuid, integer) to service_role;
+
 -- Server-enforced monthly audition quota. The count lives HERE, not in device
 -- storage, so it can't be reset by clearing the browser / going incognito, and
 -- can't be faked by a modified client. The parse-script edge function is the
@@ -399,6 +427,7 @@ grant update (photo_url, photo_updated_at) on public.profiles to authenticated;
 -- them. spend_premium_credit() (no args, acts on auth.uid() only) stays callable
 -- by authenticated on purpose.
 revoke execute on function public.increment_premium_credits(uuid, integer) from public, anon, authenticated;
+revoke execute on function public.grant_signup_bonus(uuid, integer) from public, anon, authenticated;
 revoke execute on function public.consume_audition(uuid, text, integer) from public, anon, authenticated;
 revoke execute on function public.refund_audition(uuid, text) from public, anon, authenticated;
 revoke execute on function public.spend_premium_credit_for(uuid) from public, anon, authenticated;

@@ -2,8 +2,11 @@ import { useMemo } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Text } from '@/lib/AppText';
+import { signupBonusFor, signupPromoOpen } from '@/lib/promo';
 import { getTier, TIER_ORDER, type Tier } from '@/lib/subscription';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
+
+const plural = (n: number, s: string) => `${n} ${s}${n === 1 ? '' : 's'}`;
 
 // The differentiators a blocked user is missing, kept short so the sheet fits
 // a phone without feeling like a spec sheet.
@@ -43,6 +46,7 @@ export function UpgradeModal({
   const upgrades = TIER_ORDER.filter(
     (id) => TIER_ORDER.indexOf(id) > TIER_ORDER.indexOf(currentTier),
   );
+  const promoOpen = signupPromoOpen();
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -54,9 +58,18 @@ export function UpgradeModal({
             <Text style={styles.title}>🎬 You're out of auditions this month</Text>
             <Text style={styles.subtitle}>Upgrade to keep rehearsing — cancel anytime.</Text>
 
+            {promoOpen && (
+              <View style={styles.promoBanner}>
+                <Text style={styles.promoText}>
+                  🎁 Launch bonus — join now and get free premium credits on your first plan.
+                </Text>
+              </View>
+            )}
+
             {upgrades.map((id) => {
               const tier = getTier(id);
               const featured = id === 'shartstar';
+              const bonus = promoOpen ? signupBonusFor(id) : 0;
               return (
                 <Pressable
                   key={id}
@@ -80,6 +93,11 @@ export function UpgradeModal({
                       ✓ {b}
                     </Text>
                   ))}
+                  {bonus > 0 && (
+                    <Text style={styles.cardBonus}>
+                      🎁 Launch bonus: {plural(bonus, 'free premium credit')}
+                    </Text>
+                  )}
                   <View style={[styles.cta, featured && styles.ctaFeatured]}>
                     <Text style={[styles.ctaText, featured && styles.ctaTextFeatured]}>
                       Upgrade to {tier.name}
@@ -167,6 +185,17 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     cardName: { fontSize: 17, fontWeight: '800', color: t.ink },
     cardPrice: { fontSize: 16, fontWeight: '700', color: t.accent },
     cardBenefit: { fontSize: 13, color: t.inkSoft, lineHeight: 21 },
+    cardBonus: { fontSize: 13, color: t.accent, fontWeight: '800', marginTop: 6, lineHeight: 19 },
+    promoBanner: {
+      backgroundColor: t.accentSoft,
+      borderWidth: 1,
+      borderColor: t.accent,
+      borderRadius: 12,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      marginBottom: 14,
+    },
+    promoText: { fontSize: 13, color: t.accent, fontWeight: '700', textAlign: 'center', lineHeight: 18 },
     cta: {
       marginTop: 12,
       backgroundColor: t.accentSoft,
