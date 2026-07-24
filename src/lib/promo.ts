@@ -9,7 +9,7 @@
 // On launch day: set `start` (e.g. '2026-08-01'). The window auto-closes 30
 // days later unless you set `end` to a later date to extend it.
 export const SIGNUP_PROMO = {
-  start: '', // ISO date the promo opens, e.g. '2026-08-01'. Empty = promo off.
+  start: '2026-07-24', // ISO date the promo opens. Empty = promo off.
   end: '', // optional ISO close date; defaults to start + 30 days.
   bonusByTier: { fart: 1, fartpro: 2, shartstar: 3 } as Record<string, number>,
 };
