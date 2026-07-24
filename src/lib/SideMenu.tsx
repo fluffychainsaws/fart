@@ -80,6 +80,22 @@ function MenuContent({ onNavigate }: { onNavigate?: () => void }) {
     refreshProfilePhoto();
   }, [session]);
 
+  // Continuously spin the Audition Credit coin.
+  const spin = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(spin, {
+        toValue: 1,
+        duration: 2400,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [spin]);
+  const spinDeg = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+
   const go = (href: Href) => {
     onNavigate?.();
     router.push(href);
@@ -112,7 +128,9 @@ function MenuContent({ onNavigate }: { onNavigate?: () => void }) {
       <Pressable
         style={({ pressed }) => [styles.creditsRow, pressed && styles.pressed]}
         onPress={() => go('/account')}>
-        <CoinIcon size={20} />
+        <Animated.View style={{ transform: [{ rotate: spinDeg }] }}>
+          <CoinIcon size={20} />
+        </Animated.View>
         <Text style={styles.creditsText}>
           {credits} Audition Credit{credits === 1 ? '' : 's'}
         </Text>
