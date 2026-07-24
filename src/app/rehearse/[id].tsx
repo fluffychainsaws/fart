@@ -68,8 +68,7 @@ const CAN_HOVER =
 const prettyVoice = (id: string | undefined, deviceNames: Record<string, string>): string => {
   if (!id) return 'Auto';
   if (id.startsWith('openai:')) {
-    const name = id.slice('openai:'.length);
-    return name.charAt(0).toUpperCase() + name.slice(1);
+    return voiceLabel(id.slice('openai:'.length));
   }
   if (id.startsWith('device:')) {
     return deviceNames[id.slice('device:'.length)] ?? 'Device voice';
