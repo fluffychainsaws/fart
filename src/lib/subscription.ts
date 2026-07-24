@@ -37,7 +37,7 @@ export const TIERS: Record<Tier, TierConfig> = {
     auditionsPerMonth: 1,
     pagesPerScript: 3,
     aiVoiceCount: 0,
-    voiceLabel: 'Basic device voice',
+    voiceLabel: '2 natural voices - Aoede & Onyx!',
     directorNotesPerAudition: 0,
     voiceCommands: false,
     inputAbility: false,
