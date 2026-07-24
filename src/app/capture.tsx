@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useFocusEffect } from 'expo-router';
@@ -323,15 +323,22 @@ export default function CaptureScreen() {
 
   const hasInput = pdf !== null || pages.length > 0;
 
+  // On phones (narrow web layout) the step number sits centered ABOVE each
+  // section; on the wider desktop layout it sits to the left.
+  const { width } = useWindowDimensions();
+  const isPhone = width < 700;
+  const stepContainer = isPhone ? styles.stepColumn : styles.stepRow;
+  const stepInner = isPhone ? styles.stepContentFull : styles.stepContent;
+
   return (
     <>
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       {Platform.OS === 'web' && (
-        <View style={styles.stepRow}>
+        <View style={stepContainer}>
           <View style={styles.stepBadge}>
             <Text style={styles.stepBadgeText}>1</Text>
           </View>
-          <View style={styles.stepContent}>
+          <View style={stepInner}>
             <Pressable
               style={({ pressed }) => [styles.micTestButton, pressed && styles.pressed]}
               onPress={() => router.push('/mictest')}>
@@ -358,23 +365,25 @@ export default function CaptureScreen() {
         <LoadingCard />
       ) : (
         <>
-          <View style={[styles.stepRow, styles.stepRowSpaced]}>
+          <View style={[stepContainer, styles.stepSpaced]}>
             {Platform.OS === 'web' && (
               <View style={styles.stepBadge}>
                 <Text style={styles.stepBadgeText}>2</Text>
               </View>
             )}
-            <View style={styles.stepContent}>
+            <View style={stepInner}>
               {Platform.OS === 'web' && (
-                <View ref={dropRef} style={[styles.dropZone, dragging && styles.dropZoneActive]}>
+                <Pressable
+                  ref={dropRef}
+                  style={[styles.dropZone, dragging && styles.dropZoneActive]}
+                  onPress={pickPdf}>
                   {/* Non-interactive so drag/drop registers across the WHOLE box,
                       not just where the labels are. */}
                   <View pointerEvents="none" style={styles.dropZoneInner}>
                     <Text style={styles.dropZoneEmoji}>📥</Text>
-                    <Text style={styles.dropZoneText}>Drag a PDF or photos here</Text>
-                    <Text style={styles.dropZoneSub}>or use the options below</Text>
+                    <Text style={styles.dropZoneText}>Tap here to upload your PDF!</Text>
                   </View>
-                </View>
+                </Pressable>
               )}
 
               <View style={styles.buttonRow}>
@@ -395,13 +404,13 @@ export default function CaptureScreen() {
           </View>
 
           <Text style={styles.orDivider}>or upload a PDF</Text>
-          <View style={styles.stepRow}>
+          <View style={stepContainer}>
             {Platform.OS === 'web' && (
               <View style={styles.stepBadge}>
                 <Text style={styles.stepBadgeText}>3</Text>
               </View>
             )}
-            <View style={styles.stepContent}>
+            <View style={stepInner}>
               <Pressable
                 style={({ pressed }) => [styles.pdfButton, pressed && styles.pressed]}
                 onPress={pickPdf}>
@@ -536,7 +545,10 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
   },
   stepBadgeText: { fontSize: 15, fontWeight: '800', color: t.accent },
   stepContent: { flex: 1 },
-  stepRowSpaced: { marginTop: 20 },
+  // Phone: number centered above, content full width below.
+  stepColumn: { alignItems: 'center' },
+  stepContentFull: { width: '100%', marginTop: 10 },
+  stepSpaced: { marginTop: 20 },
   dropZone: {
     borderWidth: 2,
     borderColor: t.border,
@@ -549,8 +561,7 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
   dropZoneActive: { borderColor: t.accent, backgroundColor: t.accentSoft },
   dropZoneInner: { alignItems: 'center' },
   dropZoneEmoji: { fontSize: 26 },
-  dropZoneText: { fontSize: 15, fontWeight: '700', color: t.ink, marginTop: 6 },
-  dropZoneSub: { fontSize: 12, color: t.inkSoft, marginTop: 2 },
+  dropZoneText: { fontSize: 16, fontWeight: '700', color: t.ink, marginTop: 6 },
   pdfButton: {
     backgroundColor: t.accent,
     borderRadius: 16,
