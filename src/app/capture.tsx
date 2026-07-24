@@ -345,12 +345,6 @@ export default function CaptureScreen() {
         </View>
       )}
 
-      <Text style={styles.blurb}>
-        Upload your sides as a PDF — most sides already are one, and FART reads the real text
-        directly instead of a photo of it. No PDF handy? Snap a photo or pull one from your
-        library instead; that works exactly the same.
-      </Text>
-
       {session === null && (
         <View style={styles.keyWarning}>
           <Text style={styles.keyWarningText}>
@@ -529,7 +523,6 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
   StyleSheet.create({
   screen: { flex: 1, backgroundColor: t.bg },
   content: { padding: 20, paddingBottom: 40, maxWidth: 700, width: '100%', alignSelf: 'center' },
-  blurb: { fontSize: 15, color: t.inkSoft, lineHeight: 21, marginTop: 16 },
   stepRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   stepBadge: {
     width: 32,
