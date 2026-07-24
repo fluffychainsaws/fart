@@ -1,5 +1,5 @@
-import { createElement, useMemo } from 'react';
-import { Linking, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { createElement, useEffect, useMemo, useRef } from 'react';
+import { Animated, Easing, Linking, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
@@ -50,6 +50,30 @@ export default function HomeScreen() {
   const demoBase = wideDemo ? 'demo-web' : 'demo-phone';
   const promoOpen = signupPromoOpen();
 
+  // Slow attention-grabbing pulse for the launch banner.
+  const pulse = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!promoOpen) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 0.45,
+          duration: 1100,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 1100,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [promoOpen, pulse]);
+
   const tryDemo = async () => {
     const demo = makeDemoScript();
     await import('@/lib/storage').then((m) => m.saveScript(demo));
@@ -59,14 +83,16 @@ export default function HomeScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       {promoOpen && (
-        <Pressable
-          style={({ pressed }) => [styles.promoBanner, pressed && styles.pressed]}
-          onPress={() => router.push('/account')}>
-          <Text style={styles.promoText}>
-            🎁 Launch offer — get free premium credits on your first plan
-          </Text>
-          <Text style={styles.promoCta}>See plans →</Text>
-        </Pressable>
+        <Animated.View style={{ opacity: pulse }}>
+          <Pressable
+            style={({ pressed }) => [styles.promoBanner, pressed && styles.pressed]}
+            onPress={() => router.push('/account')}>
+            <Text style={styles.promoText}>
+              🎁 Launch offer — get free premium credits on your first plan
+            </Text>
+            <Text style={styles.promoCta}>See plans →</Text>
+          </Pressable>
+        </Animated.View>
       )}
 
       <InstallPrompt />
@@ -164,7 +190,7 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     screen: { flex: 1, backgroundColor: t.bg },
     content: { padding: 20, paddingBottom: 56, maxWidth: 720, width: '100%', alignSelf: 'center' },
     promoBanner: {
-      backgroundColor: t.accent,
+      backgroundColor: '#DC2626',
       borderRadius: 14,
       paddingVertical: 12,
       paddingHorizontal: 16,
