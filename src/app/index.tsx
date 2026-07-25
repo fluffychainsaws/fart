@@ -49,7 +49,13 @@ export default function HomeScreen() {
   // Phone-width browsers: the landscape clip gets cropped to a heavy zoom when
   // it "covers" the tall page, so on phones we fit the whole frame instead.
   const isPhone = width < 700;
-  const styles = useMemo(() => makeStyles(t, shadow, scheme, isPhone), [t, shadow, scheme, isPhone]);
+  // The fitted band is full-width at the clip's 16:9 ratio; push the content
+  // (offer banner + hero) below it so they don't overlap the video.
+  const bandInset = isPhone ? Math.round(width * (9 / 16)) + 12 : 20;
+  const styles = useMemo(
+    () => makeStyles(t, shadow, scheme, isPhone, bandInset),
+    [t, shadow, scheme, isPhone, bandInset],
+  );
   const wideDemo = width >= 700;
   const demoBase = wideDemo ? 'demo-web' : 'demo-phone';
   const promoOpen = signupPromoOpen();
@@ -261,6 +267,7 @@ const makeStyles = (
   shadow: ReturnType<typeof useCardShadow>,
   scheme: 'light' | 'dark',
   isPhone: boolean,
+  bandInset: number,
 ) => {
   const [r, g, b] = hexToRgb(t.bg);
   // Scrim over the backdrop video so hero copy stays legible. A touch lighter in
@@ -293,7 +300,9 @@ const makeStyles = (
       maxWidth: 720,
       alignSelf: 'center',
       paddingHorizontal: 20,
-      paddingTop: 20,
+      // On phones this clears the fitted video band above; on wider screens the
+      // content overlaps the full-bleed cover as intended.
+      paddingTop: bandInset,
       paddingBottom: 56,
     },
     promoBanner: {
