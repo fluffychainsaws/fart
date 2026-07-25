@@ -9,7 +9,7 @@ import { fromByteArray } from 'base64-js';
 import { Text } from '@/lib/AppText';
 import { useSession } from '@/lib/auth';
 import { openCheckout } from '@/lib/billing';
-import { CaptureTour } from '@/lib/CaptureTour';
+import { GuidedTour } from '@/lib/GuidedTour';
 import { MicIcon } from '@/lib/MicIcon';
 import { parseScriptPdf, parseScriptPhotos } from '@/lib/parser';
 import {
@@ -577,7 +577,7 @@ export default function CaptureScreen() {
       onClose={() => setShowUpgrade(false)}
     />
     {Platform.OS === 'web' && !busy && (
-      <CaptureTour
+      <GuidedTour
         stepRefs={[step1Ref, step2Ref, step3Ref]}
         texts={TOUR_TEXTS}
         visible={tourVisible}

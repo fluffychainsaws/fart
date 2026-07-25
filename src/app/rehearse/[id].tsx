@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -9,9 +9,12 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
+import { GuidedTour } from '@/lib/GuidedTour';
+import { RobotMascot } from '@/lib/RobotMascot';
 import {
   cloudVoiceActive,
   hasCloudVoice,
@@ -59,6 +62,11 @@ const VOICE_CMD_LINES = [
   '🛑 Say "FART stop" — pause the scene',
 ];
 
+// First rehearsal visit auto-runs the robot tour; later visits just ask, unless
+// the user has opted out for good.
+const REHEARSE_SEEN_KEY = 'fart.rehearseTourSeen.v1';
+const REHEARSE_NEVER_KEY = 'fart.rehearseTourNever.v1';
+
 // Desktop pointers can hover; touch screens can't. On hover-capable devices
 // the command list is a popover that opens when you point at the toggle; on
 // touch it stays as an always-visible card while voice commands are on.
@@ -94,6 +102,50 @@ export default function RehearseScreen() {
 
   const scrollRef = useRef<ScrollView>(null);
   const positions = useRef<Record<number, number>>({});
+
+  // Guided robot tour of the controls. Refs anchor each step to its button.
+  const playRef = useRef<View>(null);
+  const voicesRef = useRef<View>(null);
+  const readDirRef = useRef<View>(null);
+  const dialogueRef = useRef<View>(null);
+  const delayRef = useRef<View>(null);
+  const listenRef = useRef<View>(null);
+  const voiceCmdRef = useRef<View>(null);
+  const [tourVisible, setTourVisible] = useState(false);
+  const [askTour, setAskTour] = useState(false);
+
+  // On the first visit the tour runs itself; on later visits the robot just
+  // asks (Yes / Never again) unless the user opted out permanently.
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'web') return;
+      let alive = true;
+      (async () => {
+        const never = await AsyncStorage.getItem(REHEARSE_NEVER_KEY);
+        if (!alive || never) return;
+        const seen = await AsyncStorage.getItem(REHEARSE_SEEN_KEY);
+        if (!alive) return;
+        if (!seen) {
+          await AsyncStorage.setItem(REHEARSE_SEEN_KEY, '1');
+          setTimeout(() => alive && setTourVisible(true), 700);
+        } else {
+          setTimeout(() => alive && setAskTour(true), 600);
+        }
+      })();
+      return () => {
+        alive = false;
+      };
+    }, []),
+  );
+  const endTour = () => setTourVisible(false);
+  const startTour = () => {
+    setAskTour(false);
+    setTourVisible(true);
+  };
+  const neverTour = () => {
+    setAskTour(false);
+    AsyncStorage.setItem(REHEARSE_NEVER_KEY, '1').catch(() => {});
+  };
 
   // A script bought with an Audition Credit gets SHART STAR-level features for
   // itself regardless of the account's actual subscription tier — capped on
@@ -482,6 +534,43 @@ export default function RehearseScreen() {
   const current = script.elements[idx];
   const playing = status === 'playing' || status === 'waiting';
 
+  // Voice pickers only exist when a voice engine is available; the tour skips
+  // steps whose control isn't on screen.
+  const voicesPresent = neuralVoiceSupported() || (hasCloudVoice() && aiVoicesAllowed);
+  const tourSteps: { ref: React.RefObject<View | null>; text: string }[] = [
+    {
+      ref: playRef,
+      text: '▶ Hit Play and I’ll read every other character out loud, pausing for your lines. ⏮ jumps back to the top.',
+    },
+  ];
+  if (voicesPresent)
+    tourSteps.push({
+      ref: voicesRef,
+      text: 'Pick how I sound here — “Natural voices” run free on your device; “Premium voice” is our best cloud voice.',
+    });
+  tourSteps.push({
+    ref: readDirRef,
+    text: '🎬 “Read directions” toggles whether I read the stage directions out loud.',
+  });
+  tourSteps.push({
+    ref: dialogueRef,
+    text: '📄 “Dialogue only” hides the stage directions so you just see the lines.',
+  });
+  tourSteps.push({
+    ref: delayRef,
+    text: '⏱ Add a count-in before Play rolls, so you’ve got a beat to get into character.',
+  });
+  if (followSupported)
+    tourSteps.push({
+      ref: listenRef,
+      text: '🎤 Turn this on and I’ll wait for you to finish your line, then continue on cue — no tapping.',
+    });
+  if (voiceCommandsAllowed && speechSupported)
+    tourSteps.push({
+      ref: voiceCmdRef,
+      text: '🎙 Go hands-free: say “FART start”, “FART stop”, or “FART restart”.',
+    });
+
   return (
     <View style={styles.screen}>
       {readerChars.length > 0 && (
@@ -506,7 +595,40 @@ export default function RehearseScreen() {
           ))}
         </ScrollView>
       )}
-      <View style={styles.controls}>
+      {voicesPresent && (
+        <View ref={voicesRef} style={styles.voiceEngineRow}>
+          {neuralVoiceSupported() && (
+            <Pressable
+              style={[styles.toggle, neuralReady && styles.toggleOn]}
+              onPress={() => {
+                if (neuralState === 'ready') disableNeuralVoice();
+                else if (neuralState !== 'loading') enableNeuralVoice();
+              }}>
+              <Text style={[styles.toggleText, neuralReady && styles.toggleTextOn]}>
+                {neuralState === 'loading'
+                  ? `✨ Downloading voices… ${neuralPct}%`
+                  : neuralState === 'error'
+                    ? '✨ Natural voices — retry'
+                    : neuralState === 'ready'
+                      ? '✨ Natural voices'
+                      : '✨ Natural voices (free · 90MB)'}
+              </Text>
+            </Pressable>
+          )}
+          {hasCloudVoice() && aiVoicesAllowed && (
+            <Pressable
+              style={[styles.toggle, cloudOn && styles.toggleOn]}
+              onPress={() => {
+                const next = !cloudOn;
+                setCloudVoiceEnabled(next);
+                setCloudOn(next);
+              }}>
+              <Text style={[styles.toggleText, cloudOn && styles.toggleTextOn]}>✨ Premium voice</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+      <View ref={playRef} style={styles.controls}>
         <Pressable
           style={({ pressed }) => [styles.playButton, pressed && styles.pressed]}
           onPress={() => {
@@ -542,6 +664,7 @@ export default function RehearseScreen() {
       </View>
       <View style={styles.toggleRow}>
         <Pressable
+          ref={readDirRef}
           style={[styles.toggle, engine.readDirections && styles.toggleOn]}
           onPress={engine.toggleDirections}>
           <Text style={[styles.toggleText, engine.readDirections && styles.toggleTextOn]}>
@@ -549,13 +672,14 @@ export default function RehearseScreen() {
           </Text>
         </Pressable>
         <Pressable
+          ref={dialogueRef}
           style={[styles.toggle, hideDirections && styles.toggleOn]}
           onPress={() => setHideDirections((v) => !v)}>
           <Text style={[styles.toggleText, hideDirections && styles.toggleTextOn]}>
             📄 Dialogue only
           </Text>
         </Pressable>
-        <View style={styles.improvAnchor}>
+        <View ref={delayRef} style={styles.improvAnchor}>
           <Pressable
             style={[styles.toggle, startDelay > 0 && styles.toggleOn]}
             onPress={() => setDelayMenuOpen((v) => !v)}>
@@ -598,7 +722,7 @@ export default function RehearseScreen() {
           )}
         </View>
         {followSupported && (
-          <Pressable style={[styles.toggle, followOn && styles.toggleOn]} onPress={toggleFollow}>
+          <Pressable ref={listenRef} style={[styles.toggle, followOn && styles.toggleOn]} onPress={toggleFollow}>
             <Text style={[styles.toggleText, followOn && styles.toggleTextOn]}>
               🎤 Listen for my lines
             </Text>
@@ -650,7 +774,7 @@ export default function RehearseScreen() {
           </View>
         )}
         {voiceCommandsAllowed && speechSupported && (
-          <View style={styles.voiceCmdAnchor}>
+          <View ref={voiceCmdRef} style={styles.voiceCmdAnchor}>
             <Pressable
               style={[styles.toggle, voiceCmdOn && styles.toggleOn]}
               onPress={toggleVoiceCmd}
@@ -670,35 +794,6 @@ export default function RehearseScreen() {
               </View>
             )}
           </View>
-        )}
-        {neuralVoiceSupported() && (
-          <Pressable
-            style={[styles.toggle, neuralReady && styles.toggleOn]}
-            onPress={() => {
-              if (neuralState === 'ready') disableNeuralVoice();
-              else if (neuralState !== 'loading') enableNeuralVoice();
-            }}>
-            <Text style={[styles.toggleText, neuralReady && styles.toggleTextOn]}>
-              {neuralState === 'loading'
-                ? `✨ Downloading voices… ${neuralPct}%`
-                : neuralState === 'error'
-                  ? '✨ Natural voices — retry'
-                  : neuralState === 'ready'
-                    ? '✨ Natural voices'
-                    : '✨ Natural voices (free · 90MB)'}
-            </Text>
-          </Pressable>
-        )}
-        {hasCloudVoice() && aiVoicesAllowed && (
-          <Pressable
-            style={[styles.toggle, cloudOn && styles.toggleOn]}
-            onPress={() => {
-              const next = !cloudOn;
-              setCloudVoiceEnabled(next);
-              setCloudOn(next);
-            }}>
-            <Text style={[styles.toggleText, cloudOn && styles.toggleTextOn]}>✨ Premium voice</Text>
-          </Pressable>
         )}
       </View>
       {followErr && <Text style={styles.followError}>{followErr}</Text>}
@@ -919,6 +1014,40 @@ export default function RehearseScreen() {
         </View>
       </Modal>
       )}
+
+      {Platform.OS === 'web' && (
+        <GuidedTour
+          stepRefs={tourSteps.map((s) => s.ref)}
+          texts={tourSteps.map((s) => s.text)}
+          visible={tourVisible}
+          onDone={endTour}
+        />
+      )}
+
+      {askTour && (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setAskTour(false)}>
+          <Pressable style={styles.askBackdrop} onPress={() => setAskTour(false)} />
+          <View style={styles.askWrap} pointerEvents="box-none">
+            <View style={styles.askCard}>
+              <RobotMascot size={72} />
+              <Text style={styles.askTitle}>Want a quick tour?</Text>
+              <Text style={styles.askSub}>I can show you what each button does.</Text>
+              <View style={styles.askButtons}>
+                <Pressable
+                  style={({ pressed }) => [styles.askNever, pressed && styles.pressed]}
+                  onPress={neverTour}>
+                  <Text style={styles.askNeverText}>Never again</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.askYes, pressed && styles.pressed]}
+                  onPress={startTour}>
+                  <Text style={styles.askYesText}>Yes!</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -926,6 +1055,61 @@ export default function RehearseScreen() {
 const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.bg },
+    // Voice-engine pickers, sitting just above the Play button.
+    voiceEngineRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      gap: 8,
+      paddingHorizontal: 20,
+      paddingTop: 8,
+      maxWidth: 700,
+      width: '100%',
+      alignSelf: 'center',
+    },
+    askBackdrop: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+    },
+    askWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+    askCard: {
+      width: '100%',
+      maxWidth: 340,
+      backgroundColor: t.card,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: t.border,
+      padding: 20,
+      alignItems: 'center',
+      gap: 8,
+      ...shadow,
+    },
+    askTitle: { fontSize: 18, fontWeight: '800', color: t.ink, marginTop: 4 },
+    askSub: { fontSize: 14, color: t.inkSoft, textAlign: 'center' },
+    askButtons: { flexDirection: 'row', gap: 10, marginTop: 14, alignSelf: 'stretch' },
+    askNever: {
+      flex: 1,
+      borderRadius: 12,
+      paddingVertical: 12,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: t.border,
+      backgroundColor: t.bg,
+    },
+    askNeverText: { color: t.inkSoft, fontSize: 14, fontWeight: '700' },
+    askYes: {
+      flex: 1,
+      borderRadius: 12,
+      paddingVertical: 12,
+      alignItems: 'center',
+      backgroundColor: t.accent,
+      ...shadow,
+    },
+    askYesText: { color: '#fff', fontSize: 14, fontWeight: '800' },
     controls: {
       flexDirection: 'row',
       gap: 8,

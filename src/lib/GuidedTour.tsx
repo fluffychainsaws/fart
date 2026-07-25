@@ -7,11 +7,11 @@ import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 
 type Rect = { x: number; y: number; w: number; h: number };
 
-// A guided coach-mark tour for the New Script page: the helper robot slides in
-// from the sidebar side, moves to each numbered step, rings it, and narrates
-// from a bottom card. Non-blocking (pointerEvents box-none) so the page stays
-// usable while the tour runs. Web-only — the numbered steps only exist there.
-export function CaptureTour({
+// A reusable guided coach-mark tour: the helper robot slides in, moves to each
+// referenced element, rings it, and narrates from a speech bubble tethered to
+// the robot. Non-blocking (pointerEvents box-none) so the page stays usable
+// while the tour runs. Used by the New Script and Rehearsal screens.
+export function GuidedTour({
   stepRefs,
   texts,
   visible,
