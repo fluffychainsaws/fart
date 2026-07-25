@@ -1,0 +1,43 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Generate FART free-voice samples</title>
+<body style="font-family: system-ui; max-width: 640px; margin: 40px auto; line-height: 1.5">
+  <h1>FART — free voice samples</h1>
+  <p>
+    Generates the 6 free (Kokoro) voice clips locally in your browser — no API key, no cost.
+    Click the button, wait for the ~86&nbsp;MB model to download the first time, and the
+    <code>.wav</code> files will download automatically. Convert them to mp3 and drop them in
+    <code>public/voices/</code> (see README).
+  </p>
+  <button id="go" style="font-size: 16px; padding: 10px 18px">Generate 6 clips</button>
+  <pre id="log" style="background: #f4f4f4; padding: 12px; white-space: pre-wrap"></pre>
+
+  <script type="module">
+    const LINE = "Hey! I'm the friend that doesn't suck! Let's audition and make you a star!";
+    const VOICES = ['af_heart', 'af_sarah', 'af_aoede', 'am_fenrir', 'am_eric', 'am_michael'];
+    const MODEL_ID = 'onnx-community/Kokoro-82M-v1.0-ONNX';
+    const log = (m) => (document.getElementById('log').textContent += m + '\n');
+
+    document.getElementById('go').onclick = async () => {
+      try {
+        log('Loading kokoro-js…');
+        const { KokoroTTS } = await import('https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js');
+        log('Downloading model (first run only)…');
+        const tts = await KokoroTTS.from_pretrained(MODEL_ID, { dtype: 'q8', device: 'wasm' });
+        for (const voice of VOICES) {
+          log('Generating ' + voice + '…');
+          const audio = await tts.generate(LINE, { voice });
+          const blob = audio.toBlob ? audio.toBlob() : new Blob([audio.toWav()], { type: 'audio/wav' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = voice + '.wav';
+          a.click();
+          URL.revokeObjectURL(a.href);
+        }
+        log('Done — 6 .wav files downloaded. Convert to mp3 (see README) and move to public/voices/.');
+      } catch (e) {
+        log('ERROR: ' + (e && e.message ? e.message : e));
+      }
+    };
+  </script>
+</body>

@@ -7,6 +7,8 @@ import { makeDemoScript } from '@/lib/demo';
 import { InstallPrompt } from '@/lib/InstallPrompt';
 import { signupPromoOpen } from '@/lib/promo';
 import { useCardShadow, useEffectiveScheme, useTheme, type Theme } from '@/lib/theme';
+import { VoiceSampler } from '@/lib/VoiceSampler';
+import { SAMPLES_READY } from '@/lib/voiceSamples';
 
 const FEATURES = [
   {
@@ -22,7 +24,12 @@ const FEATURES = [
   {
     icon: '📸',
     title: 'Your real sides',
-    desc: 'Snap a photo or drop a PDF and it reads your actual script — no retyping, no setup.',
+    desc: 'Snap a photo or drop a PDF and it reads your actual script.',
+  },
+  {
+    icon: '🎭',
+    title: 'Improv option',
+    desc: 'Forget the lines and say what you want — the AI still reads their lines right back.',
   },
   {
     icon: '🎬',
@@ -190,7 +197,7 @@ export default function HomeScreen() {
       <Pressable
         style={({ pressed }) => [styles.ctaPrimary, pressed && styles.pressed]}
         onPress={tryDemo}>
-        <Text style={styles.ctaPrimaryText}>▶ Try the demo scene — free</Text>
+        <Text style={styles.ctaPrimaryText}>▶ Try a demo side with the voices - Free</Text>
       </Pressable>
       <Text style={styles.ctaMicro}>No sign-up. No download. Rehearse in seconds.</Text>
 
@@ -207,6 +214,9 @@ export default function HomeScreen() {
           </View>
         ))}
       </View>
+
+      {/* Hear the voices (web only; hidden until the sample clips exist) */}
+      {Platform.OS === 'web' && SAMPLES_READY && <VoiceSampler />}
 
       {/* Differentiators */}
       <View style={styles.diffCard}>
