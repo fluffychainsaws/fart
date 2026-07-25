@@ -105,12 +105,13 @@ export default function RehearseScreen() {
 
   // Guided robot tour of the controls. Refs anchor each step to its button.
   const playRef = useRef<View>(null);
-  const voicesRef = useRef<View>(null);
+  const castRef = useRef<View>(null);
   const readDirRef = useRef<View>(null);
   const dialogueRef = useRef<View>(null);
   const delayRef = useRef<View>(null);
   const listenRef = useRef<View>(null);
   const voiceCmdRef = useRef<View>(null);
+  const voiceEngineRef = useRef<View>(null);
   const [tourVisible, setTourVisible] = useState(false);
   const [askTour, setAskTour] = useState(false);
 
@@ -534,8 +535,8 @@ export default function RehearseScreen() {
   const current = script.elements[idx];
   const playing = status === 'playing' || status === 'waiting';
 
-  // Voice pickers only exist when a voice engine is available; the tour skips
-  // steps whose control isn't on screen.
+  // Engine-voice toggles only exist when a voice engine is available; the tour
+  // skips steps whose control isn't on screen.
   const voicesPresent = neuralVoiceSupported() || (hasCloudVoice() && aiVoicesAllowed);
   const tourSteps: { ref: React.RefObject<View | null>; text: string }[] = [
     {
@@ -543,10 +544,10 @@ export default function RehearseScreen() {
       text: '▶ Hit Play and I’ll read every other character out loud, pausing for your lines. ⏮ jumps back to the top.',
     },
   ];
-  if (voicesPresent)
+  if (readerChars.length > 0)
     tourSteps.push({
-      ref: voicesRef,
-      text: 'Pick how I sound here — “Natural voices” run free on your device; “Premium voice” is our best cloud voice.',
+      ref: castRef,
+      text: '🔊 Each character reads in their own voice — tap a name here to choose exactly how they sound.',
     });
   tourSteps.push({
     ref: readDirRef,
@@ -570,10 +571,16 @@ export default function RehearseScreen() {
       ref: voiceCmdRef,
       text: '🎙 Go hands-free: say “FART start”, “FART stop”, or “FART restart”.',
     });
+  if (voicesPresent)
+    tourSteps.push({
+      ref: voiceEngineRef,
+      text: '✨ Prefer richer AI voices for everyone? “Natural voices” are free and on-device; “Premium voice” is our best cloud voice.',
+    });
 
   return (
     <View style={styles.screen}>
       {readerChars.length > 0 && (
+        <View ref={castRef} style={styles.castRowWrap}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -594,38 +601,6 @@ export default function RehearseScreen() {
             </Pressable>
           ))}
         </ScrollView>
-      )}
-      {voicesPresent && (
-        <View ref={voicesRef} style={styles.voiceEngineRow}>
-          {neuralVoiceSupported() && (
-            <Pressable
-              style={[styles.toggle, neuralReady && styles.toggleOn]}
-              onPress={() => {
-                if (neuralState === 'ready') disableNeuralVoice();
-                else if (neuralState !== 'loading') enableNeuralVoice();
-              }}>
-              <Text style={[styles.toggleText, neuralReady && styles.toggleTextOn]}>
-                {neuralState === 'loading'
-                  ? `✨ Downloading voices… ${neuralPct}%`
-                  : neuralState === 'error'
-                    ? '✨ Natural voices — retry'
-                    : neuralState === 'ready'
-                      ? '✨ Natural voices'
-                      : '✨ Natural voices (free · 90MB)'}
-              </Text>
-            </Pressable>
-          )}
-          {hasCloudVoice() && aiVoicesAllowed && (
-            <Pressable
-              style={[styles.toggle, cloudOn && styles.toggleOn]}
-              onPress={() => {
-                const next = !cloudOn;
-                setCloudVoiceEnabled(next);
-                setCloudOn(next);
-              }}>
-              <Text style={[styles.toggleText, cloudOn && styles.toggleTextOn]}>✨ Premium voice</Text>
-            </Pressable>
-          )}
         </View>
       )}
       <View ref={playRef} style={styles.controls}>
@@ -792,6 +767,39 @@ export default function RehearseScreen() {
                   </Text>
                 ))}
               </View>
+            )}
+          </View>
+        )}
+        {voicesPresent && (
+          <View ref={voiceEngineRef} style={styles.engineGroup}>
+            {neuralVoiceSupported() && (
+              <Pressable
+                style={[styles.toggle, neuralReady && styles.toggleOn]}
+                onPress={() => {
+                  if (neuralState === 'ready') disableNeuralVoice();
+                  else if (neuralState !== 'loading') enableNeuralVoice();
+                }}>
+                <Text style={[styles.toggleText, neuralReady && styles.toggleTextOn]}>
+                  {neuralState === 'loading'
+                    ? `✨ Downloading voices… ${neuralPct}%`
+                    : neuralState === 'error'
+                      ? '✨ Natural voices — retry'
+                      : neuralState === 'ready'
+                        ? '✨ Natural voices'
+                        : '✨ Natural voices (free · 90MB)'}
+                </Text>
+              </Pressable>
+            )}
+            {hasCloudVoice() && aiVoicesAllowed && (
+              <Pressable
+                style={[styles.toggle, cloudOn && styles.toggleOn]}
+                onPress={() => {
+                  const next = !cloudOn;
+                  setCloudVoiceEnabled(next);
+                  setCloudOn(next);
+                }}>
+                <Text style={[styles.toggleText, cloudOn && styles.toggleTextOn]}>✨ Premium voice</Text>
+              </Pressable>
             )}
           </View>
         )}
@@ -1055,18 +1063,8 @@ export default function RehearseScreen() {
 const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.bg },
-    // Voice-engine pickers, sitting just above the Play button.
-    voiceEngineRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'center',
-      gap: 8,
-      paddingHorizontal: 20,
-      paddingTop: 8,
-      maxWidth: 700,
-      width: '100%',
-      alignSelf: 'center',
-    },
+    // Natural/Premium engine toggles kept together as one unit in the toggle row.
+    engineGroup: { flexDirection: 'row', gap: 8 },
     askBackdrop: {
       position: 'absolute',
       top: 0,
@@ -1309,8 +1307,10 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     },
     continueButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
     noteBadge: { fontSize: 12, color: t.inkSoft, fontStyle: 'italic', marginTop: 6 },
-    castRow: { flexGrow: 0, marginTop: 8 },
-    castRowContent: { paddingHorizontal: 20, gap: 8 },
+    // Per-character voice pickers, centered directly above the Play button.
+    castRowWrap: { maxWidth: 700, width: '100%', alignSelf: 'center', marginTop: 8 },
+    castRow: { flexGrow: 0 },
+    castRowContent: { paddingHorizontal: 20, gap: 8, justifyContent: 'center', flexGrow: 1 },
     castChip: {
       backgroundColor: t.card,
       borderWidth: 1,
