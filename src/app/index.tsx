@@ -178,8 +178,8 @@ export default function HomeScreen() {
       {/* Hero */}
       <Text style={styles.kicker}>YOUR POCKET SCENE PARTNER</Text>
       <Text style={styles.hero}>
-        Never rehearse alone again and bring your scene to life with an AI scene partner who&apos;s
-        always ready to read!
+        Do your friends suck and not have enough time for you?! Well guess what — FART is here for
+        you!
       </Text>
       <Text style={styles.subhead}>
         We have changed the game of AI reading to a whole new level! We offer the highest quality
