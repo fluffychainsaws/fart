@@ -176,7 +176,6 @@ export default function HomeScreen() {
       )}
 
       {/* Hero */}
-      <Text style={styles.kicker}>YOUR POCKET SCENE PARTNER</Text>
       <Text style={styles.hero}>
         Do your friends suck and not have enough time for you?! Well guess what — FART is here for
         you!
@@ -302,14 +301,6 @@ const makeStyles = (
     },
     webBannerText: { fontSize: 14, fontWeight: '700', color: '#0066cc' },
     webBannerSubtext: { fontSize: 12, color: '#0066cc', marginTop: 2, opacity: 0.8 },
-    kicker: {
-      fontSize: 12,
-      fontWeight: '800',
-      color: t.accent,
-      letterSpacing: 1.5,
-      textAlign: 'center',
-      marginTop: 4,
-    },
     hero: {
       fontSize: 30,
       lineHeight: 36,
