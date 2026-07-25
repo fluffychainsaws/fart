@@ -29,8 +29,10 @@ export function CaptureTour({
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [index, setIndex] = useState(0);
   const [ring, setRing] = useState<Rect | null>(null);
+  const [robot, setRobot] = useState({ x: -110, y: 40 });
   const pos = useRef(new Animated.ValueXY({ x: -110, y: 40 })).current;
   const ringOpacity = useRef(new Animated.Value(0)).current;
+  const bubbleAnim = useRef(new Animated.Value(0)).current; // pop-in per step
   const ROBOT = 74;
 
   // Position of a step relative to this overlay's own top-left, so the robot
@@ -52,9 +54,11 @@ export function CaptureTour({
     if (visible) {
       setIndex(0);
       pos.setValue({ x: -110, y: 40 });
+      setRobot({ x: -110, y: 40 });
       ringOpacity.setValue(0);
+      bubbleAnim.setValue(0);
     }
-  }, [visible, pos, ringOpacity]);
+  }, [visible, pos, ringOpacity, bubbleAnim]);
 
   // Move the robot + ring onto the current step.
   useEffect(() => {
@@ -70,9 +74,16 @@ export function CaptureTour({
       if (tx < 6) tx = r.x + r.w + 6;
       tx = Math.max(6, Math.min(tx, size.w - ROBOT - 6));
       const ty = Math.max(6, Math.min(r.y + r.h / 2 - ROBOT / 2, size.h - ROBOT - 6));
+      setRobot({ x: tx, y: ty });
+      bubbleAnim.setValue(0);
       Animated.parallel([
         Animated.spring(pos, { toValue: { x: tx, y: ty }, useNativeDriver: true, friction: 7, tension: 55 }),
         Animated.timing(ringOpacity, { toValue: 1, duration: 260, useNativeDriver: true }),
+        // Let the bubble pop out once the robot has (mostly) arrived.
+        Animated.sequence([
+          Animated.delay(200),
+          Animated.spring(bubbleAnim, { toValue: 1, useNativeDriver: true, friction: 6, tension: 90 }),
+        ]),
       ]).start();
     }, 60);
     return () => {
@@ -83,6 +94,16 @@ export function CaptureTour({
 
   if (!visible) return null;
   const last = index >= texts.length - 1;
+
+  // Speech-bubble geometry, tethered to the robot. Sits below the robot when
+  // it's in the upper part of the screen, above it when it's lower, and its
+  // tail points back at the robot's center.
+  const bubbleW = Math.min(340, Math.max(200, size.w - 24));
+  const robotCx = robot.x + ROBOT / 2;
+  const below = robot.y < size.h * 0.55;
+  const bubbleLeft = Math.max(12, Math.min(robotCx - bubbleW / 2, size.w - bubbleW - 12));
+  const tailX = Math.max(22, Math.min(robotCx - bubbleLeft, bubbleW - 22));
+  const bubbleScale = bubbleAnim.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1] });
 
   return (
     <View
@@ -106,8 +127,19 @@ export function CaptureTour({
         <RobotMascot size={ROBOT} />
       </Animated.View>
 
-      <View style={styles.barWrap} pointerEvents="box-none">
-        <View style={styles.bar}>
+      <Animated.View
+        pointerEvents="box-none"
+        style={[
+          styles.bubbleWrap,
+          { left: bubbleLeft, width: bubbleW },
+          below ? { top: robot.y + ROBOT + 12 } : { bottom: size.h - robot.y + 12 },
+          { opacity: bubbleAnim, transform: [{ scale: bubbleScale }] },
+        ]}>
+        <View
+          pointerEvents="none"
+          style={[styles.tail, { left: tailX - 8 }, below ? styles.tailUp : styles.tailDown]}
+        />
+        <View style={styles.bubble}>
           <Text style={styles.barText}>{texts[index]}</Text>
           <View style={styles.barControls}>
             <View style={styles.dots}>
@@ -127,7 +159,7 @@ export function CaptureTour({
             </View>
           </View>
         </View>
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -143,10 +175,19 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       backgroundColor: 'transparent',
     },
     robot: { position: 'absolute', top: 0, left: 0 },
-    barWrap: { position: 'absolute', left: 0, right: 0, bottom: 20, alignItems: 'center', paddingHorizontal: 16 },
-    bar: {
-      width: '100%',
-      maxWidth: 460,
+    bubbleWrap: { position: 'absolute' },
+    // Rotated square that forms the bubble's tail; only the two outward-facing
+    // edges are colored, and the bubble body paints over its inner half.
+    tail: {
+      position: 'absolute',
+      width: 16,
+      height: 16,
+      backgroundColor: t.card,
+      transform: [{ rotate: '45deg' }],
+    },
+    tailUp: { top: -7, borderTopWidth: 1, borderLeftWidth: 1, borderColor: t.accent },
+    tailDown: { bottom: -7, borderBottomWidth: 1, borderRightWidth: 1, borderColor: t.accent },
+    bubble: {
       backgroundColor: t.card,
       borderRadius: 16,
       borderWidth: 1,
