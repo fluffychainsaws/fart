@@ -104,8 +104,8 @@ export default function CaptureScreen() {
   };
   const TOUR_TEXTS = [
     'Hi, I’m F.A.R.T.! First, tap “Test your microphone” — let’s make sure I can hear you loud and clear.',
-    'Next, tap one of these to upload your sides — snap a photo or pick one from your files!',
-    '…or drop in a PDF here. Then hit Create and let’s start auditioning together! 🎬',
+    'Next, upload your sides — snap a photo, pick from your files, or drop in a PDF.',
+    'Once your script’s uploaded, this button lights up — hit Create and let’s start auditioning together! 🎬',
   ];
 
   // Saved scripts live here now (moved off Home). On focus: load the tier,
@@ -443,23 +443,16 @@ export default function CaptureScreen() {
                   <Text style={styles.pickLabel}>From photos</Text>
                 </Pressable>
               </View>
-            </View>
-          </View>
-
-          <Text style={styles.orDivider}>or upload a PDF</Text>
-          <View ref={step3Ref} style={stepContainer}>
-            {Platform.OS === 'web' && (
-              <View style={styles.stepBadge}>
-                <Text style={styles.stepBadgeText}>3</Text>
-              </View>
-            )}
-            <View style={stepInner}>
-              <Pressable
-                style={({ pressed }) => [styles.pdfButton, pressed && styles.pressed]}
-                onPress={pickPdf}>
-                <Text style={styles.pdfEmoji}>📄</Text>
-                <Text style={styles.pdfLabel}>Upload PDF</Text>
-              </Pressable>
+              {/* On web the dashed box above already uploads a PDF; native
+                  keeps a dedicated button since it has no drop zone. */}
+              {Platform.OS !== 'web' && (
+                <Pressable
+                  style={({ pressed }) => [styles.pdfButton, styles.pdfButtonSpaced, pressed && styles.pressed]}
+                  onPress={pickPdf}>
+                  <Text style={styles.pdfEmoji}>📄</Text>
+                  <Text style={styles.pdfLabel}>Upload PDF</Text>
+                </Pressable>
+              )}
             </View>
           </View>
 
@@ -515,13 +508,29 @@ export default function CaptureScreen() {
             </Pressable>
           )}
 
-          {hasInput && (
-            <Pressable
-              style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
-              onPress={createScript}>
-              <Text style={styles.primaryButtonText}>✨ Create my script</Text>
-            </Pressable>
-          )}
+          {/* Step 3 is the finish line: grayed out until a script is uploaded,
+              then it turns solid and creates the script. */}
+          <View ref={step3Ref} style={[stepContainer, styles.stepSpaced]}>
+            {Platform.OS === 'web' && (
+              <View style={styles.stepBadge}>
+                <Text style={styles.stepBadgeText}>3</Text>
+              </View>
+            )}
+            <View style={stepInner}>
+              <Pressable
+                disabled={!hasInput}
+                style={({ pressed }) => [
+                  styles.createButton,
+                  hasInput ? styles.createButtonOn : styles.createButtonOff,
+                  pressed && hasInput && styles.pressed,
+                ]}
+                onPress={createScript}>
+                <Text style={[styles.createButtonText, !hasInput && styles.createButtonTextOff]}>
+                  ✨ Create my script
+                </Text>
+              </Pressable>
+            </View>
+          </View>
 
           {scripts.length > 0 && (
             <>
@@ -747,6 +756,23 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     ...shadow,
   },
   primaryButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  pdfButtonSpaced: { marginTop: 18 },
+  // Step 3 "Create my script": neutral/greyed while there's nothing to create,
+  // solid accent once a script has been uploaded.
+  createButton: {
+    borderRadius: 16,
+    paddingVertical: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    borderWidth: 1,
+    width: '100%',
+  },
+  createButtonOn: { backgroundColor: t.accent, borderColor: 'rgba(0,0,0,0.15)', ...shadow },
+  createButtonOff: { backgroundColor: t.card, borderColor: t.border },
+  createButtonText: { fontSize: 17, fontWeight: '800', color: '#fff' },
+  createButtonTextOff: { color: t.inkSoft },
   micTestButton: {
     borderRadius: 16,
     paddingVertical: 13,
