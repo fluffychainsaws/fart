@@ -102,9 +102,9 @@ export default function HomeScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      {/* Full-viewport ambient backdrop (web only). Pinned with position:fixed
-          so it stays put while the page scrolls, and layered behind the content
-          via a readability scrim so the hero copy stays legible. */}
+      {/* Ambient backdrop (web only). Absolutely positioned to span the full
+          page height so it scrolls WITH the content, layered behind it via a
+          readability scrim so the hero copy stays legible. */}
       {Platform.OS === 'web' && (
         <>
           {createElement(
@@ -123,11 +123,12 @@ export default function HomeScreen() {
                 if (el) el.muted = true;
               },
               style: {
-                position: 'fixed',
+                position: 'absolute',
                 inset: 0,
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
+                objectPosition: 'center',
                 zIndex: 0,
                 pointerEvents: 'none',
               },
@@ -262,10 +263,13 @@ const makeStyles = (
   const scrimAlpha = scheme === 'dark' ? 0.72 : 0.82;
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.bg },
-    content: { padding: 20, paddingBottom: 56, maxWidth: 720, width: '100%', alignSelf: 'center' },
-    // Pinned tint sitting between the backdrop video and the page content.
+    // Full-width scroll container that also acts as the positioning context for
+    // the absolutely-positioned backdrop, so the video spans the whole page.
+    content: { width: '100%', position: 'relative' },
+    // Tint sitting between the backdrop video and the page content. Spans the
+    // full page height (absolute) so it scrolls together with the video.
     bgScrim: {
-      position: 'fixed' as 'absolute',
+      position: 'absolute',
       top: 0,
       left: 0,
       right: 0,
@@ -273,8 +277,18 @@ const makeStyles = (
       backgroundColor: `rgba(${r},${g},${b},${scrimAlpha})`,
       zIndex: 0,
     },
-    // Everything the user reads/taps lives here, lifted above the backdrop.
-    layer: { position: 'relative', zIndex: 1, width: '100%' },
+    // Everything the user reads/taps lives here, lifted above the backdrop and
+    // carrying the page's width constraint / padding.
+    layer: {
+      position: 'relative',
+      zIndex: 1,
+      width: '100%',
+      maxWidth: 720,
+      alignSelf: 'center',
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 56,
+    },
     promoBanner: {
       backgroundColor: '#DC2626',
       borderRadius: 14,
