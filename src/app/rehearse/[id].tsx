@@ -564,7 +564,7 @@ export default function RehearseScreen() {
   if (followSupported)
     tourSteps.push({
       ref: listenRef,
-      text: '🎤 Turn this on and I’ll wait for you to finish your line, then continue on cue — no tapping.',
+      text: '🎤 Turn this on and I’ll wait for you to finish your line, then continue on cue — no tapping. It also unlocks an “Improv” option, so I still respond if you go off-script.',
     });
   if (voiceCommandsAllowed && speechSupported)
     tourSteps.push({
