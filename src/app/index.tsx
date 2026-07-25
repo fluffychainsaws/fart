@@ -1,4 +1,4 @@
-import { createElement, useEffect, useMemo, useRef } from 'react';
+import { createElement, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Linking, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 
@@ -6,7 +6,7 @@ import { Text } from '@/lib/AppText';
 import { makeDemoScript } from '@/lib/demo';
 import { InstallPrompt } from '@/lib/InstallPrompt';
 import { signupPromoOpen } from '@/lib/promo';
-import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
+import { useCardShadow, useEffectiveScheme, useTheme, type Theme } from '@/lib/theme';
 
 const FEATURES = [
   {
@@ -44,11 +44,31 @@ const FEATURES = [
 export default function HomeScreen() {
   const t = useTheme();
   const shadow = useCardShadow();
-  const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
+  const scheme = useEffectiveScheme();
+  const styles = useMemo(() => makeStyles(t, shadow, scheme), [t, shadow, scheme]);
   const { width } = useWindowDimensions();
   const wideDemo = width >= 700;
   const demoBase = wideDemo ? 'demo-web' : 'demo-phone';
   const promoOpen = signupPromoOpen();
+
+  // Respect "reduce motion": pause the backdrop video (a static first frame
+  // still gives the page depth) for users who opt out of animation.
+  const bgVideoRef = useRef<HTMLVideoElement | null>(null);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReduceMotion(mq.matches);
+    update();
+    mq.addEventListener?.('change', update);
+    return () => mq.removeEventListener?.('change', update);
+  }, []);
+  useEffect(() => {
+    const v = bgVideoRef.current;
+    if (!v) return;
+    if (reduceMotion) v.pause();
+    else void v.play().catch(() => {});
+  }, [reduceMotion]);
 
   // Slow attention-grabbing pulse for the launch banner.
   const pulse = useRef(new Animated.Value(1)).current;
@@ -82,6 +102,45 @@ export default function HomeScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      {/* Full-viewport ambient backdrop (web only). Pinned with position:fixed
+          so it stays put while the page scrolls, and layered behind the content
+          via a readability scrim so the hero copy stays legible. */}
+      {Platform.OS === 'web' && (
+        <>
+          {createElement(
+            'video',
+            {
+              key: 'home-bg',
+              autoPlay: !reduceMotion,
+              loop: true,
+              muted: true,
+              playsInline: true,
+              controls: false,
+              preload: 'auto',
+              'aria-hidden': true,
+              ref: (el: HTMLVideoElement | null) => {
+                bgVideoRef.current = el;
+                if (el) el.muted = true;
+              },
+              style: {
+                position: 'fixed',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                zIndex: 0,
+                pointerEvents: 'none',
+              },
+            },
+            // mp4 first for Safari; webm for browsers without H.264.
+            createElement('source', { key: 'mp4', src: '/home-bg.mp4', type: 'video/mp4' }),
+            createElement('source', { key: 'webm', src: '/home-bg.webm', type: 'video/webm' }),
+          )}
+          <View style={styles.bgScrim} pointerEvents="none" />
+        </>
+      )}
+
+      <View style={styles.layer}>
       {promoOpen && (
         <Animated.View style={{ opacity: pulse }}>
           <Pressable
@@ -181,14 +240,41 @@ export default function HomeScreen() {
       <Pressable style={styles.plansLink} onPress={() => router.push('/account')}>
         <Text style={styles.plansLinkText}>See plans &amp; pricing</Text>
       </Pressable>
+      </View>
     </ScrollView>
   );
 }
 
-const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
-  StyleSheet.create({
+const hexToRgb = (hex: string): [number, number, number] => {
+  const h = hex.replace('#', '');
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)) as [number, number, number];
+};
+
+const makeStyles = (
+  t: Theme,
+  shadow: ReturnType<typeof useCardShadow>,
+  scheme: 'light' | 'dark',
+) => {
+  const [r, g, b] = hexToRgb(t.bg);
+  // Scrim over the backdrop video so hero copy stays legible. A touch lighter in
+  // dark mode (video shows through more) and heavier in light mode where dark
+  // text needs the contrast.
+  const scrimAlpha = scheme === 'dark' ? 0.72 : 0.82;
+  return StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.bg },
     content: { padding: 20, paddingBottom: 56, maxWidth: 720, width: '100%', alignSelf: 'center' },
+    // Pinned tint sitting between the backdrop video and the page content.
+    bgScrim: {
+      position: 'fixed' as 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: `rgba(${r},${g},${b},${scrimAlpha})`,
+      zIndex: 0,
+    },
+    // Everything the user reads/taps lives here, lifted above the backdrop.
+    layer: { position: 'relative', zIndex: 1, width: '100%' },
     promoBanner: {
       backgroundColor: '#DC2626',
       borderRadius: 14,
@@ -302,3 +388,4 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     plansLinkText: { fontSize: 14, color: t.inkSoft, fontWeight: '700' },
     pressed: { opacity: 0.7 },
   });
+};
