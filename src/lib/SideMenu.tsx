@@ -7,6 +7,7 @@ import { Text } from '@/lib/AppText';
 import { signOut, useSession } from '@/lib/auth';
 import { ClapperIcon } from '@/lib/ClapperIcon';
 import { CoinIcon } from '@/lib/CoinIcon';
+import { HelpBot } from '@/lib/HelpBot';
 import { HomeIcon } from '@/lib/HomeIcon';
 import { LogoutIcon } from '@/lib/LogoutIcon';
 import { MicIcon } from '@/lib/MicIcon';
@@ -158,7 +159,9 @@ function MenuContent({ onNavigate }: { onNavigate?: () => void }) {
         );
       })}
 
-      <View style={styles.spacer} />
+      <View style={styles.spacer}>
+        <HelpBot onOpen={onNavigate} />
+      </View>
       <View style={styles.divider} />
 
       {BOTTOM_LINKS.map((link) => {
@@ -488,7 +491,7 @@ function makeStyles(t: Theme, shadow: ReturnType<typeof useCardShadow>) {
       paddingBottom: 20,
       paddingHorizontal: 12,
     },
-    spacer: { flex: 1, minHeight: 12 },
+    spacer: { flex: 1, minHeight: 120, alignItems: 'center', justifyContent: 'center' },
     divider: {
       height: StyleSheet.hairlineWidth,
       backgroundColor: t.border,
