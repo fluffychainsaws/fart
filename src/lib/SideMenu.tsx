@@ -491,7 +491,13 @@ function makeStyles(t: Theme, shadow: ReturnType<typeof useCardShadow>) {
       paddingBottom: 20,
       paddingHorizontal: 12,
     },
-    spacer: { flex: 1, minHeight: 120, alignItems: 'center', justifyContent: 'center' },
+    spacer: {
+      flex: 1,
+      minHeight: 120,
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      paddingBottom: 12,
+    },
     divider: {
       height: StyleSheet.hairlineWidth,
       backgroundColor: t.border,
