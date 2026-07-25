@@ -45,8 +45,11 @@ export default function HomeScreen() {
   const t = useTheme();
   const shadow = useCardShadow();
   const scheme = useEffectiveScheme();
-  const styles = useMemo(() => makeStyles(t, shadow, scheme), [t, shadow, scheme]);
   const { width } = useWindowDimensions();
+  // Phone-width browsers: the landscape clip gets cropped to a heavy zoom when
+  // it "covers" the tall page, so on phones we fit the whole frame instead.
+  const isPhone = width < 700;
+  const styles = useMemo(() => makeStyles(t, shadow, scheme, isPhone), [t, shadow, scheme, isPhone]);
   const wideDemo = width >= 700;
   const demoBase = wideDemo ? 'demo-web' : 'demo-phone';
   const promoOpen = signupPromoOpen();
@@ -127,8 +130,10 @@ export default function HomeScreen() {
                 inset: 0,
                 width: '100%',
                 height: '100%',
-                objectFit: 'cover',
-                objectPosition: 'center',
+                // Phones: show the whole frame (smaller, uncropped) anchored to
+                // the top. Wider screens keep the full-bleed cover.
+                objectFit: isPhone ? 'contain' : 'cover',
+                objectPosition: isPhone ? 'center top' : 'center',
                 zIndex: 0,
                 pointerEvents: 'none',
               },
@@ -255,12 +260,14 @@ const makeStyles = (
   t: Theme,
   shadow: ReturnType<typeof useCardShadow>,
   scheme: 'light' | 'dark',
+  isPhone: boolean,
 ) => {
   const [r, g, b] = hexToRgb(t.bg);
   // Scrim over the backdrop video so hero copy stays legible. A touch lighter in
   // dark mode (video shows through more) and heavier in light mode where dark
-  // text needs the contrast.
-  const scrimAlpha = scheme === 'dark' ? 0.72 : 0.82;
+  // text needs the contrast. On phones the video is a small top band with
+  // little copy over it, so we lighten the scrim to let that frame read.
+  const scrimAlpha = isPhone ? 0.55 : scheme === 'dark' ? 0.72 : 0.82;
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: t.bg },
     // Full-width scroll container that also acts as the positioning context for
