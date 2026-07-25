@@ -182,7 +182,7 @@ export default function HomeScreen() {
       <Text style={styles.hero}>Run your lines with a partner who&apos;s always ready.</Text>
       <Text style={styles.subhead}>
         We have changed the game of AI reading to a whole new level! We offer the highest quality
-        voice. Hands-free commands, so you can keep talking without delay. We give you the ability to
+        voices. Hands-free commands, so you can keep talking without delay. We give you the ability to
         improv and still have a human-like response from our reader, F.A.R.T.
       </Text>
 
