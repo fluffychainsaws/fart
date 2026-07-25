@@ -13,6 +13,7 @@ import { GuidedTour } from '@/lib/GuidedTour';
 import { MicIcon } from '@/lib/MicIcon';
 import { parseScriptPdf, parseScriptPhotos } from '@/lib/parser';
 import {
+  deleteAllScripts,
   deleteScript,
   FREE_SCRIPT_TTL_DAYS,
   listScripts,
@@ -147,6 +148,19 @@ export default function CaptureScreen() {
     Alert.alert('Delete script', `Delete "${script.title}"?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: reload },
+    ]);
+  };
+
+  const confirmDeleteAll = () => {
+    const run = () => deleteAllScripts().then(() => setScripts([]));
+    const msg = `Delete all ${scripts.length} script${scripts.length === 1 ? '' : 's'}? This can't be undone.`;
+    if (Platform.OS === 'web') {
+      if (window.confirm(msg)) run();
+      return;
+    }
+    Alert.alert('Delete all scripts', msg, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete all', style: 'destructive', onPress: run },
     ]);
   };
 
@@ -534,7 +548,15 @@ export default function CaptureScreen() {
 
           {scripts.length > 0 && (
             <>
-              <Text style={styles.scriptsTitle}>Your scripts</Text>
+              <View style={styles.scriptsHeader}>
+                <Text style={styles.scriptsTitle}>Your scripts</Text>
+                <Pressable
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.deleteAllButton, pressed && styles.pressed]}
+                  onPress={confirmDeleteAll}>
+                  <Text style={styles.deleteAllText}>🗑️ Delete all</Text>
+                </Pressable>
+              </View>
               <Text style={styles.scriptsNote}>
                 {tier === 'free'
                   ? `Free scripts clear about ${FREE_SCRIPT_TTL_DAYS} days after you create them — upgrade to keep a lasting library.`
@@ -793,15 +815,28 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     marginBottom: 4,
     fontWeight: '600',
   },
+  scriptsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 28,
+    marginBottom: 4,
+  },
   scriptsTitle: {
     fontSize: 13,
     fontWeight: '700',
     color: t.inkSoft,
-    marginTop: 28,
-    marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
+  deleteAllButton: {
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: t.border,
+  },
+  deleteAllText: { fontSize: 12, fontWeight: '700', color: t.danger },
   scriptsNote: { fontSize: 12, color: t.inkSoft, marginBottom: 12, lineHeight: 17 },
   scriptCard: {
     backgroundColor: t.card,

@@ -35,6 +35,13 @@ export async function deleteScript(id: string): Promise<void> {
   pushDelete(id).catch(() => {});
 }
 
+// Clear the whole library, mirroring each deletion to the account.
+export async function deleteAllScripts(): Promise<void> {
+  const scripts = await listScripts();
+  await AsyncStorage.setItem(KEY, JSON.stringify([]));
+  for (const s of scripts) pushDelete(s.id).catch(() => {});
+}
+
 // Full two-way merge with the account. Call from screens on focus; returns
 // the fresh list either way so callers can just setState with it.
 export async function refreshScripts(): Promise<FartScript[]> {
