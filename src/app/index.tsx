@@ -179,7 +179,10 @@ export default function HomeScreen() {
 
       {/* Hero */}
       <Text style={styles.kicker}>YOUR POCKET SCENE PARTNER</Text>
-      <Text style={styles.hero}>Run your lines with a partner who&apos;s always ready.</Text>
+      <Text style={styles.hero}>
+        Never rehearse alone again and bring your scene to life with an AI scene partner who&apos;s
+        always ready to read!
+      </Text>
       <Text style={styles.subhead}>
         We have changed the game of AI reading to a whole new level! We offer the highest quality
         voices. Hands-free commands, so you can keep acting without delay. We give you the ability to
