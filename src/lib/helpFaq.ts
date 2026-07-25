@@ -46,7 +46,7 @@ export const FAQ_ENTRIES: FaqEntry[] = [
     id: 'handsfree',
     q: 'Can I go hands-free?',
     keywords: ['hands free', 'hands-free', 'voice command', 'commands', 'say start', 'without touching', 'mic control'],
-    a: 'Yes! Say “F.A.R.T. start” to roll and “F.A.R.T. restart” to run it back — you never have to touch your phone mid-take.',
+    a: 'Yes! Say “F.A.R.T. start” to roll, “F.A.R.T. stop” to stop, and “F.A.R.T. restart” to run it back — you never have to touch your phone mid-take.',
   },
   {
     id: 'improv',
