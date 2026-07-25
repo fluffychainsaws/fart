@@ -368,7 +368,7 @@ export default function CaptureScreen() {
       contentContainerStyle={styles.content}
       scrollEventThrottle={16}
       onScroll={tourVisible ? () => setScrollTick((n) => n + 1) : undefined}>
-      {Platform.OS === 'web' && (
+      {!busy && Platform.OS === 'web' && (
         <Pressable
           style={({ pressed }) => [styles.tourPill, pressed && styles.pressed]}
           onPress={() => setTourVisible(true)}>
@@ -376,7 +376,7 @@ export default function CaptureScreen() {
         </Pressable>
       )}
 
-      {Platform.OS === 'web' && (
+      {!busy && Platform.OS === 'web' && (
         <View ref={step1Ref} style={stepContainer}>
           <View style={styles.stepBadge}>
             <Text style={styles.stepBadgeText}>1</Text>
@@ -395,7 +395,7 @@ export default function CaptureScreen() {
         </View>
       )}
 
-      {session === null && (
+      {!busy && session === null && (
         <View style={styles.keyWarning}>
           <Text style={styles.keyWarningText}>
             🔒 Sign in to upload a script — reading your sides happens on our server so your account
