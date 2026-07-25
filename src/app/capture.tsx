@@ -85,6 +85,8 @@ export default function CaptureScreen() {
   const step2Ref = useRef<View>(null);
   const step3Ref = useRef<View>(null);
   const [tourVisible, setTourVisible] = useState(false);
+  // Bumped on every scroll so the tour can re-anchor its highlight to the step.
+  const [scrollTick, setScrollTick] = useState(0);
   const TOUR_SEEN_KEY = 'fart.captureTourSeen.v1';
   useEffect(() => {
     if (Platform.OS !== 'web') return;
@@ -361,7 +363,11 @@ export default function CaptureScreen() {
 
   return (
     <>
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      scrollEventThrottle={16}
+      onScroll={tourVisible ? () => setScrollTick((n) => n + 1) : undefined}>
       {Platform.OS === 'web' && (
         <Pressable
           style={({ pressed }) => [styles.tourPill, pressed && styles.pressed]}
@@ -567,6 +573,7 @@ export default function CaptureScreen() {
         texts={TOUR_TEXTS}
         visible={tourVisible}
         onDone={endTour}
+        scrollTick={scrollTick}
       />
     )}
     </>

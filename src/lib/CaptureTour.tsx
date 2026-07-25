@@ -16,11 +16,15 @@ export function CaptureTour({
   texts,
   visible,
   onDone,
+  scrollTick = 0,
 }: {
   stepRefs: React.RefObject<View | null>[];
   texts: string[];
   visible: boolean;
   onDone: () => void;
+  // Bumped by the page's ScrollView on every scroll so the highlight can
+  // re-measure and stay glued to its step.
+  scrollTick?: number;
 }) {
   const t = useTheme();
   const shadow = useCardShadow();
@@ -60,13 +64,14 @@ export function CaptureTour({
     }
   }, [visible, pos, ringOpacity, bubbleAnim]);
 
-  // Move the robot + ring onto the current step.
-  useEffect(() => {
-    if (!visible || size.w === 0) return;
-    let cancelled = false;
-    const id = setTimeout(async () => {
+  // Measure the current step and put the ring + robot + bubble on it. When
+  // `animate` is true (advancing to a step) the robot springs over and the
+  // bubble pops; when false (scrolling) everything snaps so it stays glued.
+  const place = useCallback(
+    async (animate: boolean) => {
+      if (!visible || size.w === 0) return;
       const r = await measure(stepRefs[index]?.current ?? null);
-      if (cancelled || !r) return;
+      if (!r) return;
       setRing(r);
       // Prefer sitting to the LEFT of the step (pointing right at it); if there's
       // no room, tuck in on the right instead. Always clamp on-screen.
@@ -75,22 +80,41 @@ export function CaptureTour({
       tx = Math.max(6, Math.min(tx, size.w - ROBOT - 6));
       const ty = Math.max(6, Math.min(r.y + r.h / 2 - ROBOT / 2, size.h - ROBOT - 6));
       setRobot({ x: tx, y: ty });
-      bubbleAnim.setValue(0);
-      Animated.parallel([
-        Animated.spring(pos, { toValue: { x: tx, y: ty }, useNativeDriver: true, friction: 7, tension: 55 }),
-        Animated.timing(ringOpacity, { toValue: 1, duration: 260, useNativeDriver: true }),
-        // Let the bubble pop out once the robot has (mostly) arrived.
-        Animated.sequence([
-          Animated.delay(200),
-          Animated.spring(bubbleAnim, { toValue: 1, useNativeDriver: true, friction: 6, tension: 90 }),
-        ]),
-      ]).start();
-    }, 60);
-    return () => {
-      cancelled = true;
-      clearTimeout(id);
-    };
-  }, [visible, index, size, measure, stepRefs, pos, ringOpacity]);
+      if (animate) {
+        bubbleAnim.setValue(0);
+        Animated.parallel([
+          Animated.spring(pos, { toValue: { x: tx, y: ty }, useNativeDriver: true, friction: 7, tension: 55 }),
+          Animated.timing(ringOpacity, { toValue: 1, duration: 260, useNativeDriver: true }),
+          Animated.sequence([
+            Animated.delay(200),
+            Animated.spring(bubbleAnim, { toValue: 1, useNativeDriver: true, friction: 6, tension: 90 }),
+          ]),
+        ]).start();
+      } else {
+        pos.setValue({ x: tx, y: ty });
+        ringOpacity.setValue(1);
+        bubbleAnim.setValue(1);
+      }
+    },
+    [visible, size, index, measure, stepRefs, pos, ringOpacity, bubbleAnim],
+  );
+  // Always call the latest `place` without making the effects below re-run on
+  // every dependency change.
+  const placeRef = useRef(place);
+  placeRef.current = place;
+
+  // Advance: animate onto the step when the tour opens or the step changes.
+  useEffect(() => {
+    if (!visible || size.w === 0) return;
+    const id = setTimeout(() => placeRef.current(true), 60);
+    return () => clearTimeout(id);
+  }, [visible, index, size]);
+
+  // Scroll: snap the highlight back onto its step as the page scrolls.
+  useEffect(() => {
+    if (!visible || scrollTick === 0) return;
+    placeRef.current(false);
+  }, [scrollTick, visible]);
 
   if (!visible) return null;
   const last = index >= texts.length - 1;
