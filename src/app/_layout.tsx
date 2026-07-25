@@ -12,6 +12,8 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 
+import { Text } from '@/lib/AppText';
+
 import { useSession } from '@/lib/auth';
 import { loadSavedMenuDocked, useMenuDocked } from '@/lib/menuPref';
 import { loadSavedProfilePhoto } from '@/lib/profilePhoto';
@@ -72,7 +74,28 @@ export default function RootLayout() {
             }}>
             <Stack.Screen
               name="index"
-              options={{ title: 'F.A.R.T.', headerTitleAlign: 'center', headerLeft: () => null }}
+              options={{
+                title: 'F.A.R.T.',
+                headerTitleAlign: 'center',
+                headerLeft: () => null,
+                // Two-line title: the acronym over the full name.
+                headerTitle: () => (
+                  <View style={{ alignItems: 'center' }}>
+                    <Text
+                      style={{
+                        fontSize: 17,
+                        fontWeight: '700',
+                        fontFamily: 'Inter_700Bold',
+                        color: t.ink,
+                      }}>
+                      F.A.R.T.
+                    </Text>
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: t.accent, marginTop: 1 }}>
+                      Friendly AI Reader To-Go!
+                    </Text>
+                  </View>
+                ),
+              }}
             />
             <Stack.Screen name="capture" options={{ title: 'New script' }} />
             <Stack.Screen name="assign/[id]" options={{ title: 'Highlight your lines' }} />
