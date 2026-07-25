@@ -56,8 +56,6 @@ export default function HomeScreen() {
     () => makeStyles(t, shadow, scheme, isPhone, bandInset),
     [t, shadow, scheme, isPhone, bandInset],
   );
-  const wideDemo = width >= 700;
-  const demoBase = wideDemo ? 'demo-web' : 'demo-phone';
   const promoOpen = signupPromoOpen();
 
   // Respect "reduce motion": pause the backdrop video (a static first frame
@@ -189,33 +187,6 @@ export default function HomeScreen() {
         improv and still have a human-like response from our reader, F.A.R.T.
       </Text>
 
-      {Platform.OS === 'web' && (
-        <View style={styles.videoWrap}>
-          {createElement(
-            'video',
-            {
-              key: demoBase,
-              autoPlay: true,
-              loop: true,
-              muted: true,
-              playsInline: true,
-              controls: false,
-              preload: 'auto',
-              ref: (el: HTMLVideoElement | null) => {
-                if (el) el.muted = true;
-              },
-              style: {
-                width: '100%',
-                maxWidth: wideDemo ? 560 : 300,
-                borderRadius: 18,
-                display: 'block',
-              },
-            },
-            createElement('source', { key: 'mp4', src: `/${demoBase}.mp4`, type: 'video/mp4' }),
-            createElement('source', { key: 'webm', src: `/${demoBase}.webm`, type: 'video/webm' }),
-          )}
-        </View>
-      )}
 
       <Pressable
         style={({ pressed }) => [styles.ctaPrimary, pressed && styles.pressed]}
@@ -356,7 +327,6 @@ const makeStyles = (
       maxWidth: 560,
       alignSelf: 'center',
     },
-    videoWrap: { alignItems: 'center', marginTop: 22 },
     ctaPrimary: {
       backgroundColor: t.accent,
       borderRadius: 16,
