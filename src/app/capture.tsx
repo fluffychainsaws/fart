@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useFocusEffect } from 'expo-router';
@@ -8,6 +9,7 @@ import { fromByteArray } from 'base64-js';
 import { Text } from '@/lib/AppText';
 import { useSession } from '@/lib/auth';
 import { openCheckout } from '@/lib/billing';
+import { CaptureTour } from '@/lib/CaptureTour';
 import { MicIcon } from '@/lib/MicIcon';
 import { parseScriptPdf, parseScriptPhotos } from '@/lib/parser';
 import {
@@ -76,6 +78,33 @@ export default function CaptureScreen() {
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [scripts, setScripts] = useState<FartScript[]>([]);
   const session = useSession();
+
+  // Guided robot tour of the numbered steps. Auto-runs once per browser, and
+  // can be replayed from the "Show me around" pill.
+  const step1Ref = useRef<View>(null);
+  const step2Ref = useRef<View>(null);
+  const step3Ref = useRef<View>(null);
+  const [tourVisible, setTourVisible] = useState(false);
+  const TOUR_SEEN_KEY = 'fart.captureTourSeen.v1';
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    let alive = true;
+    AsyncStorage.getItem(TOUR_SEEN_KEY).then((seen) => {
+      if (alive && !seen) setTimeout(() => alive && setTourVisible(true), 700);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const endTour = () => {
+    setTourVisible(false);
+    AsyncStorage.setItem(TOUR_SEEN_KEY, '1').catch(() => {});
+  };
+  const TOUR_TEXTS = [
+    'Hi, I’m F.A.R.T.! First, tap “Test your microphone” — let’s make sure I can hear you loud and clear.',
+    'Next, tap one of these to upload your sides — snap a photo or pick one from your files!',
+    '…or drop in a PDF here. Then hit Create and let’s start auditioning together! 🎬',
+  ];
 
   // Saved scripts live here now (moved off Home). On focus: load the tier,
   // prune the library per policy (Free = rolling 30-day window; paid = keep the
@@ -334,7 +363,15 @@ export default function CaptureScreen() {
     <>
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       {Platform.OS === 'web' && (
-        <View style={stepContainer}>
+        <Pressable
+          style={({ pressed }) => [styles.tourPill, pressed && styles.pressed]}
+          onPress={() => setTourVisible(true)}>
+          <Text style={styles.tourPillText}>👋 Show me around</Text>
+        </Pressable>
+      )}
+
+      {Platform.OS === 'web' && (
+        <View ref={step1Ref} style={stepContainer}>
           <View style={styles.stepBadge}>
             <Text style={styles.stepBadgeText}>1</Text>
           </View>
@@ -365,7 +402,7 @@ export default function CaptureScreen() {
         <LoadingCard />
       ) : (
         <>
-          <View style={[stepContainer, styles.stepSpaced]}>
+          <View ref={step2Ref} style={[stepContainer, styles.stepSpaced]}>
             {Platform.OS === 'web' && (
               <View style={styles.stepBadge}>
                 <Text style={styles.stepBadgeText}>2</Text>
@@ -404,7 +441,7 @@ export default function CaptureScreen() {
           </View>
 
           <Text style={styles.orDivider}>or upload a PDF</Text>
-          <View style={stepContainer}>
+          <View ref={step3Ref} style={stepContainer}>
             {Platform.OS === 'web' && (
               <View style={styles.stepBadge}>
                 <Text style={styles.stepBadgeText}>3</Text>
@@ -524,6 +561,14 @@ export default function CaptureScreen() {
       onUpgrade={handleUpgrade}
       onClose={() => setShowUpgrade(false)}
     />
+    {Platform.OS === 'web' && !busy && (
+      <CaptureTour
+        stepRefs={[step1Ref, step2Ref, step3Ref]}
+        texts={TOUR_TEXTS}
+        visible={tourVisible}
+        onDone={endTour}
+      />
+    )}
     </>
   );
 }
@@ -544,6 +589,17 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     backgroundColor: t.bg,
   },
   stepBadgeText: { fontSize: 15, fontWeight: '800', color: t.accent },
+  tourPill: {
+    alignSelf: 'flex-end',
+    backgroundColor: t.accentSoft,
+    borderWidth: 1,
+    borderColor: t.accent,
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  tourPillText: { color: t.accent, fontSize: 12, fontWeight: '800' },
   stepContent: { flex: 1 },
   // Phone: number centered above, content full width below.
   stepColumn: { alignItems: 'center' },
