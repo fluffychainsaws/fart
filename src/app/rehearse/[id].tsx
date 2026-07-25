@@ -893,7 +893,7 @@ export default function RehearseScreen() {
           <Pressable
             style={({ pressed }) => [styles.continueButton, pressed && styles.pressed]}
             onPress={() => engine.play(0)}>
-            <Text style={styles.continueButtonText}>↻ Run it back</Text>
+            <Text style={styles.continueButtonText}>↻ Another Take - Reset</Text>
           </Pressable>
         </View>
       )}
