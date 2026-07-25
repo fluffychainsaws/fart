@@ -181,8 +181,9 @@ export default function HomeScreen() {
       <Text style={styles.kicker}>YOUR POCKET SCENE PARTNER</Text>
       <Text style={styles.hero}>Run your lines with a partner who&apos;s always ready.</Text>
       <Text style={styles.subhead}>
-        FART reads every other character out loud in a natural voice — and waits for your cue. Snap
-        your sides, highlight your lines, and rehearse anywhere.
+        We have changed the game of AI reading to a whole new level! We offer the highest quality
+        voice. Hands-free commands, so you can keep talking without delay. We give you the ability to
+        improv and still have a human-like response from our reader, F.A.R.T.
       </Text>
 
       {Platform.OS === 'web' && (
