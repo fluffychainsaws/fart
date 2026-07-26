@@ -7,8 +7,6 @@ import { makeDemoScript } from '@/lib/demo';
 import { InstallPrompt } from '@/lib/InstallPrompt';
 import { signupPromoOpen } from '@/lib/promo';
 import { useCardShadow, useEffectiveScheme, useTheme, type Theme } from '@/lib/theme';
-import { VoiceSampler } from '@/lib/VoiceSampler';
-import { SAMPLES_READY } from '@/lib/voiceSamples';
 
 const FEATURES = [
   {
@@ -214,9 +212,6 @@ export default function HomeScreen() {
           </View>
         ))}
       </View>
-
-      {/* Hear the voices (web only; hidden until the sample clips exist) */}
-      {Platform.OS === 'web' && SAMPLES_READY && <VoiceSampler />}
 
       {/* Differentiators */}
       <View style={styles.diffCard}>
