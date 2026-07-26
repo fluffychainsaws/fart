@@ -41,6 +41,7 @@ export default function SettingsScreen() {
   const resetTours = async () => {
     await AsyncStorage.multiRemove([
       'fart.captureTourSeen.v1',
+      'fart.assignTourSeen.v1',
       'fart.rehearseTourSeen.v1',
       'fart.rehearseTourNever.v1',
     ]);

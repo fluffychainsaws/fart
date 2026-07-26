@@ -1,8 +1,10 @@
-import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
+import { GuidedTour } from '@/lib/GuidedTour';
 import { getScript, saveScript } from '@/lib/storage';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 import { charactersIn, myLineCount, type FartScript } from '@/lib/types';
@@ -13,6 +15,27 @@ export default function AssignScreen() {
   const shadow = useCardShadow();
   const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   const [script, setScript] = useState<FartScript | null>(null);
+
+  // Robot intro: point at the character picker, then the start button. Auto-runs
+  // on the first visit (which for new users is the demo scene).
+  const chipRowRef = useRef<View>(null);
+  const startRef = useRef<View>(null);
+  const [tourVisible, setTourVisible] = useState(false);
+  const [scrollTick, setScrollTick] = useState(0);
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    let alive = true;
+    AsyncStorage.getItem('fart.assignTourSeen.v1').then((seen) => {
+      if (alive && !seen) setTimeout(() => alive && setTourVisible(true), 700);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const endTour = () => {
+    setTourVisible(false);
+    AsyncStorage.setItem('fart.assignTourSeen.v1', '1').catch(() => {});
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -49,12 +72,26 @@ export default function AssignScreen() {
     });
   };
 
+  const tourSteps = [
+    {
+      ref: chipRowRef,
+      text: '👋 First, pick who you’re reading for — tap your character and I’ll read everyone else.',
+    },
+    {
+      ref: startRef,
+      text: '✨ Then hit “Start rehearsing” and let’s run the scene together!',
+    },
+  ];
+
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        scrollEventThrottle={16}
+        onScroll={tourVisible ? () => setScrollTick((n) => n + 1) : undefined}>
         <Text style={styles.title}>{script.title}</Text>
         <Text style={styles.question}>Who are you reading for?</Text>
-        <View style={styles.chipRow}>
+        <View ref={chipRowRef} style={styles.chipRow}>
           {characters.map((name) => {
             const selected = script.myCharacter === name;
             return (
@@ -93,7 +130,7 @@ export default function AssignScreen() {
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View ref={startRef} style={styles.footer}>
         <Pressable
           disabled={mineCount === 0}
           style={({ pressed }) => [
@@ -107,6 +144,16 @@ export default function AssignScreen() {
           </Text>
         </Pressable>
       </View>
+
+      {Platform.OS === 'web' && (
+        <GuidedTour
+          stepRefs={tourSteps.map((s) => s.ref)}
+          texts={tourSteps.map((s) => s.text)}
+          visible={tourVisible}
+          onDone={endTour}
+          scrollTick={scrollTick}
+        />
+      )}
     </View>
   );
 }
