@@ -230,6 +230,22 @@ export function DockedMenu() {
   );
 }
 
+// The persistent left-edge tab shown when the docked menu is collapsed —
+// clicking it re-docks the menu (the counterpart to the "‹" collapse arrow).
+export function CollapsedMenuButton() {
+  const t = useTheme();
+  const shadow = useCardShadow();
+  const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
+  return (
+    <Pressable
+      onPress={() => setMenuDocked(true)}
+      style={({ pressed }) => [styles.expandTab, pressed && styles.pressed]}
+      accessibilityLabel="Show the side menu">
+      <Text style={styles.expandIcon}>›</Text>
+    </Pressable>
+  );
+}
+
 export function SideMenu() {
   const t = useTheme();
   const shadow = useCardShadow();
@@ -515,6 +531,26 @@ function makeStyles(t: Theme, shadow: ReturnType<typeof useCardShadow>) {
       justifyContent: 'center',
     },
     collapseIcon: { color: t.inkSoft, fontSize: 22, fontWeight: '800', lineHeight: 24, marginTop: -3 },
+    // Persistent reopen tab on the left edge when the menu is collapsed.
+    expandTab: {
+      position: 'absolute',
+      left: 0,
+      top: '50%',
+      marginTop: -24,
+      width: 26,
+      height: 48,
+      borderTopRightRadius: 13,
+      borderBottomRightRadius: 13,
+      borderWidth: 1,
+      borderLeftWidth: 0,
+      borderColor: t.border,
+      backgroundColor: t.card,
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 50,
+      ...shadow,
+    },
+    expandIcon: { color: t.inkSoft, fontSize: 24, fontWeight: '800', lineHeight: 26 },
     spacer: {
       flex: 1,
       minHeight: 120,

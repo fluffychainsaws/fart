@@ -16,7 +16,7 @@ import { Text } from '@/lib/AppText';
 
 import { loadSavedMenuDocked, useMenuDocked } from '@/lib/menuPref';
 import { loadSavedProfilePhoto } from '@/lib/profilePhoto';
-import { DockedMenu, HomeHeaderButton, SideMenu } from '@/lib/SideMenu';
+import { CollapsedMenuButton, DockedMenu, HomeHeaderButton, SideMenu } from '@/lib/SideMenu';
 import { loadSavedPalette, useEffectiveScheme, useTheme } from '@/lib/theme';
 
 // Below this width the docked sidebar would crowd the content, so we fall back
@@ -47,10 +47,11 @@ export default function RootLayout() {
 
   if (!fontsLoaded) return null;
 
-  // Docked open per preference (default on) on wide-enough screens; the collapse
-  // arrow on the docked column flips the preference off, dropping to the
-  // slide-out drawer (reopen from its left-edge handle).
-  const docked = width >= DOCK_MIN_WIDTH && dockPref;
+  // On wide screens the menu is a docked column toggled by a permanent arrow:
+  // "‹" closes it, a persistent "›" tab reopens it. Narrow screens keep the
+  // slide-out drawer.
+  const wide = width >= DOCK_MIN_WIDTH;
+  const docked = wide && dockPref;
 
   return (
     <>
@@ -109,8 +110,10 @@ export default function RootLayout() {
           </Stack>
         </View>
       </View>
-      {/* The slide-out drawer only exists when not docked. */}
-      {!docked && <SideMenu />}
+      {/* Wide + collapsed: a persistent tab to reopen the docked menu. */}
+      {wide && !dockPref && <CollapsedMenuButton />}
+      {/* Narrow screens use the slide-out drawer. */}
+      {!wide && <SideMenu />}
     </>
   );
 }
