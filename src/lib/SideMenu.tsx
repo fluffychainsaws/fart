@@ -11,6 +11,7 @@ import { HelpBot } from '@/lib/HelpBot';
 import { HomeIcon } from '@/lib/HomeIcon';
 import { LogoutIcon } from '@/lib/LogoutIcon';
 import { MicIcon } from '@/lib/MicIcon';
+import { setMenuDocked } from '@/lib/menuPref';
 import { refreshProfilePhoto, useProfilePhoto } from '@/lib/profilePhoto';
 import { getTier } from '@/lib/subscription';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
@@ -217,6 +218,13 @@ export function DockedMenu() {
   const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   return (
     <View style={styles.dockedColumn}>
+      <Pressable
+        onPress={() => setMenuDocked(false)}
+        hitSlop={8}
+        style={({ pressed }) => [styles.collapseButton, pressed && styles.pressed]}
+        accessibilityLabel="Hide the side menu">
+        <Text style={styles.collapseIcon}>‹</Text>
+      </Pressable>
       <MenuContent />
     </View>
   );
@@ -491,6 +499,22 @@ function makeStyles(t: Theme, shadow: ReturnType<typeof useCardShadow>) {
       paddingBottom: 20,
       paddingHorizontal: 12,
     },
+    // Collapse arrow, top-right of the docked column — hides it to the drawer.
+    collapseButton: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      zIndex: 5,
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      borderWidth: 1,
+      borderColor: t.border,
+      backgroundColor: t.bg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    collapseIcon: { color: t.inkSoft, fontSize: 22, fontWeight: '800', lineHeight: 24, marginTop: -3 },
     spacer: {
       flex: 1,
       minHeight: 120,

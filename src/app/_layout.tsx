@@ -14,7 +14,6 @@ import { StatusBar } from 'expo-status-bar';
 
 import { Text } from '@/lib/AppText';
 
-import { useSession } from '@/lib/auth';
 import { loadSavedMenuDocked, useMenuDocked } from '@/lib/menuPref';
 import { loadSavedProfilePhoto } from '@/lib/profilePhoto';
 import { DockedMenu, HomeHeaderButton, SideMenu } from '@/lib/SideMenu';
@@ -33,7 +32,6 @@ export default function RootLayout() {
   const t = useTheme();
   const scheme = useEffectiveScheme();
   const { width } = useWindowDimensions();
-  const session = useSession();
   const dockPref = useMenuDocked();
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
@@ -49,10 +47,10 @@ export default function RootLayout() {
 
   if (!fontsLoaded) return null;
 
-  // Signed-out visitors always get the docked menu (so it can't be missed);
-  // signed-in users get it per their preference. Only on wide-enough screens.
-  const signedOut = session === null;
-  const docked = width >= DOCK_MIN_WIDTH && (signedOut || dockPref);
+  // Docked open per preference (default on) on wide-enough screens; the collapse
+  // arrow on the docked column flips the preference off, dropping to the
+  // slide-out drawer (reopen from its left-edge handle).
+  const docked = width >= DOCK_MIN_WIDTH && dockPref;
 
   return (
     <>
