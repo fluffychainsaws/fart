@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
@@ -32,6 +33,19 @@ export default function SettingsScreen() {
   const { width } = useWindowDimensions();
   const menuDocked = useMenuDocked();
   const [deleting, setDeleting] = useState(false);
+  const [toursReset, setToursReset] = useState(false);
+
+  // Clears the flags that track whether each guided tour has run / been opted
+  // out of, so the robot walkthroughs come back on the New Script and
+  // Rehearsal screens.
+  const resetTours = async () => {
+    await AsyncStorage.multiRemove([
+      'fart.captureTourSeen.v1',
+      'fart.rehearseTourSeen.v1',
+      'fart.rehearseTourNever.v1',
+    ]);
+    setToursReset(true);
+  };
 
   const runDelete = async () => {
     setDeleting(true);
@@ -102,6 +116,25 @@ export default function SettingsScreen() {
           })}
         </View>
       </View>
+
+      {Platform.OS === 'web' && (
+        <>
+          <Text style={styles.sectionTitle}>Guided tours</Text>
+          <Pressable
+            style={({ pressed }) => [styles.rowCard, pressed && styles.pressed]}
+            disabled={toursReset}
+            onPress={resetTours}>
+            <View style={styles.rowText}>
+              <Text style={styles.rowTitle}>Show the robot tutorials again</Text>
+              <Text style={styles.rowSub}>
+                Bring back F.A.R.T.&apos;s guided walkthroughs on the New Script and Rehearsal
+                screens.
+              </Text>
+            </View>
+            <Text style={styles.rowAction}>{toursReset ? 'Done ✓' : 'Reset'}</Text>
+          </Pressable>
+        </>
+      )}
 
       {session && width >= 700 && (
         <>
@@ -205,6 +238,7 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     rowText: { flex: 1 },
     rowTitle: { fontSize: 15, fontWeight: '700', color: t.ink },
     rowSub: { fontSize: 12, color: t.inkSoft, marginTop: 3, lineHeight: 17 },
+    rowAction: { fontSize: 14, fontWeight: '800', color: t.accent },
     switchTrack: {
       width: 46,
       height: 28,
