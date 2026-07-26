@@ -222,12 +222,6 @@ export default function HomeScreen() {
         <Text style={styles.diffLine}>✓ Free to start — your first audition is on us</Text>
       </View>
 
-      {/* Bottom CTA */}
-      <Pressable
-        style={({ pressed }) => [styles.ctaSecondary, pressed && styles.pressed]}
-        onPress={() => router.push('/capture')}>
-        <Text style={styles.ctaSecondaryText}>Rehearse your own sides →</Text>
-      </Pressable>
       <Pressable style={styles.plansLink} onPress={() => router.push('/account')}>
         <Text style={styles.plansLinkText}>See plans &amp; pricing</Text>
       </Pressable>
