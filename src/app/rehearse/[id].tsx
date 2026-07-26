@@ -112,8 +112,12 @@ export default function RehearseScreen() {
   const listenRef = useRef<View>(null);
   const voiceCmdRef = useRef<View>(null);
   const voiceEngineRef = useRef<View>(null);
+  const improvRef = useRef<View>(null);
   const [tourVisible, setTourVisible] = useState(false);
   const [askTour, setAskTour] = useState(false);
+  // One-off robot popup pointing at the Improv control the first time the user
+  // turns on "Listen for my lines".
+  const [improvHint, setImprovHint] = useState(false);
 
   // On the first visit the tour runs itself; on later visits the robot just
   // asks (Yes / Never again) unless the user opted out permanently.
@@ -199,6 +203,14 @@ export default function RehearseScreen() {
       return;
     }
     setFollowOn(true);
+    // First time on: point the robot at the Improv control that just appeared.
+    if (Platform.OS === 'web') {
+      const seen = await AsyncStorage.getItem('fart.improvHintSeen.v1');
+      if (!seen) {
+        await AsyncStorage.setItem('fart.improvHintSeen.v1', '1');
+        setTimeout(() => setImprovHint(true), 500);
+      }
+    }
   };
 
   // Hands-free "FART start" / "FART stop" (SHART STAR): a continuous listener
@@ -704,7 +716,7 @@ export default function RehearseScreen() {
           </Pressable>
         )}
         {followSupported && followOn && (
-          <View style={styles.improvAnchor}>
+          <View ref={improvRef} style={styles.improvAnchor}>
             <Pressable
               style={[styles.toggle, improvOn && styles.toggleOn]}
               onPress={() => setImprovMenuOpen((v) => !v)}>
@@ -1029,6 +1041,17 @@ export default function RehearseScreen() {
           texts={tourSteps.map((s) => s.text)}
           visible={tourVisible}
           onDone={endTour}
+        />
+      )}
+
+      {Platform.OS === 'web' && (
+        <GuidedTour
+          stepRefs={[improvRef]}
+          texts={[
+            '🎭 You just unlocked Improv! Flip it on to go off-script — say your lines however you like and I’ll still answer with mine. The dropdown sets how long I wait after you stop talking before I read my line.',
+          ]}
+          visible={improvHint}
+          onDone={() => setImprovHint(false)}
         />
       )}
 

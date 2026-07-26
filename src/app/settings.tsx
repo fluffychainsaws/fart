@@ -44,6 +44,7 @@ export default function SettingsScreen() {
       'fart.assignTourSeen.v1',
       'fart.rehearseTourSeen.v1',
       'fart.rehearseTourNever.v1',
+      'fart.improvHintSeen.v1',
     ]);
     setToursReset(true);
   };
