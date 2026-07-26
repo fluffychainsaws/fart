@@ -29,7 +29,7 @@ const FEATURES = [
   {
     icon: '🎭',
     title: 'Improv option',
-    desc: 'Forget the lines and say what you want — the AI still reads their lines right back.',
+    desc: 'Forget the lines and say what you want — FART still reads their lines right back.',
   },
   {
     icon: '🎬',
