@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://selftapebuddy.com/sitemap.xml

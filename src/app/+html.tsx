@@ -24,6 +24,32 @@ export default function Root({ children }: { children: React.ReactNode }) {
 
         {headNodes}
 
+        {/* SEO + social share previews (Open Graph / Twitter cards) */}
+        <meta
+          name="description"
+          content="Self Tape Buddy — your pocket AI scene partner. It reads every other character's lines out loud while you rehearse your audition sides. Free, no sign-up, works on any phone."
+        />
+        <link rel="canonical" href="https://selftapebuddy.com/" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Self Tape Buddy" />
+        <meta property="og:title" content="Self Tape Buddy — your pocket AI scene partner" />
+        <meta
+          property="og:description"
+          content="An AI reader that speaks every other role out loud while you rehearse your audition sides. Free, no sign-up, works on any phone."
+        />
+        <meta property="og:url" content="https://selftapebuddy.com/" />
+        <meta property="og:image" content="https://selftapebuddy.com/og-image.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Self Tape Buddy — Friendly AI Reader To-Go!" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Self Tape Buddy — your pocket AI scene partner" />
+        <meta
+          name="twitter:description"
+          content="An AI reader that speaks every other role out loud while you rehearse your audition sides. Free, no sign-up, works on any phone."
+        />
+        <meta name="twitter:image" content="https://selftapebuddy.com/og-image.png" />
+
         {/* PWA / "Add to Home Screen" support */}
         <link rel="manifest" href="manifest.json" />
         <meta name="theme-color" content="#0FA47A" />

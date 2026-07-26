@@ -74,7 +74,10 @@ export default function RootLayout() {
             <Stack.Screen
               name="index"
               options={{
-                title: 'F.A.R.T.',
+                // Document/tab title — used for SEO and browser tabs. The
+                // visual header uses the custom two-line headerTitle below, so
+                // this longer string only affects <title> and search results.
+                title: 'Self Tape Buddy — AI Scene Partner for Actors',
                 headerTitleAlign: 'center',
                 headerLeft: () => null,
                 // Two-line title: the acronym over the full name.
