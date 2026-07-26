@@ -16,7 +16,7 @@ import { Text } from '@/lib/AppText';
 
 import { loadSavedMenuDocked, useMenuDocked } from '@/lib/menuPref';
 import { loadSavedProfilePhoto } from '@/lib/profilePhoto';
-import { CollapsedMenuButton, DockedMenu, HomeHeaderButton, SideMenu } from '@/lib/SideMenu';
+import { DockedMenu, HomeHeaderButton, MenuToggleTab, SideMenu } from '@/lib/SideMenu';
 import { loadSavedPalette, useEffectiveScheme, useTheme } from '@/lib/theme';
 
 // Below this width the docked sidebar would crowd the content, so we fall back
@@ -110,8 +110,8 @@ export default function RootLayout() {
           </Stack>
         </View>
       </View>
-      {/* Wide + collapsed: a persistent tab to reopen the docked menu. */}
-      {wide && !dockPref && <CollapsedMenuButton />}
+      {/* Wide screens: one centered tab toggles the docked menu open/closed. */}
+      {wide && <MenuToggleTab docked={dockPref} />}
       {/* Narrow screens use the slide-out drawer. */}
       {!wide && <SideMenu />}
     </>

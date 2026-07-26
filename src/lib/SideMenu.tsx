@@ -218,30 +218,24 @@ export function DockedMenu() {
   const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   return (
     <View style={styles.dockedColumn}>
-      <Pressable
-        onPress={() => setMenuDocked(false)}
-        hitSlop={8}
-        style={({ pressed }) => [styles.collapseButton, pressed && styles.pressed]}
-        accessibilityLabel="Hide the side menu">
-        <Text style={styles.collapseIcon}>‹</Text>
-      </Pressable>
       <MenuContent />
     </View>
   );
 }
 
-// The persistent left-edge tab shown when the docked menu is collapsed —
-// clicking it re-docks the menu (the counterpart to the "‹" collapse arrow).
-export function CollapsedMenuButton() {
+// A single vertically-centered toggle tab that sits at the menu/content seam:
+// "‹" at the docked column's right edge to collapse, "›" at the screen's left
+// edge to reopen. Same look and position in both states.
+export function MenuToggleTab({ docked }: { docked: boolean }) {
   const t = useTheme();
   const shadow = useCardShadow();
   const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   return (
     <Pressable
-      onPress={() => setMenuDocked(true)}
-      style={({ pressed }) => [styles.expandTab, pressed && styles.pressed]}
-      accessibilityLabel="Show the side menu">
-      <Text style={styles.expandIcon}>›</Text>
+      onPress={() => setMenuDocked(!docked)}
+      style={({ pressed }) => [styles.toggleTab, { left: docked ? DRAWER_WIDTH : 0 }, pressed && styles.pressed]}
+      accessibilityLabel={docked ? 'Hide the side menu' : 'Show the side menu'}>
+      <Text style={styles.toggleTabIcon}>{docked ? '‹' : '›'}</Text>
     </Pressable>
   );
 }
@@ -515,32 +509,15 @@ function makeStyles(t: Theme, shadow: ReturnType<typeof useCardShadow>) {
       paddingBottom: 20,
       paddingHorizontal: 12,
     },
-    // Collapse arrow, top-right of the docked column — hides it to the drawer.
-    collapseButton: {
+    // Vertically-centered toggle tab at the menu/content seam (open or closed).
+    toggleTab: {
       position: 'absolute',
-      top: 8,
-      right: 8,
-      zIndex: 5,
-      width: 26,
-      height: 26,
-      borderRadius: 13,
-      borderWidth: 1,
-      borderColor: t.border,
-      backgroundColor: t.bg,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    collapseIcon: { color: t.inkSoft, fontSize: 22, fontWeight: '800', lineHeight: 24, marginTop: -3 },
-    // Persistent reopen tab on the left edge when the menu is collapsed.
-    expandTab: {
-      position: 'absolute',
-      left: 0,
       top: '50%',
       marginTop: -24,
-      width: 26,
+      width: 24,
       height: 48,
-      borderTopRightRadius: 13,
-      borderBottomRightRadius: 13,
+      borderTopRightRadius: 12,
+      borderBottomRightRadius: 12,
       borderWidth: 1,
       borderLeftWidth: 0,
       borderColor: t.border,
@@ -550,7 +527,7 @@ function makeStyles(t: Theme, shadow: ReturnType<typeof useCardShadow>) {
       zIndex: 50,
       ...shadow,
     },
-    expandIcon: { color: t.inkSoft, fontSize: 24, fontWeight: '800', lineHeight: 26 },
+    toggleTabIcon: { color: t.inkSoft, fontSize: 24, fontWeight: '800', lineHeight: 26 },
     spacer: {
       flex: 1,
       minHeight: 120,
