@@ -24,8 +24,6 @@ export const OPENAI_VOICES = [
   'sage',
   'shimmer',
   'verse',
-  'samantha',
-  'carl',
 ] as const;
 
 // Display names for the voice slots. The slot IDs above stay as OpenAI's voice
@@ -46,8 +44,6 @@ export const VOICE_LABELS: Record<string, string> = {
   sage: 'Lindsey',
   shimmer: 'Lily',
   verse: 'Patrick',
-  samantha: 'Samantha',
-  carl: 'Carl',
 };
 
 export const voiceLabel = (id: string): string =>
