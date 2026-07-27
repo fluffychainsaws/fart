@@ -111,6 +111,15 @@ export async function wasNeuralEnabled(): Promise<boolean> {
   return (await AsyncStorage.getItem(ENABLED_KEY)) === '1';
 }
 
+// Natural voices are the DEFAULT rehearsal experience: robotic device voices
+// make a terrible first impression, so a visitor who has never touched the
+// toggle (flag null) is treated as opted-in. Only an explicit '0' — the user
+// tapping Natural voices off themselves — keeps the engine from auto-loading.
+export async function neuralVoiceOptedOut(): Promise<boolean> {
+  if (!neuralVoiceSupported()) return true;
+  return (await AsyncStorage.getItem(ENABLED_KEY)) === '0';
+}
+
 export async function disableNeuralVoice(): Promise<void> {
   state = 'off';
   engine = null;
@@ -165,11 +174,12 @@ export function enableNeuralVoice(): Promise<boolean> {
   return loadPromise;
 }
 
-// If the user enabled neural voices before, warm the engine on app entry —
-// the model comes from browser cache, so this is quick after the first time.
+// Warm the engine when a rehearsal opens. Natural voices are default-on, so
+// this loads for everyone except users who explicitly opted out. After the
+// first time the ~90MB model comes from browser cache, so this is quick.
 export async function resumeNeuralVoiceIfEnabled(): Promise<void> {
   if (state !== 'off') return;
-  if (await wasNeuralEnabled()) void enableNeuralVoice();
+  if (!(await neuralVoiceOptedOut())) void enableNeuralVoice();
 }
 
 // ---- Per-character voice assignment (mirrors cloudVoice.ts) ---------------
