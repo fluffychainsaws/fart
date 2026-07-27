@@ -33,17 +33,17 @@ export const OPENAI_VOICES = [
 // synthesize-voice function). Flipping VOICE_PROVIDER back to openai still works
 // for a comparison; the labels just won't match OpenAI's own names meanwhile.
 export const VOICE_LABELS: Record<string, string> = {
-  alloy: 'Sarah',
+  alloy: 'Kyle',
   ash: 'Adam',
-  ballad: 'Charlotte',
+  ballad: 'Kevin',
   coral: 'Rachel',
   echo: 'Antoni',
   fable: 'George',
-  nova: 'Domi',
-  onyx: 'Clyde',
-  sage: 'Charlie',
+  nova: 'Kristy',
+  onyx: 'Jackson',
+  sage: 'Lindsey',
   shimmer: 'Lily',
-  verse: 'Callum',
+  verse: 'Patrick',
 };
 
 export const voiceLabel = (id: string): string =>
