@@ -72,8 +72,6 @@ const ELEVEN_VOICE_MAP: Record<string, string> = {
   sage: 'IKne3meq5aSn9XLyUdCD', // Charlie — Australian male
   shimmer: 'pFZP5JQG7iQjIQuC4Bku', // Lily — female
   verse: 'N2lVS1w4EtoT3dr4eOWO', // Callum — male
-  beth: 'yj30vwTGJxSHezdAGsv9', // Beth
-  chris: 'uKGPYP2uuyRQv8SeFre0', // Chris
 };
 const ELEVEN_DEFAULT_VOICE = 'EXAVITQu4vr4xnSDxMaL'; // ElevenLabs "Sarah"
 
