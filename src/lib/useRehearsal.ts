@@ -87,11 +87,18 @@ export function useRehearsal(elements: ScriptElement[], options: RehearsalOption
     setPosition(i);
     const el = els[i];
 
-    // Warm the voice cache for the next reader line so it starts instantly,
-    // even while the user is still saying their own line. Prefetching matters
-    // most for neural voices — in-browser synthesis takes real time on phones.
-    const upcoming = els.slice(i + 1).find((e) => e.type === 'line' && !e.mine);
-    if (upcoming?.type === 'line') {
+    // Warm the voice cache for the next couple of reader lines so they start
+    // instantly. One line ahead is enough to hide synthesis latency after the
+    // user's own line (they're still speaking while it warms), but two AI lines
+    // in a row leave only the first line's short duration to prepare the
+    // second — so we warm the next TWO reader lines, giving back-to-back AI
+    // dialogue a running head start. Prefetching matters most for neural
+    // voices — in-browser synthesis takes real time on phones.
+    const upcomingLines = els
+      .slice(i + 1)
+      .filter((e): e is Extract<ScriptElement, { type: 'line' }> => e.type === 'line' && !e.mine)
+      .slice(0, 2);
+    for (const upcoming of upcomingLines) {
       const upcomingText = deliveredText(upcoming.text, upcoming.delivery);
       if (cloudAllowed()) {
         prefetchCloudLine({
