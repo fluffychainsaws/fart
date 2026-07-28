@@ -26,6 +26,8 @@ interface TierRow {
   users: number;
   active_users: number;
   auditions: number;
+  uploads: number;
+  pages: number;
   tts_chars: number;
 }
 
@@ -82,9 +84,11 @@ export default function AdminScreen() {
       acc.cost += r.tts_chars * TTS_COST_PER_CHAR;
       acc.users += r.users;
       acc.auditions += r.auditions;
+      acc.uploads += r.uploads;
+      acc.pages += r.pages;
       return acc;
     },
-    { revenue: 0, cost: 0, users: 0, auditions: 0 },
+    { revenue: 0, cost: 0, users: 0, auditions: 0, uploads: 0, pages: 0 },
   );
 
   return (
@@ -110,7 +114,10 @@ export default function AdminScreen() {
             <Text style={styles.cardLine}>
               👤 {r.users} user{r.users === 1 ? '' : 's'} ({r.active_users} active this month)
             </Text>
-            <Text style={styles.cardLine}>🎬 {r.auditions} auditions completed</Text>
+            <Text style={styles.cardLine}>
+              📤 {r.uploads} upload{r.uploads === 1 ? '' : 's'} · 📄 {r.pages.toLocaleString()} page
+              {r.pages === 1 ? '' : 's'} parsed
+            </Text>
             <Text style={styles.cardLine}>
               🔊 {r.tts_chars.toLocaleString()} TTS characters ≈ ${cost.toFixed(2)} voice spend
             </Text>
@@ -127,7 +134,8 @@ export default function AdminScreen() {
             : 'no revenue yet'}
         </Text>
         <Text style={styles.cardLine}>
-          👥 {totals.users} users · 🎬 {totals.auditions} auditions
+          👥 {totals.users} users · 📤 {totals.uploads} uploads · 📄{' '}
+          {totals.pages.toLocaleString()} pages
         </Text>
       </View>
 

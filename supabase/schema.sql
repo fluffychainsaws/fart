@@ -310,7 +310,8 @@ alter table public.profiles add column if not exists is_admin boolean not null d
 
 -- Usage telemetry for the monthly cost analysis: one row per billable-ish
 -- event. 'tts' rows carry the synthesized character count (the thing OpenAI
--- charges for); 'audition' rows mark a completed self-tape.
+-- charges for); 'audition' rows mark a script upload and carry that upload's
+-- page count in the same chars column (the driver of the Claude parsing cost).
 create table if not exists public.usage_events (
   id bigint generated always as identity primary key,
   user_id uuid not null references auth.users (id) on delete cascade,
@@ -352,6 +353,8 @@ begin
       p.tier,
       count(distinct p.id) as users,
       count(e.id) filter (where e.kind = 'audition') as auditions,
+      count(e.id) filter (where e.kind = 'audition') as uploads,
+      coalesce(sum(e.chars) filter (where e.kind = 'audition'), 0) as pages,
       coalesce(sum(e.chars) filter (where e.kind = 'tts'), 0) as tts_chars,
       count(distinct e.user_id) as active_users
     from profiles p

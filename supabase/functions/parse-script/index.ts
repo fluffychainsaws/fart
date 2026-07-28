@@ -282,7 +282,9 @@ async function gateAndParse(
   try {
     const result = await parseScript(client, content, noun);
     // Best-effort analytics for the /admin dashboard (service role bypasses RLS).
-    await admin.from('usage_events').insert({ user_id: userId, kind: 'audition' });
+    // For 'audition' rows the chars column carries the page count (the driver of
+    // Claude parsing cost); 'tts' rows use it for synthesized characters.
+    await admin.from('usage_events').insert({ user_id: userId, kind: 'audition', chars: pageCount });
     return json({ ...result, usedCredit: consumed === 'credit' });
   } catch (err) {
     if (consumed === 'credit') {
