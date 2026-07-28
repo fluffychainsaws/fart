@@ -97,7 +97,7 @@ export function useRehearsal(elements: ScriptElement[], options: RehearsalOption
     const upcomingLines = els
       .slice(i + 1)
       .filter((e): e is Extract<ScriptElement, { type: 'line' }> => e.type === 'line' && !e.mine)
-      .slice(0, 2);
+      .slice(0, 3);
     for (const upcoming of upcomingLines) {
       const upcomingText = deliveredText(upcoming.text, upcoming.delivery);
       if (cloudAllowed()) {

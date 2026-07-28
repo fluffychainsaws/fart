@@ -115,10 +115,31 @@ export function buildInstructions(opts: {
 
 const inflight = new Map<string, Promise<string>>();
 
+// In-memory ready-to-play cache for the current session. The disk/IndexedDB
+// cache (audioCache) bounds cost across app launches, but reading from it on
+// every line — reopening IndexedDB, re-minting a blob URL — adds a small beat
+// to each handoff. Prefetch warms this, so playing a line the engine already
+// looked ahead to skips storage entirely and starts near-instantly. Bounded so
+// a long session can't grow without limit.
+const MEM_CACHE_MAX = 60;
+const memCache = new Map<string, string>(); // key -> playable uri
+
+function rememberInMemory(key: string, uri: string): string {
+  memCache.delete(key); // re-insert so it counts as most-recently-used
+  memCache.set(key, uri);
+  if (memCache.size > MEM_CACHE_MAX) {
+    const oldest = memCache.keys().next().value;
+    if (oldest !== undefined) memCache.delete(oldest);
+  }
+  return uri;
+}
+
 async function synthesize(text: string, voice: string, instructions: string): Promise<string> {
   const key = `${voice}|${hash(instructions)}|${hash(text)}-${text.length}`;
+  const mem = memCache.get(key);
+  if (mem) return mem;
   const cached = await getCachedAudio(key);
-  if (cached) return cached;
+  if (cached) return rememberInMemory(key, cached);
   const pending = inflight.get(key);
   if (pending) return pending;
 
@@ -130,7 +151,7 @@ async function synthesize(text: string, voice: string, instructions: string): Pr
     if (error || !data?.audio) throw new Error('TTS failed');
     logUsage('tts', text.length, voice); // paid synthesis only — cache hits never reach here
     const dataUri = `data:audio/mpeg;base64,${data.audio}`;
-    return putCachedAudio(key, dataUri);
+    return rememberInMemory(key, await putCachedAudio(key, dataUri));
   })();
 
   inflight.set(key, job);
