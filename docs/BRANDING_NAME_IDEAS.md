@@ -32,7 +32,8 @@ a live competitor):
 
 | Name | USPTO (exact phrase) | Live app competitor? | Notes |
 |------|----------------------|----------------------|-------|
-| **The Green Room** | none found (user search) | none as a rehearsal app ✅ | Warm, on-theme (the actors' communal room). BUT generic term; acting *studios* use it (greenroomactingstudio.com, thegreenroomstudio.tv); domain needs a variant. Legit contender. |
+| **The Green Room** | none found (user search) | none as a rehearsal app ✅ | Warm, on-theme (the actors' communal room). BUT generic term; acting *studios* use it (greenroomactingstudio.com, thegreenroomstudio.tv); domain needs a variant. Legit contender. Lane: cozy/community. |
+| **Side Piece** (tagline: "your anytime, any place reader!") | TODO — check "sidepiece" / "side piece" (note: SIDEPIECE DJ duo likely has Class 41 marks) | none as a rehearsal app ✅ | Distinctive, funny, on-brand (SHART STAR DNA). Tagline reframes the innuendo as "always available." Flags: harder SEO/discoverability + paid-ad policy risk (loaded phrase); "SideKick" app (sidekick.actor) is a near-neighbor; App Store review + inclusivity considerations. Lane: edgy/memorable. |
 
 ## Not yet vetted (brainstorm pool)
 
