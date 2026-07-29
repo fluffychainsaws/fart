@@ -22,6 +22,11 @@ a live competitor):
   "1,000+ actors"), off-book.app, gooffbook.com, etc. Plus "OFFBOOK GAMES"
   pending (different owner, Class 41 games). Generic acting term ("off book" =
   memorized) — hard to own, already taken in practice. Do not use.
+- **Audition Buddy** — ⚠️ not recommended. No exact "Audition Buddy" app found,
+  but it's the same "[acting thing] + Buddy" formula as the LIVE registered
+  **Self Tape Buddy** (confusion risk) and the existing **Script Buddy** app.
+  Third "Buddy" in the aisle — legal risk + blends in. "Buddy" = the vibe we
+  want, but get it from a distinctive name (Green Room, Castmate) instead.
 
 ## Live candidates
 
