@@ -12,6 +12,7 @@ import { HomeIcon } from '@/lib/HomeIcon';
 import { LogoutIcon } from '@/lib/LogoutIcon';
 import { MicIcon } from '@/lib/MicIcon';
 import { setMenuDocked } from '@/lib/menuPref';
+import { NamePollModal } from '@/lib/NamePoll';
 import { refreshProfilePhoto, useProfilePhoto } from '@/lib/profilePhoto';
 import { getTier } from '@/lib/subscription';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
@@ -73,6 +74,7 @@ function MenuContent({ onNavigate }: { onNavigate?: () => void }) {
   const photo = useProfilePhoto();
   const [tierName, setTierName] = useState<string | null>(null);
   const [credits, setCredits] = useState(0);
+  const [pollOpen, setPollOpen] = useState(false);
 
   useEffect(() => {
     getUsageStatus().then((status) => {
@@ -159,6 +161,17 @@ function MenuContent({ onNavigate }: { onNavigate?: () => void }) {
           </Pressable>
         );
       })}
+
+      <Pressable
+        style={({ pressed }) => [styles.link, pressed && styles.pressed]}
+        onPress={() => {
+          onNavigate?.();
+          setPollOpen(true);
+        }}>
+        <Text style={styles.linkIcon}>📊</Text>
+        <Text style={styles.linkLabel}>Name the app</Text>
+      </Pressable>
+      <NamePollModal visible={pollOpen} onClose={() => setPollOpen(false)} />
 
       <View style={styles.spacer}>
         <HelpBot onOpen={onNavigate} />

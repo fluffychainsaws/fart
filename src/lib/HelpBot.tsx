@@ -4,19 +4,11 @@ import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react
 import { Text } from '@/lib/AppText';
 import { submitFeedback, type FeedbackKind } from '@/lib/feedback';
 import { FALLBACK, GREETING, matchFaq, SUGGESTED } from '@/lib/helpFaq';
-import {
-  APP_NAME_OPTIONS,
-  APP_NAME_POLL,
-  castVote,
-  pollResults,
-  votedOptionFor,
-  type PollResults,
-} from '@/lib/poll';
 import { RobotMascot } from '@/lib/RobotMascot';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 
 type Msg = { from: 'bot' | 'user'; text: string };
-type Mode = 'chat' | 'report' | 'poll';
+type Mode = 'chat' | 'report';
 
 const KINDS: { key: FeedbackKind; label: string }[] = [
   { key: 'bug', label: '🐞 Something’s broken' },
@@ -45,11 +37,6 @@ export function HelpBot({ onOpen }: { onOpen?: () => void }) {
   const [sent, setSent] = useState(false);
   const [reportErr, setReportErr] = useState(false);
 
-  // "Help name the app" poll state.
-  const [results, setResults] = useState<PollResults>({});
-  const [votedFor, setVotedFor] = useState<string | null>(null);
-  const [voting, setVoting] = useState(false);
-
   const openChat = () => {
     onOpen?.();
     setOpen(true);
@@ -72,26 +59,6 @@ export function HelpBot({ onOpen }: { onOpen?: () => void }) {
 
   const backToChat = () => setMode('chat');
 
-  const openPoll = async () => {
-    setMode('poll');
-    const [voted, res] = await Promise.all([votedOptionFor(APP_NAME_POLL), pollResults(APP_NAME_POLL)]);
-    setVotedFor(voted);
-    setResults(res);
-  };
-
-  const vote = async (optionId: string) => {
-    if (votedFor || voting) return;
-    setVoting(true);
-    const ok = await castVote(APP_NAME_POLL, optionId);
-    if (ok) {
-      setVotedFor(optionId);
-      setResults(await pollResults(APP_NAME_POLL));
-    }
-    setVoting(false);
-  };
-
-  const totalVotes = Object.values(results).reduce((sum, n) => sum + n, 0);
-
   const sendReport = async () => {
     const msg = reportText.trim();
     if (!msg || sending) return;
@@ -107,14 +74,9 @@ export function HelpBot({ onOpen }: { onOpen?: () => void }) {
     }
   };
 
-  const headerTitle =
-    mode === 'report' ? 'Report an issue' : mode === 'poll' ? 'Help name the app' : 'F.A.R.T. Helper';
+  const headerTitle = mode === 'report' ? 'Report an issue' : 'F.A.R.T. Helper';
   const headerSub =
-    mode === 'report'
-      ? 'Tell us what’s wrong — we read every one'
-      : mode === 'poll'
-        ? 'Your vote helps us pick 💛'
-        : 'Quick answers to common questions';
+    mode === 'report' ? 'Tell us what’s wrong — we read every one' : 'Quick answers to common questions';
 
   return (
     <>
@@ -145,11 +107,6 @@ export function HelpBot({ onOpen }: { onOpen?: () => void }) {
 
             {mode === 'chat' ? (
               <>
-                <Pressable
-                  onPress={openPoll}
-                  style={({ pressed }) => [styles.pollBanner, pressed && { opacity: 0.85 }]}>
-                  <Text style={styles.pollBannerText}>📊 Help name the app — cast your vote!</Text>
-                </Pressable>
                 <ScrollView ref={scrollRef} style={styles.msgs} contentContainerStyle={styles.msgsContent}>
                   {messages.map((m, i) => (
                     <View
@@ -195,7 +152,7 @@ export function HelpBot({ onOpen }: { onOpen?: () => void }) {
                   </Pressable>
                 </View>
               </>
-            ) : mode === 'report' ? (
+            ) : (
               <ScrollView style={styles.msgs} contentContainerStyle={styles.reportBody}>
                 {sent ? (
                   <View style={styles.thanks}>
@@ -255,50 +212,6 @@ export function HelpBot({ onOpen }: { onOpen?: () => void }) {
                     </View>
                   </>
                 )}
-              </ScrollView>
-            ) : (
-              <ScrollView style={styles.msgs} contentContainerStyle={styles.reportBody}>
-                <Text style={styles.reportIntro}>🎭 Help us name the app! Which do you like best?</Text>
-                {APP_NAME_OPTIONS.map((opt) => {
-                  const votes = results[opt.id] ?? 0;
-                  const pct = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
-                  const mine = votedFor === opt.id;
-                  if (votedFor) {
-                    return (
-                      <View key={opt.id} style={styles.pollResultRow}>
-                        <View style={[styles.pollBar, { width: `${pct}%` }, mine && styles.pollBarMine]} />
-                        <View style={styles.pollResultContent}>
-                          <Text style={styles.pollResultLabel}>
-                            {opt.label}
-                            {mine ? '  ✓' : ''}
-                          </Text>
-                          <Text style={styles.pollResultPct}>{pct}%</Text>
-                        </View>
-                      </View>
-                    );
-                  }
-                  return (
-                    <Pressable
-                      key={opt.id}
-                      onPress={() => vote(opt.id)}
-                      disabled={voting}
-                      style={({ pressed }) => [styles.pollOption, pressed && { opacity: 0.7 }]}>
-                      <Text style={styles.pollOptionText}>{opt.label}</Text>
-                    </Pressable>
-                  );
-                })}
-                {votedFor ? (
-                  <Text style={styles.pollTally}>
-                    Thanks for voting! 💛 {totalVotes} vote{totalVotes === 1 ? '' : 's'} so far.
-                  </Text>
-                ) : (
-                  <Text style={styles.pollTally}>Tap your favorite — you’ll see the results after you vote.</Text>
-                )}
-                <Pressable
-                  onPress={backToChat}
-                  style={({ pressed }) => [styles.secondaryBtn, pressed && { opacity: 0.7 }]}>
-                  <Text style={styles.secondaryBtnText}>Back to help</Text>
-                </Pressable>
               </ScrollView>
             )}
           </View>
@@ -387,53 +300,6 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       borderTopColor: t.border,
     },
     reportLinkText: { color: t.accent, fontSize: 13, fontWeight: '800' },
-
-    pollBanner: {
-      backgroundColor: t.accentSoft,
-      paddingVertical: 10,
-      paddingHorizontal: 14,
-      alignItems: 'center',
-      borderBottomWidth: 1,
-      borderBottomColor: t.border,
-    },
-    pollBannerText: { color: t.accent, fontSize: 13, fontWeight: '800' },
-
-    pollOption: {
-      borderWidth: 1,
-      borderColor: t.accent,
-      borderRadius: 12,
-      paddingVertical: 13,
-      paddingHorizontal: 14,
-      backgroundColor: t.card,
-    },
-    pollOptionText: { color: t.ink, fontSize: 15, fontWeight: '700' },
-    pollResultRow: {
-      position: 'relative',
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: t.border,
-      backgroundColor: t.bg,
-      overflow: 'hidden',
-      height: 46,
-      justifyContent: 'center',
-    },
-    pollBar: {
-      position: 'absolute',
-      left: 0,
-      top: 0,
-      bottom: 0,
-      backgroundColor: t.accentSoft,
-    },
-    pollBarMine: { backgroundColor: t.accent, opacity: 0.35 },
-    pollResultContent: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: 14,
-    },
-    pollResultLabel: { color: t.ink, fontSize: 14, fontWeight: '700', flexShrink: 1 },
-    pollResultPct: { color: t.ink, fontSize: 14, fontWeight: '800', marginLeft: 8 },
-    pollTally: { color: t.inkSoft, fontSize: 13, textAlign: 'center', marginTop: 2 },
 
     reportBody: { padding: 14, gap: 12 },
     reportIntro: { color: t.ink, fontSize: 14, lineHeight: 20 },
