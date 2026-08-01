@@ -46,16 +46,14 @@ export function NamePoll() {
 
   if (votedFor) {
     return (
-      <View style={styles.wrap}>
-        <View style={styles.thanksRow}>
-          <Text style={styles.thanksText}>🗳️ Thank you for voting! 💛</Text>
-        </View>
+      <View style={styles.box}>
+        <Text style={styles.thanksText}>🗳️ Thank you for voting! 💛</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.wrap}>
+    <View style={styles.box}>
       <Text style={styles.title}>📊 Help name the app</Text>
       {APP_NAME_OPTIONS.map((opt) => (
         <Pressable
@@ -74,13 +72,21 @@ export function NamePoll() {
 
 const makeStyles = (t: Theme) =>
   StyleSheet.create({
-    wrap: { paddingHorizontal: 10, marginTop: 4, marginBottom: 4 },
+    box: {
+      marginHorizontal: 8,
+      marginVertical: 8,
+      padding: 12,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: t.border,
+      backgroundColor: t.bg,
+    },
     title: {
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: '800',
       color: t.accent,
       letterSpacing: 0.3,
-      marginBottom: 8,
+      marginBottom: 10,
     },
     option: {
       borderWidth: 1,
