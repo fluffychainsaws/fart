@@ -533,7 +533,9 @@ function makeStyles(t: Theme, shadow: ReturnType<typeof useCardShadow>) {
     toggleTabIcon: { color: t.inkSoft, fontSize: 24, fontWeight: '800', lineHeight: 26 },
     spacer: {
       flex: 1,
-      minHeight: 120,
+      // Tall enough to fully contain the floating mascot (~92px + bubble), so
+      // when vertical space is tight the robot can't spill up into the poll box.
+      minHeight: 150,
       alignItems: 'center',
       justifyContent: 'flex-end',
       paddingBottom: 12,
