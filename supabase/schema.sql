@@ -486,3 +486,53 @@ end;
 $$;
 
 grant execute on function public.admin_feedback(integer) to authenticated;
+
+-- ============================================================================
+-- Community poll (helper bot "help name the app" vote). Safe to re-run.
+-- ============================================================================
+
+create table if not exists public.poll_votes (
+  id bigint generated always as identity primary key,
+  poll_id text not null,
+  option_id text not null,
+  user_id uuid references auth.users (id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+-- One vote per signed-in user per poll. Anonymous votes (user_id null) aren't
+-- deduped here — the client keeps a local "already voted" flag for those.
+create unique index if not exists poll_votes_user_unique
+  on public.poll_votes (poll_id, user_id)
+  where user_id is not null;
+
+alter table public.poll_votes enable row level security;
+
+-- Anyone can vote; NO select policy, so individual votes (and who cast them)
+-- are never exposed — tallies come only from the aggregate function below.
+drop policy if exists "anyone can vote" on public.poll_votes;
+create policy "anyone can vote"
+  on public.poll_votes for insert
+  with check (true);
+
+-- Public aggregate: vote counts per option for a poll. Returns counts only,
+-- never voter identities, so it's safe to expose to everyone (voters see live
+-- results). SECURITY DEFINER to read past the row-level lock above.
+create or replace function public.poll_results(p_poll text)
+returns jsonb
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  result jsonb;
+begin
+  select jsonb_agg(t) into result from (
+    select option_id, count(*)::int as votes
+    from poll_votes
+    where poll_id = p_poll
+    group by option_id
+  ) t;
+  return coalesce(result, '[]'::jsonb);
+end;
+$$;
+
+grant execute on function public.poll_results(text) to anon, authenticated;

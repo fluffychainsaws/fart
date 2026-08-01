@@ -4,6 +4,7 @@ import { useFocusEffect } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
 import { voiceLabel } from '@/lib/cloudVoice';
+import { APP_NAME_OPTIONS, APP_NAME_POLL, pollResults, type PollResults } from '@/lib/poll';
 import { getTier, TIER_ORDER, type Tier } from '@/lib/subscription';
 import { supabase } from '@/lib/supabase';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
@@ -58,6 +59,7 @@ export default function AdminScreen() {
   const [rows, setRows] = useState<TierRow[] | null>(null);
   const [voices, setVoices] = useState<VoiceRow[]>([]);
   const [feedback, setFeedback] = useState<FeedbackRow[]>([]);
+  const [poll, setPoll] = useState<PollResults>({});
   const [error, setError] = useState<string | null>(null);
 
   useFocusEffect(
@@ -78,6 +80,8 @@ export default function AdminScreen() {
       supabase.rpc('admin_feedback').then(({ data }) => {
         setFeedback((data as FeedbackRow[]) ?? []);
       });
+      // "Help name the app" poll tally — best-effort.
+      pollResults(APP_NAME_POLL).then(setPoll);
     }, []),
   );
 
@@ -109,6 +113,8 @@ export default function AdminScreen() {
     },
     { revenue: 0, cost: 0, users: 0, auditions: 0, uploads: 0, pages: 0 },
   );
+
+  const pollTotal = Object.values(poll).reduce((sum, n) => sum + n, 0);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -172,6 +178,29 @@ export default function AdminScreen() {
                 {v.uses === 1 ? '' : 's'} · {v.chars.toLocaleString()} chars
               </Text>
             ))}
+        </View>
+      )}
+
+      {pollTotal > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.cardTier}>Name poll</Text>
+          <Text style={styles.voiceNote}>
+            Votes from the helper bot&apos;s &ldquo;help name the app&rdquo; poll.
+          </Text>
+          {[...APP_NAME_OPTIONS]
+            .sort((a, b) => (poll[b.id] ?? 0) - (poll[a.id] ?? 0))
+            .map((opt) => {
+              const votes = poll[opt.id] ?? 0;
+              const pct = Math.round((votes / pollTotal) * 100);
+              return (
+                <Text key={opt.id} style={styles.cardLine}>
+                  {opt.label} — {votes} vote{votes === 1 ? '' : 's'} · {pct}%
+                </Text>
+              );
+            })}
+          <Text style={[styles.cardLine, { fontWeight: '800' }]}>
+            Total: {pollTotal} vote{pollTotal === 1 ? '' : 's'}
+          </Text>
         </View>
       )}
 
