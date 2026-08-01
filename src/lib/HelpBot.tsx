@@ -2,23 +2,40 @@ import { useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Text } from '@/lib/AppText';
+import { submitFeedback, type FeedbackKind } from '@/lib/feedback';
 import { FALLBACK, GREETING, matchFaq, SUGGESTED } from '@/lib/helpFaq';
 import { RobotMascot } from '@/lib/RobotMascot';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
 
 type Msg = { from: 'bot' | 'user'; text: string };
+type Mode = 'chat' | 'report';
+
+const KINDS: { key: FeedbackKind; label: string }[] = [
+  { key: 'bug', label: '🐞 Something’s broken' },
+  { key: 'idea', label: '💡 Idea / request' },
+  { key: 'feedback', label: '💬 Other feedback' },
+];
 
 // Animated robot mascot that lives in the sidebar's blank space and opens a
-// free, offline FAQ chat (see helpFaq.ts). `onOpen` lets the slide-out drawer
-// close itself so the chat panel isn't stuck behind it.
+// free, offline FAQ chat (see helpFaq.ts), plus a "Report an issue" form that
+// saves feedback to Supabase (see feedback.ts). `onOpen` lets the slide-out
+// drawer close itself so the chat panel isn't stuck behind it.
 export function HelpBot({ onOpen }: { onOpen?: () => void }) {
   const t = useTheme();
   const shadow = useCardShadow();
   const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<Mode>('chat');
   const [messages, setMessages] = useState<Msg[]>([{ from: 'bot', text: GREETING }]);
   const [input, setInput] = useState('');
   const scrollRef = useRef<ScrollView>(null);
+
+  // Report-an-issue form state.
+  const [kind, setKind] = useState<FeedbackKind>('bug');
+  const [reportText, setReportText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [reportErr, setReportErr] = useState(false);
 
   const openChat = () => {
     onOpen?.();
@@ -33,6 +50,31 @@ export function HelpBot({ onOpen }: { onOpen?: () => void }) {
     setInput('');
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 60);
   };
+
+  const openReport = () => {
+    setReportErr(false);
+    setSent(false);
+    setMode('report');
+  };
+
+  const backToChat = () => setMode('chat');
+
+  const sendReport = async () => {
+    const msg = reportText.trim();
+    if (!msg || sending) return;
+    setSending(true);
+    setReportErr(false);
+    const ok = await submitFeedback(kind, msg, 'from:helpbot');
+    setSending(false);
+    if (ok) {
+      setSent(true);
+      setReportText('');
+    } else {
+      setReportErr(true);
+    }
+  };
+
+  const reporting = mode === 'report';
 
   return (
     <>
@@ -53,54 +95,125 @@ export function HelpBot({ onOpen }: { onOpen?: () => void }) {
             <View style={styles.header}>
               <RobotMascot size={42} float={false} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.headerTitle}>F.A.R.T. Helper</Text>
-                <Text style={styles.headerSub}>Quick answers to common questions</Text>
+                <Text style={styles.headerTitle}>{reporting ? 'Report an issue' : 'F.A.R.T. Helper'}</Text>
+                <Text style={styles.headerSub}>
+                  {reporting ? 'Tell us what’s wrong — we read every one' : 'Quick answers to common questions'}
+                </Text>
               </View>
               <Pressable onPress={() => setOpen(false)} hitSlop={10} style={styles.closeBtn}>
                 <Text style={styles.closeText}>✕</Text>
               </Pressable>
             </View>
 
-            <ScrollView ref={scrollRef} style={styles.msgs} contentContainerStyle={styles.msgsContent}>
-              {messages.map((m, i) => (
-                <View
-                  key={i}
-                  style={[styles.msgRow, m.from === 'user' ? styles.rowRight : styles.rowLeft]}>
-                  <View style={[styles.msg, m.from === 'user' ? styles.msgUser : styles.msgBot]}>
-                    <Text style={m.from === 'user' ? styles.msgUserText : styles.msgBotText}>{m.text}</Text>
+            {!reporting ? (
+              <>
+                <ScrollView ref={scrollRef} style={styles.msgs} contentContainerStyle={styles.msgsContent}>
+                  {messages.map((m, i) => (
+                    <View
+                      key={i}
+                      style={[styles.msgRow, m.from === 'user' ? styles.rowRight : styles.rowLeft]}>
+                      <View style={[styles.msg, m.from === 'user' ? styles.msgUser : styles.msgBot]}>
+                        <Text style={m.from === 'user' ? styles.msgUserText : styles.msgBotText}>{m.text}</Text>
+                      </View>
+                    </View>
+                  ))}
+
+                  <Text style={styles.chipsLabel}>Try asking:</Text>
+                  <View style={styles.chips}>
+                    {SUGGESTED.map((s) => (
+                      <Pressable
+                        key={s}
+                        onPress={() => ask(s)}
+                        style={({ pressed }) => [styles.chip, pressed && { opacity: 0.7 }]}>
+                        <Text style={styles.chipText}>{s}</Text>
+                      </Pressable>
+                    ))}
                   </View>
-                </View>
-              ))}
+                </ScrollView>
 
-              <Text style={styles.chipsLabel}>Try asking:</Text>
-              <View style={styles.chips}>
-                {SUGGESTED.map((s) => (
+                <Pressable onPress={openReport} style={({ pressed }) => [styles.reportLink, pressed && { opacity: 0.7 }]}>
+                  <Text style={styles.reportLinkText}>Something wrong? Report it →</Text>
+                </Pressable>
+
+                <View style={styles.inputRow}>
+                  <TextInput
+                    style={styles.input}
+                    value={input}
+                    onChangeText={setInput}
+                    placeholder="Type a question…"
+                    placeholderTextColor={t.inkSoft}
+                    onSubmitEditing={() => ask(input)}
+                    returnKeyType="send"
+                  />
                   <Pressable
-                    key={s}
-                    onPress={() => ask(s)}
-                    style={({ pressed }) => [styles.chip, pressed && { opacity: 0.7 }]}>
-                    <Text style={styles.chipText}>{s}</Text>
+                    onPress={() => ask(input)}
+                    style={({ pressed }) => [styles.sendBtn, pressed && { opacity: 0.8 }]}>
+                    <Text style={styles.sendText}>Send</Text>
                   </Pressable>
-                ))}
-              </View>
-            </ScrollView>
-
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.input}
-                value={input}
-                onChangeText={setInput}
-                placeholder="Type a question…"
-                placeholderTextColor={t.inkSoft}
-                onSubmitEditing={() => ask(input)}
-                returnKeyType="send"
-              />
-              <Pressable
-                onPress={() => ask(input)}
-                style={({ pressed }) => [styles.sendBtn, pressed && { opacity: 0.8 }]}>
-                <Text style={styles.sendText}>Send</Text>
-              </Pressable>
-            </View>
+                </View>
+              </>
+            ) : (
+              <ScrollView style={styles.msgs} contentContainerStyle={styles.reportBody}>
+                {sent ? (
+                  <View style={styles.thanks}>
+                    <Text style={styles.thanksTitle}>Thank you! 💛</Text>
+                    <Text style={styles.thanksText}>
+                      We read every single report — this is exactly how F.A.R.T. gets better. 🙌
+                    </Text>
+                    <Pressable onPress={backToChat} style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}>
+                      <Text style={styles.primaryBtnText}>Back to help</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <>
+                    <Text style={styles.reportIntro}>
+                      Found a bug or something off? Tell us what happened — the more detail, the faster we can fix it.
+                    </Text>
+                    <View style={styles.chips}>
+                      {KINDS.map((k) => {
+                        const selected = k.key === kind;
+                        return (
+                          <Pressable
+                            key={k.key}
+                            onPress={() => setKind(k.key)}
+                            style={[styles.chip, selected && styles.chipSelected]}>
+                            <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{k.label}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                    <TextInput
+                      style={styles.reportInput}
+                      value={reportText}
+                      onChangeText={setReportText}
+                      placeholder="What happened? What were you doing when it went wrong?"
+                      placeholderTextColor={t.inkSoft}
+                      multiline
+                      maxLength={4000}
+                      textAlignVertical="top"
+                    />
+                    {reportErr && (
+                      <Text style={styles.errText}>Couldn’t send that — check your connection and try again.</Text>
+                    )}
+                    <View style={styles.reportActions}>
+                      <Pressable onPress={backToChat} style={({ pressed }) => [styles.secondaryBtn, pressed && { opacity: 0.7 }]}>
+                        <Text style={styles.secondaryBtnText}>Cancel</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={sendReport}
+                        disabled={!reportText.trim() || sending}
+                        style={({ pressed }) => [
+                          styles.primaryBtn,
+                          (!reportText.trim() || sending) && { opacity: 0.5 },
+                          pressed && { opacity: 0.85 },
+                        ]}>
+                        <Text style={styles.primaryBtnText}>{sending ? 'Sending…' : 'Send report'}</Text>
+                      </Pressable>
+                    </View>
+                  </>
+                )}
+              </ScrollView>
+            )}
           </View>
         </View>
       </Modal>
@@ -177,6 +290,45 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
       backgroundColor: t.card,
     },
     chipText: { color: t.accent, fontSize: 13, fontWeight: '700' },
+    chipSelected: { backgroundColor: t.accent },
+    chipTextSelected: { color: '#fff' },
+
+    reportLink: {
+      alignItems: 'center',
+      paddingVertical: 8,
+      borderTopWidth: 1,
+      borderTopColor: t.border,
+    },
+    reportLinkText: { color: t.accent, fontSize: 13, fontWeight: '800' },
+
+    reportBody: { padding: 14, gap: 12 },
+    reportIntro: { color: t.ink, fontSize: 14, lineHeight: 20 },
+    reportInput: {
+      minHeight: 120,
+      backgroundColor: t.bg,
+      borderWidth: 1,
+      borderColor: t.border,
+      borderRadius: 12,
+      padding: 12,
+      fontSize: 14,
+      color: t.ink,
+      fontFamily: 'Inter_500Medium',
+    },
+    errText: { color: '#d33', fontSize: 13, fontWeight: '600' },
+    reportActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, alignItems: 'center' },
+    primaryBtn: {
+      backgroundColor: t.accent,
+      borderRadius: 12,
+      paddingVertical: 11,
+      paddingHorizontal: 18,
+    },
+    primaryBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' },
+    secondaryBtn: { paddingVertical: 11, paddingHorizontal: 14 },
+    secondaryBtnText: { color: t.inkSoft, fontSize: 14, fontWeight: '700' },
+
+    thanks: { alignItems: 'center', gap: 10, paddingVertical: 16 },
+    thanksTitle: { fontSize: 18, fontWeight: '800', color: t.ink },
+    thanksText: { fontSize: 14, color: t.inkSoft, textAlign: 'center', lineHeight: 20 },
 
     inputRow: {
       flexDirection: 'row',

@@ -435,3 +435,54 @@ revoke execute on function public.consume_audition(uuid, text, integer) from pub
 revoke execute on function public.refund_audition(uuid, text) from public, anon, authenticated;
 revoke execute on function public.spend_premium_credit_for(uuid) from public, anon, authenticated;
 revoke execute on function public.consume_rate_limit(uuid, text, text, bigint, bigint) from public, anon, authenticated;
+
+-- ============================================================================
+-- In-app feedback / bug reports (from the helper bot). Safe to re-run.
+-- ============================================================================
+
+-- Anyone can submit (signed in or not); user_id is recorded when available.
+-- Only the site owner reads them — via admin_feedback() below or the dashboard.
+create table if not exists public.feedback (
+  id bigint generated always as identity primary key,
+  user_id uuid references auth.users (id) on delete set null,
+  kind text not null default 'feedback' check (kind in ('bug', 'idea', 'feedback')),
+  message text not null,
+  context text, -- e.g. "from:helpbot · platform:web" — light triage info
+  created_at timestamptz not null default now()
+);
+
+alter table public.feedback enable row level security;
+
+-- Insert-only for everyone; deliberately NO select policy, so feedback (which
+-- can contain personal detail) is never readable by other users through the
+-- public API — only the SECURITY DEFINER admin_feedback() function and the
+-- service-role dashboard can read it.
+drop policy if exists "anyone can submit feedback" on public.feedback;
+create policy "anyone can submit feedback"
+  on public.feedback for insert
+  with check (true);
+
+-- Owner-only reader for the /admin dashboard. Same is_admin gate as the other
+-- admin_* functions; returns the most recent reports newest-first.
+create or replace function public.admin_feedback(limit_arg integer default 50)
+returns jsonb
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  result jsonb;
+begin
+  if not exists (select 1 from profiles where id = auth.uid() and is_admin) then
+    raise exception 'not authorized';
+  end if;
+  select jsonb_agg(t) into result from (
+    select id, kind, message, context, created_at
+    from feedback
+    order by created_at desc
+    limit least(greatest(limit_arg, 1), 200)
+  ) t;
+  return coalesce(result, '[]'::jsonb);
+end;
+$$;
+
+grant execute on function public.admin_feedback(integer) to authenticated;

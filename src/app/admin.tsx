@@ -37,12 +37,27 @@ interface VoiceRow {
   chars: number;
 }
 
+interface FeedbackRow {
+  id: number;
+  kind: 'bug' | 'idea' | 'feedback';
+  message: string;
+  context: string | null;
+  created_at: string;
+}
+
+const FEEDBACK_LABEL: Record<FeedbackRow['kind'], string> = {
+  bug: '🐞 Bug',
+  idea: '💡 Idea',
+  feedback: '💬 Feedback',
+};
+
 export default function AdminScreen() {
   const t = useTheme();
   const shadow = useCardShadow();
   const styles = useMemo(() => makeStyles(t, shadow), [t, shadow]);
   const [rows, setRows] = useState<TierRow[] | null>(null);
   const [voices, setVoices] = useState<VoiceRow[]>([]);
+  const [feedback, setFeedback] = useState<FeedbackRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useFocusEffect(
@@ -58,6 +73,10 @@ export default function AdminScreen() {
       // Voice popularity — best-effort; a failure just hides the panel.
       supabase.rpc('admin_voice_usage').then(({ data }) => {
         setVoices((data as VoiceRow[]) ?? []);
+      });
+      // Recent user feedback — best-effort; a failure just hides the panel.
+      supabase.rpc('admin_feedback').then(({ data }) => {
+        setFeedback((data as FeedbackRow[]) ?? []);
       });
     }, []),
   );
@@ -155,6 +174,27 @@ export default function AdminScreen() {
             ))}
         </View>
       )}
+
+      {feedback.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.cardTier}>Recent feedback</Text>
+          <Text style={styles.voiceNote}>
+            Bug reports and ideas sent from the in-app helper, newest first.
+          </Text>
+          {feedback.map((f) => (
+            <View key={f.id} style={styles.feedbackItem}>
+              <Text style={styles.feedbackMeta}>
+                {FEEDBACK_LABEL[f.kind] ?? f.kind} ·{' '}
+                {new Date(f.created_at).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                })}
+              </Text>
+              <Text style={styles.feedbackMsg}>{f.message}</Text>
+            </View>
+          ))}
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -181,4 +221,12 @@ const makeStyles = (t: Theme, shadow: ReturnType<typeof useCardShadow>) =>
     cardRevenue: { fontSize: 13, fontWeight: '700', color: t.ink },
     cardLine: { fontSize: 13, color: t.ink, marginTop: 6 },
     voiceNote: { fontSize: 12, color: t.inkSoft, marginTop: 4, marginBottom: 4, lineHeight: 17 },
+    feedbackItem: {
+      marginTop: 10,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: t.border,
+    },
+    feedbackMeta: { fontSize: 12, fontWeight: '700', color: t.accent },
+    feedbackMsg: { fontSize: 13, color: t.ink, marginTop: 3, lineHeight: 19 },
   });
