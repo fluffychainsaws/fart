@@ -9,18 +9,18 @@ import { supabase } from './supabase';
 // local "already voted" flag. Editing the options below changes the poll — bump
 // the poll id if you want a fresh tally.
 
-export const APP_NAME_POLL = 'app-name-v1';
+export const FEATURE_POLL = 'feature-request-v1';
 
 export interface PollOption {
   id: string;
   label: string;
 }
 
-export const APP_NAME_OPTIONS: PollOption[] = [
-  { id: 'green-room', label: 'The Green Room 🎭' },
-  { id: 'side-piece', label: 'Side Piece 😏' },
-  { id: 'castmate', label: 'Castmate 🎬' },
-  { id: 'keep-fart', label: 'Keep it F.A.R.T.! 💨' },
+export const FEATURE_OPTIONS: PollOption[] = [
+  { id: 'themes', label: 'More color themes' },
+  { id: 'news', label: 'Acting news' },
+  { id: 'yearly-discount', label: 'Yearly discounts?' },
+  { id: 'audition-counter', label: 'Website audition counter' },
 ];
 
 export type PollResults = Record<string, number>; // optionId -> vote count

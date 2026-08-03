@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Text } from '@/lib/AppText';
-import { APP_NAME_OPTIONS, APP_NAME_POLL, castVote, votedOptionFor } from '@/lib/poll';
+import { FEATURE_OPTIONS, FEATURE_POLL, castVote, votedOptionFor } from '@/lib/poll';
 import { useTheme, type Theme } from '@/lib/theme';
 
 // "Help name the app" community poll, rendered inline in the side menu. Before
@@ -22,7 +22,7 @@ export function NamePoll() {
   // Check whether this device has already voted, so we know which state to show.
   useEffect(() => {
     let alive = true;
-    votedOptionFor(APP_NAME_POLL).then((voted) => {
+    votedOptionFor(FEATURE_POLL).then((voted) => {
       if (!alive) return;
       setVotedFor(voted);
       setReady(true);
@@ -35,7 +35,7 @@ export function NamePoll() {
   const vote = async (optionId: string) => {
     if (votedFor || voting) return;
     setVoting(true);
-    const ok = await castVote(APP_NAME_POLL, optionId);
+    const ok = await castVote(FEATURE_POLL, optionId);
     if (ok) setVotedFor(optionId);
     setVoting(false);
   };
@@ -54,8 +54,8 @@ export function NamePoll() {
 
   return (
     <View style={styles.box}>
-      <Text style={styles.title}>📊 Help name the app</Text>
-      {APP_NAME_OPTIONS.map((opt) => (
+      <Text style={styles.title}>💡 What would you like to see added?</Text>
+      {FEATURE_OPTIONS.map((opt) => (
         <Pressable
           key={opt.id}
           onPress={() => vote(opt.id)}

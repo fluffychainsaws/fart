@@ -4,7 +4,7 @@ import { useFocusEffect } from 'expo-router';
 
 import { Text } from '@/lib/AppText';
 import { voiceLabel } from '@/lib/cloudVoice';
-import { APP_NAME_OPTIONS, APP_NAME_POLL, pollResults, type PollResults } from '@/lib/poll';
+import { FEATURE_OPTIONS, FEATURE_POLL, pollResults, type PollResults } from '@/lib/poll';
 import { getTier, TIER_ORDER, type Tier } from '@/lib/subscription';
 import { supabase } from '@/lib/supabase';
 import { useCardShadow, useTheme, type Theme } from '@/lib/theme';
@@ -80,8 +80,8 @@ export default function AdminScreen() {
       supabase.rpc('admin_feedback').then(({ data }) => {
         setFeedback((data as FeedbackRow[]) ?? []);
       });
-      // "Help name the app" poll tally — best-effort.
-      pollResults(APP_NAME_POLL).then(setPoll);
+      // Feature-request poll tally — best-effort.
+      pollResults(FEATURE_POLL).then(setPoll);
     }, []),
   );
 
@@ -183,11 +183,11 @@ export default function AdminScreen() {
 
       {pollTotal > 0 && (
         <View style={styles.card}>
-          <Text style={styles.cardTier}>Name poll</Text>
+          <Text style={styles.cardTier}>Feature poll</Text>
           <Text style={styles.voiceNote}>
-            Votes from the helper bot&apos;s &ldquo;help name the app&rdquo; poll.
+            Votes from the &ldquo;what would you like to see added?&rdquo; poll.
           </Text>
-          {[...APP_NAME_OPTIONS]
+          {[...FEATURE_OPTIONS]
             .sort((a, b) => (poll[b.id] ?? 0) - (poll[a.id] ?? 0))
             .map((opt) => {
               const votes = poll[opt.id] ?? 0;
