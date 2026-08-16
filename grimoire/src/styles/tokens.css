@@ -1,0 +1,70 @@
+/* Design tokens.
+ *
+ * Everything visual resolves to a variable here, so a future light theme (or a
+ * per-campaign accent — a frostbitten blue for Icewind Dale, ember for Avernus)
+ * is a token swap rather than a sweep through component files.
+ *
+ * The palette is deliberately low-chroma ink and parchment with a single warm
+ * accent: this is a tool people stare at for a four-hour session, so the
+ * content is what should be colourful, not the chrome. */
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces, from furthest back to nearest front. */
+  --bg: #0f1114;
+  --surface: #16191e;
+  --surface-raised: #1c2027;
+  --surface-sunken: #101317;
+  --overlay: rgb(8 9 11 / 0.72);
+
+  /* Ink. */
+  --text: #e8e4dc;
+  --text-muted: #a2a09a;
+  --text-faint: #706e69;
+
+  /* Lines. */
+  --line: #262a31;
+  --line-strong: #333941;
+
+  /* Accent: candle-flame amber. */
+  --accent: #d9a441;
+  --accent-strong: #f0bc5c;
+  --accent-ink: #221803;
+  --accent-wash: rgb(217 164 65 / 0.12);
+
+  /* Semantics. */
+  --danger: #d9615a;
+  --danger-wash: rgb(217 97 90 / 0.12);
+  --success: #6fa96b;
+  --success-wash: rgb(111 169 107 / 0.12);
+  --info: #6d94c4;
+
+  /* Role colours, used for the pills on member lists. */
+  --role-dm: #c58fd6;
+  --role-player: #6fa9a3;
+  --role-observer: #8a8d95;
+
+  /* Type. */
+  --font-body: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Space scale. */
+  --s1: 0.25rem;
+  --s2: 0.5rem;
+  --s3: 0.75rem;
+  --s4: 1rem;
+  --s5: 1.5rem;
+  --s6: 2rem;
+  --s7: 3rem;
+
+  --radius: 10px;
+  --radius-sm: 6px;
+  --radius-lg: 16px;
+
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.25);
+
+  --sidebar-w: 232px;
+  --content-max: 940px;
+}
