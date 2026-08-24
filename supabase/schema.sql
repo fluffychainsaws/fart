@@ -536,3 +536,37 @@ end;
 $$;
 
 grant execute on function public.poll_results(text) to anon, authenticated;
+
+-- ============================================================================
+-- Payload size limits — REQUIRED. Safe to re-run.
+--
+-- Three tables accept writes whose size nothing else bounds. The app caps them
+-- in the UI, but the publishable key ships in the web bundle, so anyone can
+-- skip the app and POST straight to PostgREST. Without these constraints a
+-- single caller can fill the database with oversized rows. Constraints are
+-- managed by name (drop-then-add) so this block updates in place on re-run.
+-- ============================================================================
+
+-- (1) Profile photo. photo_url is one of only two columns a user may write
+-- (see the column-level grant above) and is untyped text, so a direct PATCH
+-- could store a multi-megabyte data URI — repeatedly. 500k characters is ~350KB
+-- of base64, far above what the picker produces at quality 0.5.
+alter table public.profiles drop constraint if exists profiles_photo_size_check;
+alter table public.profiles
+  add constraint profiles_photo_size_check
+  check (photo_url is null or length(photo_url) <= 500000);
+
+-- (2) Feedback message. The 4000-char cap in src/lib/feedback.ts is client-side
+-- only; this is the one that actually holds. Context is short triage text.
+alter table public.feedback drop constraint if exists feedback_message_size_check;
+alter table public.feedback
+  add constraint feedback_message_size_check
+  check (length(message) <= 4000 and (context is null or length(context) <= 500));
+
+-- (3) Poll votes. Both columns are short identifiers chosen from a fixed list
+-- in src/lib/poll.ts — nothing legitimate approaches these bounds, so they only
+-- stop a caller inventing huge option ids to bloat the table.
+alter table public.poll_votes drop constraint if exists poll_votes_size_check;
+alter table public.poll_votes
+  add constraint poll_votes_size_check
+  check (length(poll_id) <= 64 and length(option_id) <= 64);

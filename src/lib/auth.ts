@@ -29,6 +29,11 @@ export async function signUp(email: string, password: string): Promise<string | 
     password,
     options: { emailRedirectTo: SITE_URL },
   });
+  // Account enumeration: telling the visitor "that email already has an
+  // account" lets anyone test an address and learn whether that person uses
+  // the app. Report the same "check your inbox" outcome either way — Supabase
+  // emails the address itself, so a real owner still finds out.
+  if (error && error.message.toLowerCase().includes('user already registered')) return null;
   return error ? friendly(error.message) : null;
 }
 

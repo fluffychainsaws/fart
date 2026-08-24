@@ -1,4 +1,8 @@
 User-agent: *
 Allow: /
 
+# Owner-only dashboard. It carries no data of its own (every panel is gated
+# server-side on is_admin), but there's no reason for it to be indexed.
+Disallow: /admin
+
 Sitemap: https://selftapebuddy.com/sitemap.xml
