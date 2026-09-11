@@ -76,16 +76,30 @@ const DIRECTION_MODEL = 'claude-opus-4-8';
 // use (a handful of notes per script); tune here.
 const DIRECTION_MONTHLY_LIMIT = 300;
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+// Only our own web origins may call this from a browser. Native apps don't send
+// an Origin header and aren't subject to CORS, so they're unaffected.
+const PRIMARY_ORIGIN = 'https://selftapebuddy.com';
+const ALLOWED_ORIGINS = new Set([
+  PRIMARY_ORIGIN,
+  'https://www.selftapebuddy.com',
+  'http://localhost:8081', // expo web dev server
+  'http://localhost:19006', // older expo web dev port
+]);
 
-const json = (body: unknown, status = 200) =>
+function corsFor(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin') ?? '';
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : PRIMARY_ORIGIN,
+    Vary: 'Origin',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
+}
+
+const json = (body: unknown, status = 200, cors: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { ...CORS, 'Content-Type': 'application/json' },
+    headers: { ...cors, 'Content-Type': 'application/json' },
   });
 
 // --- Script transcription (pdf / photos) -----------------------------------
@@ -239,6 +253,7 @@ async function gateAndParse(
   pageCount: number,
   content: Anthropic.Messages.ContentBlockParam[],
   noun: 'photos' | 'PDF',
+  cors: Record<string, string>,
 ): Promise<Response> {
   const { data: profile } = await admin.from('profiles').select('tier').eq('id', userId).single();
   const tier = (profile?.tier as string) ?? 'free';
@@ -252,6 +267,7 @@ async function gateAndParse(
         error: `This script is ${pageCount} pages, but your plan allows up to ${pageCap} per script. Upgrade for longer scripts.`,
       },
       413,
+      cors,
     );
   }
 
@@ -259,7 +275,7 @@ async function gateAndParse(
 
   if (useCredit) {
     const { data: ok } = await admin.rpc('spend_premium_credit_for', { p_user_id: userId });
-    if (ok !== true) return json({ error: "You don't have any Audition Credits left." }, 402);
+    if (ok !== true) return json({ error: "You don't have any Audition Credits left." }, 402, cors);
     consumed = 'credit';
   } else {
     const limit = AUDITION_LIMITS[tier] ?? AUDITION_LIMITS.free;
@@ -273,6 +289,7 @@ async function gateAndParse(
         return json(
           { error: "You're out of auditions this month — upgrade your plan to keep going." },
           402,
+          cors,
         );
       }
       consumed = 'audition';
@@ -285,7 +302,7 @@ async function gateAndParse(
     // For 'audition' rows the chars column carries the page count (the driver of
     // Claude parsing cost); 'tts' rows use it for synthesized characters.
     await admin.from('usage_events').insert({ user_id: userId, kind: 'audition', chars: pageCount });
-    return json({ ...result, usedCredit: consumed === 'credit' });
+    return json({ ...result, usedCredit: consumed === 'credit' }, 200, cors);
   } catch (err) {
     if (consumed === 'credit') {
       await admin.rpc('increment_premium_credits', { p_user_id: userId, p_amount: 1 });
@@ -299,8 +316,9 @@ async function gateAndParse(
 // --- Handler ----------------------------------------------------------------
 
 Deno.serve(async (req) => {
+  const CORS = corsFor(req);
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405);
+  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, CORS);
 
   // Require a real signed-in user. The anon key is public, so we validate the
   // caller's token against Supabase Auth and reject anything without a user.
@@ -314,16 +332,16 @@ Deno.serve(async (req) => {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser();
-  if (authError || !user) return json({ error: 'Sign in to upload scripts.' }, 401);
+  if (authError || !user) return json({ error: 'Sign in to upload scripts.' }, 401, CORS);
 
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
-  if (!apiKey) return json({ error: 'Script reading is temporarily unavailable.' }, 503);
+  if (!apiKey) return json({ error: 'Script reading is temporarily unavailable.' }, 503, CORS);
 
   let payload: Record<string, unknown>;
   try {
     payload = await req.json();
   } catch {
-    return json({ error: 'bad request' }, 400);
+    return json({ error: 'bad request' }, 400, CORS);
   }
 
   // Service-role client for the quota RPCs (service_role-only) and the tier
@@ -351,6 +369,7 @@ Deno.serve(async (req) => {
           { type: 'text', text: scriptInstructions('PDF') },
         ],
         'PDF',
+        CORS,
       );
     }
 
@@ -374,6 +393,7 @@ Deno.serve(async (req) => {
           { type: 'text', text: scriptInstructions('photos') },
         ],
         'photos',
+        CORS,
       );
     }
 
@@ -387,7 +407,7 @@ Deno.serve(async (req) => {
         p_limit: DIRECTION_MONTHLY_LIMIT,
       });
       if (withinLimit !== true) {
-        return json({ error: "You've made a lot of director notes this month — try again later." }, 429);
+        return json({ error: "You've made a lot of director notes this month — try again later." }, 429, CORS);
       }
       const note = String(payload.note ?? '').trim();
       const line = (payload.line as { character: string; text: string }) ?? { character: '', text: '' };
@@ -409,11 +429,11 @@ The actor's note for this line:
         ],
       });
       const block = response.content.find((b) => b.type === 'text');
-      if (block?.type !== 'text') return json({ error: 'empty response' }, 502);
-      return json(JSON.parse(block.text));
+      if (block?.type !== 'text') return json({ error: 'empty response' }, 502, CORS);
+      return json(JSON.parse(block.text), 200, CORS);
     }
 
-    return json({ error: 'unknown mode' }, 400);
+    return json({ error: 'unknown mode' }, 400, CORS);
   } catch (err) {
     // extractScript throws user-safe messages; Claude/network errors don't, so
     // log the raw cause and return a generic note for those.
@@ -422,6 +442,6 @@ The actor's note for this line:
       err instanceof Error && !(err instanceof Anthropic.APIError)
         ? err.message
         : 'The reader is having trouble right now. Try again in a moment.';
-    return json({ error: message }, 502);
+    return json({ error: message }, 502, CORS);
   }
 });

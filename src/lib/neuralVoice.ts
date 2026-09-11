@@ -12,12 +12,50 @@ import { Platform } from 'react-native';
 const ENABLED_KEY = 'fart.neuralVoice.v1';
 const MODEL_ID = 'onnx-community/Kokoro-82M-v1.0-ONNX';
 // Metro can't bundle onnxruntime-web (its internals use dynamic-import syntax
-// the bundler rejects), so the self-contained ESM build of kokoro-js is
-// imported straight from the CDN at runtime, web only. The Function
-// indirection hides the import() from the bundler.
-const KOKORO_CDN = 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js';
-// eslint-disable-next-line @typescript-eslint/no-implied-eval
-const importFromCdn = new Function('s', 'return import(s)') as (s: string) => Promise<KokoroModule>;
+// the bundler rejects), so kokoro-js ships as a self-contained ESM build that
+// loads at runtime, web only.
+//
+// It's served from OUR origin (public/vendor/), not a CDN. Loading executable
+// code from a third-party CDN meant a compromise there would run arbitrary
+// script in our users' pages — with access to their stored session token. The
+// vendored copy is pinned and reviewable; update it with:
+//   npm pack kokoro-js@<version>
+//   cp package/dist/kokoro.web.js public/vendor/kokoro-<version>.web.js
+// then bump the filename here AND in public/vendor/kokoro-loader.js.
+//
+// The loader shim is injected as a <script type="module"> rather than called
+// through new Function(), so the Content Security Policy doesn't need
+// 'unsafe-eval'. See public/vendor/kokoro-loader.js.
+//
+// Note the library still fetches its ONNX WASM backend from jsdelivr and the
+// model weights from HuggingFace on first use — those hosts must stay allowed
+// in the CSP (see +html.tsx).
+const KOKORO_SRC = '/vendor/kokoro-loader.js';
+
+// Injects the loader shim once and resolves with the library's exports.
+let kokoroPromise: Promise<KokoroModule> | null = null;
+function loadKokoro(): Promise<KokoroModule> {
+  if (kokoroPromise) return kokoroPromise;
+  kokoroPromise = new Promise<KokoroModule>((resolve, reject) => {
+    const existing = (window as unknown as { __kokoroModule?: KokoroModule }).__kokoroModule;
+    if (existing) return resolve(existing);
+    const done = () => {
+      const mod = (window as unknown as { __kokoroModule?: KokoroModule }).__kokoroModule;
+      mod ? resolve(mod) : reject(new Error('kokoro loaded but exposed nothing'));
+    };
+    window.addEventListener('__kokoroReady', done, { once: true });
+    const tag = document.createElement('script');
+    tag.type = 'module';
+    tag.src = KOKORO_SRC;
+    tag.onerror = () => reject(new Error('could not load the neural voice engine'));
+    document.head.appendChild(tag);
+  });
+  // A failed load shouldn't poison every later attempt.
+  kokoroPromise.catch(() => {
+    kokoroPromise = null;
+  });
+  return kokoroPromise;
+}
 
 export interface NeuralVoiceOption {
   id: string; // app-level id used in "neural:<id>" (usually the kokoro voice id)
@@ -145,7 +183,7 @@ export function enableNeuralVoice(): Promise<boolean> {
       if (fake) {
         engine = fake as KokoroEngine;
       } else {
-        const { KokoroTTS } = await importFromCdn(KOKORO_CDN);
+        const { KokoroTTS } = await loadKokoro();
         const webgpu = Boolean((navigator as unknown as { gpu?: unknown }).gpu);
         engine = await KokoroTTS.from_pretrained(MODEL_ID, {
           dtype: webgpu ? 'fp32' : 'q8',

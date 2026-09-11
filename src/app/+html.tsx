@@ -17,6 +17,47 @@ export default function Root({ children }: { children: React.ReactNode }) {
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
 
         {/*
+          Content Security Policy. GitHub Pages can't send response headers, so
+          this ships in the document instead. It matters here because the
+          Supabase session token lives in localStorage, where any injected
+          script could read it — this policy is what stops one from running.
+
+          script-src allows NO inline code except the two hashes below; anything
+          injected into the page is refused. If you edit the inline script in
+          this file, its hash changes and it will stop executing — rebuild and
+          update the hash (see supabase/README.md, "Content Security Policy").
+            1st hash: the install-prompt + frame-guard script at the bottom.
+            2nd hash: Expo Router's one-line hydration flag.
+
+          The jsdelivr / HuggingFace entries are for the optional neural voice
+          engine, which fetches its ONNX runtime and model weights on first use.
+          Everything else is same-origin.
+
+          Two limits worth knowing: a policy delivered by meta tag cannot use
+          frame-ancestors (hence the frame guard in script) and cannot be run in
+          report-only mode. Moving these to real headers via a proxy in front of
+          Pages would fix both and add HSTS.
+        */}
+        <meta
+          httpEquiv="Content-Security-Policy"
+          content={[
+            "default-src 'self'",
+            "base-uri 'self'",
+            "object-src 'none'",
+            "form-action 'self'",
+            "script-src 'self' 'wasm-unsafe-eval' 'sha256-9HBDvcmYS37mNhwxZM/Vxu6qE3pRrxAzG8UTjDc14tE=' 'sha256-67fhrP0+BkBqmgGGXTtgiVO/9EQs3QruYNU/7fnRkI8=' https://cdn.jsdelivr.net",
+            // react-native-web injects component styles as inline <style> at
+            // runtime, so style hashing isn't possible here.
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data: blob:",
+            "font-src 'self' data:",
+            "media-src 'self' data: blob:",
+            "worker-src 'self' blob:",
+            "connect-src 'self' https://*.supabase.co https://cdn.jsdelivr.net https://huggingface.co https://*.huggingface.co https://*.hf.co",
+          ].join('; ')}
+        />
+
+        {/*
           Disable body scrolling on web. This makes ScrollView components work closer to how they do on native.
           However, body scrolling is often nice to have for mobile web. If you want to enable it, remove this line.
         */}
@@ -60,10 +101,19 @@ export default function Root({ children }: { children: React.ReactNode }) {
         <meta name="mobile-web-app-capable" content="yes" />
         {/* Capture the install prompt as early as possible — Chrome can fire
             beforeinstallprompt before the app mounts. The InstallPrompt
-            component reads window.__bipEvent and listens for __bipReady. */}
+            component reads window.__bipEvent and listens for __bipReady.
+
+            Also carries the frame guard: a meta-tag CSP can't use
+            frame-ancestors, so this is what stops the app being framed for
+            clickjacking. Blanking the document first means the content isn't
+            clickable even when the escape is blocked cross-origin.
+
+            EDITING THIS SCRIPT CHANGES ITS HASH — update the matching
+            'sha256-...' in the Content-Security-Policy above or it won't run. */}
         <script
           dangerouslySetInnerHTML={{
             __html:
+              "try{if(window.top!==window.self){document.documentElement.style.display='none';window.top.location=window.self.location;}}catch(e){document.documentElement.style.display='none';}" +
               "window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__bipEvent=e;window.dispatchEvent(new Event('__bipReady'));});" +
               "if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){});});}",
           }}

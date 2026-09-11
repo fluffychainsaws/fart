@@ -24,16 +24,30 @@ function monthKey(): string {
   return `${n.getUTCFullYear()}-${String(n.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+// Only our own web origins may call this from a browser. Native apps don't send
+// an Origin header and aren't subject to CORS, so they're unaffected.
+const PRIMARY_ORIGIN = 'https://selftapebuddy.com';
+const ALLOWED_ORIGINS = new Set([
+  PRIMARY_ORIGIN,
+  'https://www.selftapebuddy.com',
+  'http://localhost:8081', // expo web dev server
+  'http://localhost:19006', // older expo web dev port
+]);
 
-const json = (body: unknown, status = 200) =>
+function corsFor(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin') ?? '';
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.has(origin) ? origin : PRIMARY_ORIGIN,
+    Vary: 'Origin',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
+}
+
+const json = (body: unknown, status = 200, cors: Record<string, string> = {}) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { ...CORS, 'Content-Type': 'application/json' },
+    headers: { ...cors, 'Content-Type': 'application/json' },
   });
 
 // ChatGPT voices — the app sends these slot names (alloy, coral, …) as-is.
@@ -115,8 +129,9 @@ function toBase64(bytes: Uint8Array): string {
 }
 
 Deno.serve(async (req) => {
+  const CORS = corsFor(req);
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
-  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405);
+  if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405, CORS);
 
   // Signed-in users only — the anon key is public, so we validate the token and
   // reject anonymous callers (keeps the paid TTS key from being abused).
@@ -130,20 +145,20 @@ Deno.serve(async (req) => {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser();
-  if (authError || !user) return json({ error: 'unauthorized' }, 401);
+  if (authError || !user) return json({ error: 'unauthorized' }, 401, CORS);
 
   let payload: Record<string, unknown>;
   try {
     payload = await req.json();
   } catch {
-    return json({ error: 'bad request' }, 400);
+    return json({ error: 'bad request' }, 400, CORS);
   }
 
   // Cap input so one call can't run up a huge bill — script lines are short.
   const text = String(payload.text ?? '').slice(0, 2000);
   const voice = String(payload.voice ?? 'coral');
   const instructions = String(payload.instructions ?? '');
-  if (!text.trim()) return json({ error: 'no text' }, 400);
+  if (!text.trim()) return json({ error: 'no text' }, 400, CORS);
 
   // Per-user monthly spend cap. The RPC is service_role-only, so use a
   // service-role client (the auth client above only verifies identity).
@@ -159,7 +174,7 @@ Deno.serve(async (req) => {
     p_limit: TTS_MONTHLY_CHAR_LIMIT,
   });
   if (withinLimit !== true) {
-    return json({ error: "You've hit this month's premium-voice limit." }, 429);
+    return json({ error: "You've hit this month's premium-voice limit." }, 429, CORS);
   }
 
   const provider = (Deno.env.get('VOICE_PROVIDER') ?? 'openai').toLowerCase();
@@ -168,9 +183,9 @@ Deno.serve(async (req) => {
       provider === 'elevenlabs'
         ? await synthElevenLabs(text, voice)
         : await synthOpenAI(text, voice, instructions);
-    return json({ audio: toBase64(audio), format: 'mp3' });
+    return json({ audio: toBase64(audio), format: 'mp3' }, 200, CORS);
   } catch (err) {
     console.error(err);
-    return json({ error: 'synthesis failed' }, 502);
+    return json({ error: 'synthesis failed' }, 502, CORS);
   }
 });

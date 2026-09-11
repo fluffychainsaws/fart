@@ -87,6 +87,44 @@ keys) before flipping to live keys.
   the signed-in user's own rows — and the tier column can't be self-upgraded
   (see the update policy in `schema.sql`).
 
+## Content Security Policy
+
+The web app ships a CSP in a `<meta>` tag in `src/app/+html.tsx`, because
+GitHub Pages can't send response headers. It's what stops an injected script
+from reading the session token out of `localStorage`.
+
+**The policy pins two inline scripts by SHA-256 hash.** If you edit the inline
+script in `+html.tsx`, its hash changes and the browser silently refuses to run
+it — the install prompt and the anti-clickjacking frame guard both stop
+working. After any edit to it:
+
+```bash
+npx expo export --platform web
+python3 - <<'PY'
+import re, hashlib, base64
+h = open('dist/index.html').read()
+for b in re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', h, re.S):
+    print("'sha256-" + base64.b64encode(hashlib.sha256(b.encode()).digest()).decode() + "'")
+PY
+```
+
+Paste the two values into the `script-src` list in `+html.tsx`.
+
+The same applies when Expo is upgraded: its one-line hydration script is the
+second hash, and a new Expo version can change it. If the app renders but feels
+inert after an upgrade, check the browser console for a CSP refusal first.
+
+Two things a meta-tag policy can't do — `frame-ancestors` (hence the frame
+guard in script) and report-only mode. Putting a proxy such as Cloudflare in
+front of Pages would let you send real headers, add HSTS, and trial changes in
+report-only mode first.
+
+### Verify after deploying
+The optional neural voices load their ONNX runtime from jsdelivr and model
+weights from HuggingFace, so those hosts are allowed in `script-src` and
+`connect-src`. Turn neural voices on once after a deploy and confirm a line
+still speaks — that's the one path the policy could plausibly break.
+
 ## What's deliberately NOT wired yet
 - The app doesn't sync scripts or read the server-side tier yet — that's the
   next step once accounts are live.

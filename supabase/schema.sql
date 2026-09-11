@@ -570,3 +570,82 @@ alter table public.poll_votes drop constraint if exists poll_votes_size_check;
 alter table public.poll_votes
   add constraint poll_votes_size_check
   check (length(poll_id) <= 64 and length(option_id) <= 64);
+
+-- ============================================================================
+-- Write throttle — REQUIRED. Safe to re-run.
+--
+-- The size limits above bound how BIG one write can be; this bounds how MANY.
+-- feedback and poll_votes accept anonymous inserts by design (you don't need an
+-- account to report a bug or vote), which means anyone holding the publishable
+-- key can loop inserts. A per-hour cap keyed on the caller's network address
+-- keeps that honest without making people sign in.
+--
+-- Addresses are never stored: the bucket key is an md5 of the address, so the
+-- table holds counters, not identities, and rows age out on their own.
+-- ============================================================================
+
+create table if not exists public.write_throttle (
+  bucket text primary key,
+  hits integer not null default 0,
+  window_start timestamptz not null default now()
+);
+
+alter table public.write_throttle enable row level security;
+-- No policies: only the SECURITY DEFINER trigger below ever touches this.
+
+create or replace function public.throttle_write()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  addr text;
+  key text;
+  cur integer;
+  cap integer := coalesce(nullif(TG_ARGV[0], '')::integer, 20);
+begin
+  -- PostgREST exposes the request headers; behind Supabase's gateway the
+  -- client address is the first entry of x-forwarded-for. Anything we can't
+  -- read (direct SQL, service role) simply isn't throttled.
+  begin
+    addr := split_part(
+      nullif(current_setting('request.headers', true), '')::json ->> 'x-forwarded-for', ',', 1);
+  exception when others then
+    addr := null;
+  end;
+  if addr is null or btrim(addr) = '' then
+    return new;
+  end if;
+
+  key := md5(btrim(addr)) || ':' || TG_TABLE_NAME || ':' || to_char(now(), 'YYYYMMDDHH24');
+
+  insert into write_throttle (bucket, hits) values (key, 1)
+    on conflict (bucket) do update set hits = write_throttle.hits + 1
+    returning hits into cur;
+
+  if cur > cap then
+    raise exception 'too many requests' using errcode = '53400';
+  end if;
+
+  -- Opportunistic cleanup so old counters don't accumulate.
+  if random() < 0.01 then
+    delete from write_throttle where window_start < now() - interval '3 hours';
+  end if;
+
+  return new;
+end;
+$$;
+
+-- Caps are per address, per table, per hour. Generous for real use: a person
+-- files a bug or two and votes once. Poll voting gets more headroom because a
+-- shared network (an office, a school, a carrier NAT) can legitimately send
+-- many distinct voters from one address.
+drop trigger if exists feedback_throttle on public.feedback;
+create trigger feedback_throttle
+  before insert on public.feedback
+  for each row execute function public.throttle_write('20');
+
+drop trigger if exists poll_votes_throttle on public.poll_votes;
+create trigger poll_votes_throttle
+  before insert on public.poll_votes
+  for each row execute function public.throttle_write('60');
