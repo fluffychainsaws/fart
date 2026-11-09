@@ -1,0 +1,92 @@
+# Keeps the Supabase project from being paused for inactivity.
+#
+# Supabase pauses free-tier projects after roughly a week with no activity.
+# A paused project breaks sign-in and every edge function — including
+# parse-script, so script uploads fail — while the static site keeps loading
+# normally. That happened once already (Sept 11 -> Nov 9 idle), and nothing
+# alerts you to it.
+#
+# This runs a real query twice a week. It calls poll_results(), which is
+# SECURITY DEFINER and granted to `anon`: a genuine read inside Postgres, not
+# just a request the API gateway can answer from cache. Read-only and
+# idempotent — it returns vote tallies (or []) and writes nothing.
+#
+# It also doubles as a free uptime check: a non-200 fails the job and GitHub
+# emails you, which is the alert that was missing.
+#
+# No secrets. The key below is the publishable (anon) key, which already ships
+# in the web bundle by design — Row Level Security is what guards the data, and
+# poll_results deliberately exposes counts only, never voter identities. Keep it
+# in step with LIVE_ANON_KEY in src/lib/supabase.ts if it is ever rotated.
+#
+# CAVEAT: GitHub disables scheduled workflows after 60 days with no repository
+# activity, and warns by email first. If you step away from the repo for that
+# long, re-enable this from the Actions tab (or hit "Run workflow") — and if the
+# project is ever live and earning, move to Supabase Pro, which never pauses.
+
+name: Keep Supabase awake
+
+on:
+  schedule:
+    # Mondays and Thursdays at 07:17 UTC. Twice a week leaves a 3-4 day gap,
+    # comfortably inside the ~7-day pause window even if one run is skipped.
+    # An off-the-hour minute avoids the top-of-hour queue on GitHub's runners.
+    - cron: '17 7 * * 1,4'
+  workflow_dispatch:
+
+# Needs nothing from the repository, so it gets nothing.
+permissions: {}
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    name: Ping the database
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Query poll_results via PostgREST
+        env:
+          SUPABASE_URL: https://bojaiebacqsqewmxwuih.supabase.co
+          SUPABASE_ANON_KEY: sb_publishable_wQXxgoZaTUOAW1KjJCq-YA_UoY98hLi
+        run: |
+          set -uo pipefail
+
+          # Retry a few times: a project that is mid-restore, or a cold start,
+          # can answer slowly or 503 once before coming up. Only a run where
+          # every attempt fails should page you.
+          for attempt in 1 2 3; do
+            echo "Attempt $attempt..."
+
+            status=$(curl -sS \
+              --max-time 30 \
+              -o response.json \
+              -w '%{http_code}' \
+              -X POST "$SUPABASE_URL/rest/v1/rpc/poll_results" \
+              -H "apikey: $SUPABASE_ANON_KEY" \
+              -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+              -H 'Content-Type: application/json' \
+              -d '{"p_poll":"feature-request-v1"}' || echo '000')
+
+            body=$(head -c 500 response.json 2>/dev/null || true)
+            echo "HTTP $status"
+            echo "Body: $body"
+
+            if [ "$status" = '200' ]; then
+              echo "Database is awake."
+              exit 0
+            fi
+
+            if [ "$attempt" -lt 3 ]; then
+              echo "Not healthy yet — waiting 30s."
+              sleep 30
+            fi
+          done
+
+          echo
+          echo "::error::Supabase did not answer with HTTP 200 after 3 attempts (last: $status)."
+          echo "The project is probably paused, or the publishable key was rotated."
+          echo "Check https://supabase.com/dashboard for a 'Project paused' banner."
+          exit 1
