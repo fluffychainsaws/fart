@@ -12,8 +12,10 @@ import { getSpeechRecognitionCtor, type SpeechRecognitionLike } from './webSpeec
 // single-instance limit and voice commands are web-only, so the native paths
 // keep their own per-feature recognizers.
 
+// isFinal distinguishes a settled transcript from an interim guess. Voice
+// commands act only on final segments — see voiceCommands.ts for why.
 type ResultsLike = { length: number } & {
-  [i: number]: { [j: number]: { transcript: string } };
+  [i: number]: { isFinal?: boolean; [j: number]: { transcript: string } };
 };
 
 export type RecognitionEvent =

@@ -46,7 +46,7 @@ export const FAQ_ENTRIES: FaqEntry[] = [
     id: 'handsfree',
     q: 'Can I go hands-free?',
     keywords: ['hands free', 'hands-free', 'voice command', 'commands', 'say start', 'without touching', 'mic control'],
-    a: 'Yes! Say “Buddy start” to roll, “Buddy stop” to stop, and “Buddy restart” to run it back — you never have to touch your phone mid-take.',
+    a: 'Yes! Say “Buddy start” to roll, “Buddy stop” to stop, and “Buddy restart” to run it back — you never have to touch your phone mid-take. Say the command on its own, though: just “Buddy stop”, not “Buddy, stop the scene”. That way a line of dialogue with the word “buddy” in it can’t pause your take by accident.',
   },
   {
     id: 'improv',

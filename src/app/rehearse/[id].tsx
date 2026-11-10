@@ -223,6 +223,10 @@ export default function RehearseScreen() {
   const voiceCommandsAllowed = Boolean(tier?.voiceCommands);
   const speechSupported = Boolean(getSpeechRecognitionCtor());
   const voiceCooldownUntil = useRef(0);
+  // Index of the newest recognizer segment already acted on, so a finalised
+  // command isn't replayed every time a later interim result arrives. Reset
+  // when the shared recognizer opens a new session, since indexes restart at 0.
+  const lastVoiceSeg = useRef(-1);
   const statusRef = useRef(status);
   statusRef.current = status;
   const engineRef = useRef(engine);
@@ -313,17 +317,30 @@ export default function RehearseScreen() {
         // is the LAST non-empty result — not results[0]. Reading results[0]
         // meant a second command ("Buddy stop", then "Buddy start" again) in the
         // same session was never seen. Scan from the end for the latest speech.
+        //
+        // Only FINAL segments count. With interim results on, the line
+        // "Buddy, stop it!" passes through an interim transcript of exactly
+        // "buddy stop" — and "buddy" is ordinary dialogue, so acting on interims
+        // pauses a take mid-scene. Waiting for the settled transcript is what
+        // lets voiceCommands.ts demand the whole utterance be just the command.
         const results = event.results;
         const len = results?.length ?? 0;
         let transcript = '';
+        let segIndex = -1;
         for (let i = len - 1; i >= 0; i--) {
+          if (!results[i]?.isFinal) continue;
           const seg = (results[i]?.[0]?.transcript ?? '').trim();
           if (seg) {
             transcript = seg.toLowerCase();
-            break;
+            segIndex = i;
           }
+          break; // only the newest finalised segment matters
         }
-        if (!transcript || Date.now() < voiceCooldownUntil.current) return;
+        // Act on each finalised segment once; later interim results in the same
+        // session must not replay it.
+        if (!transcript || segIndex <= lastVoiceSeg.current) return;
+        lastVoiceSeg.current = segIndex;
+        if (Date.now() < voiceCooldownUntil.current) return;
         consecutiveErrors = 0;
         const state = statusRef.current;
         // "Buddy restart" is the one-shot redo: from anywhere, roll again from
@@ -339,6 +356,11 @@ export default function RehearseScreen() {
           voiceCooldownUntil.current = Date.now() + 2500;
           engineRef.current.pause();
         }
+      } else if (event.type === 'sessionEnd') {
+        // The shared recognizer restarts itself after a silence; a new session
+        // numbers its segments from 0 again, so the de-dupe index must reset or
+        // the first command of the new session looks already-handled.
+        lastVoiceSeg.current = -1;
       } else if (event.type === 'error') {
         if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
           setVoiceCmdOn(false);
