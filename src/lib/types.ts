@@ -31,7 +31,7 @@ export interface FartScript {
   // Characters not in the map get an automatic voice.
   voices?: Record<string, string>;
   // Set when this script was created by spending an Audition Credit — grants
-  // it SHART STAR-level features (voices, voice commands) for its own
+  // it Buddy Premium-level features (voices, voice commands) for its own
   // rehearsals regardless of the account's actual subscription tier, with
   // director notes capped like the 'daypass' tier rather than unlimited.
   premiumCredit?: boolean;

@@ -25,8 +25,9 @@ function benefits(id: Tier): string[] {
 }
 
 // Upsell sheet shown the moment a user runs out of auditions. Only offers tiers
-// ABOVE their current one (a maxed FART user sees FART Pro + SHART STAR, a free
-// user sees all three), so it never pitches the plan they already have.
+// ABOVE their current one (a maxed Buddy Plus user sees Buddy Pro + Buddy
+// Premium, a free user sees all three), so it never pitches the plan they
+// already have.
 export function UpgradeModal({
   visible,
   currentTier,

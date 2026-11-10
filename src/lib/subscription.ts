@@ -44,7 +44,7 @@ export const TIERS: Record<Tier, TierConfig> = {
   },
   fart: {
     id: 'fart',
-    name: 'FART',
+    name: 'Buddy Plus',
     priceLabel: '$5/mo',
     tagline: 'For actors just getting started.',
     auditionsPerMonth: 6,
@@ -57,7 +57,7 @@ export const TIERS: Record<Tier, TierConfig> = {
   },
   fartpro: {
     id: 'fartpro',
-    name: 'FART Pro',
+    name: 'Buddy Pro',
     priceLabel: '$10/mo',
     tagline: 'More auditions, more direction.',
     auditionsPerMonth: 14,
@@ -70,7 +70,7 @@ export const TIERS: Record<Tier, TierConfig> = {
   },
   shartstar: {
     id: 'shartstar',
-    name: 'SHART STAR',
+    name: 'Buddy Premium',
     priceLabel: '$25/mo',
     tagline: 'Less than a dollar a day to have a reader always ready!',
     auditionsPerMonth: Infinity,
@@ -85,7 +85,7 @@ export const TIERS: Record<Tier, TierConfig> = {
     id: 'daypass',
     name: 'Audition Credit',
     priceLabel: '$3.99',
-    tagline: 'One script, full SHART STAR treatment.',
+    tagline: 'One script, full Buddy Premium treatment.',
     auditionsPerMonth: Infinity, // scoped to its own script, not a monthly quota
     pagesPerScript: 150,
     aiVoiceCount: OPENAI_VOICES.length,

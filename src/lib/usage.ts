@@ -184,7 +184,7 @@ export async function getUsageStatus(): Promise<UsageStatus> {
     auditionsUsed,
     auditionsPerMonth: limit,
     auditionsRemaining: UNLIMITED_AUDITIONS ? Infinity : Math.max(0, limit - auditionsUsed),
-    // A tier with an Infinity quota (SHART STAR) is unlimited on its own,
+    // A tier with an Infinity quota (Buddy Premium) is unlimited on its own,
     // not just via the global override.
     unlimited: UNLIMITED_AUDITIONS || limit === Infinity,
     premiumCredits,
@@ -192,7 +192,7 @@ export async function getUsageStatus(): Promise<UsageStatus> {
 }
 
 // Audition Credit: a one-time $3.99 purchase that never expires, spent one
-// per script to give that script SHART STAR-level features (see the
+// per script to give that script Buddy Premium-level features (see the
 // 'daypass' pseudo-tier). Signed in, the server's profiles.premium_credits
 // is the truth (spent atomically via the spend_premium_credit() RPC, so a
 // double-spend race can't grant two scripts off one credit). Signed out,

@@ -152,8 +152,8 @@ export default function RehearseScreen() {
     AsyncStorage.setItem(REHEARSE_NEVER_KEY, '1').catch(() => {});
   };
 
-  // A script bought with an Audition Credit gets SHART STAR-level features for
-  // itself regardless of the account's actual subscription tier — capped on
+  // A script bought with an Audition Credit gets Buddy Premium-level features
+  // for itself regardless of the account's actual subscription tier — capped on
   // director notes rather than unlimited, per the 'daypass' pseudo-tier.
   const tier = script?.premiumCredit ? getTier('daypass') : usage ? getTier(usage.tier) : null;
   const aiVoicesAllowed = tier ? tier.aiVoiceCount > 0 : false;
@@ -213,7 +213,7 @@ export default function RehearseScreen() {
     }
   };
 
-  // Hands-free "FART start" / "FART stop" (SHART STAR): a continuous listener
+  // Hands-free "FART start" / "FART stop" (Buddy Premium): a continuous listener
   // that plays/pauses the scene. Runs on the shared recognizer, so it can be on
   // at the same time as "Listen for my lines" — say "FART stop" to halt after
   // a flubbed take without dropping the mic that's following your lines.
