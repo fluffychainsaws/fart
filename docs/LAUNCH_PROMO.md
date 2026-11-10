@@ -20,6 +20,24 @@ showing a day off — the real grant is always governed by the server.
 
 ## Before launch day (one-time setup)
 
+- [ ] **Confirm Natural (neural) voices still speak.** Open a script, turn
+      Natural voices on, play one line. This is the one path CI can't cover:
+      the engine is served from our own domain but pulls its ONNX runtime from
+      jsdelivr and model weights from HuggingFace on first use, and both are
+      allowed in the CSP in `src/app/+html.tsx`. If the policy or those hosts
+      ever change it fails here, and it fails quietly — it falls back to device
+      voices rather than erroring, so nothing tells you.
+- [ ] **Rename the tiers in Stripe too.** The app shows Buddy Plus / Buddy Pro
+      / Buddy Premium, but receipts and card statements use the *Stripe*
+      product names. Until those are renamed in the Stripe dashboard, a
+      customer's statement still reads the old ones.
+- [ ] **Check the artwork.** `public/icon-*.png` and `public/og-image.png` may
+      still carry the old F.A.R.T. branding.
+- [ ] **Move Supabase off the free tier** (or accept the pause risk). Free
+      projects sleep after ~a week idle, which breaks sign-in and uploads
+      silently; the keepalive workflow guards it, but GitHub disables scheduled
+      workflows after 60 days of repo inactivity. Pro also brings the
+      point-in-time-recovery backups and leaked-password protection.
 - [ ] **Run the schema.** Supabase → SQL Editor → paste all of `supabase/schema.sql`
       → Run. (Safe to re-run; adds `profiles.signup_bonus_granted`, the
       `grant_signup_bonus()` function, and locks it to service-role.)
