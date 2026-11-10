@@ -1,6 +1,6 @@
 import { OPENAI_VOICES } from './cloudVoice';
 
-// Tier definitions for FART's subscription model. This is the single source
+// Tier definitions for Buddy's subscription model. This is the single source
 // of truth for pricing and limits — RevenueCat (or any other billing
 // provider) should map its product IDs onto these Tier values rather than
 // duplicating the numbers elsewhere.

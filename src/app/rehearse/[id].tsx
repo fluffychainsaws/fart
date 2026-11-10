@@ -57,9 +57,9 @@ const fmtDelay = (ms: number) => `${ms / 1000}s`;
 const DELAY_STARTS = [5, 10];
 
 const VOICE_CMD_LINES = [
-  '🎙 Say "FART start" — roll the scene (5s delay start)',
-  '🔁 Say "FART restart" — start over from the top',
-  '🛑 Say "FART stop" — pause the scene',
+  '🎙 Say "Buddy start" — roll the scene (5s delay start)',
+  '🔁 Say "Buddy restart" — start over from the top',
+  '🛑 Say "Buddy stop" — pause the scene',
 ];
 
 // First rehearsal visit auto-runs the robot tour; later visits just ask, unless
@@ -213,9 +213,9 @@ export default function RehearseScreen() {
     }
   };
 
-  // Hands-free "FART start" / "FART stop" (Buddy Premium): a continuous listener
+  // Hands-free "Buddy start" / "Buddy stop" (Buddy Premium): a continuous listener
   // that plays/pauses the scene. Runs on the shared recognizer, so it can be on
-  // at the same time as "Listen for my lines" — say "FART stop" to halt after
+  // at the same time as "Listen for my lines" — say "Buddy stop" to halt after
   // a flubbed take without dropping the mic that's following your lines.
   const [voiceCmdOn, setVoiceCmdOn] = useState(false);
   const [voiceCmdErr, setVoiceCmdErr] = useState<string | null>(null);
@@ -230,7 +230,7 @@ export default function RehearseScreen() {
 
   // Countdown start: a silent visual "5…4…3…2…1" (shown as a bubble over the
   // scene) before it rolls, so an actor working solo has time to get into
-  // frame and set. Triggered by the "FART start" voice command and by the
+  // frame and set. Triggered by the "Buddy start" voice command and by the
   // manual "5s delay" button (for people who don't want voice commands).
   const [countdown, setCountdown] = useState<number | null>(null);
   const countdownRef = useRef<{ cancelled: boolean } | null>(null);
@@ -242,7 +242,7 @@ export default function RehearseScreen() {
   };
 
   // Runs a count-in bubble, then plays. target is where to roll to: 0 restarts
-  // from the top (voice "FART start"/"restart" — a fresh take), undefined
+  // from the top (voice "Buddy start"/"restart" — a fresh take), undefined
   // resumes from the current position (the delayed Play button).
   const startWithCountdown = (from = 5, target: number | undefined = 0) => {
     cancelCountdown(); // never stack two countdowns
@@ -300,7 +300,7 @@ export default function RehearseScreen() {
     // Release the mic while the AI is actively reading. An open capture stream
     // makes the browser/OS duck and garble playback (the "broken/low AI voice"
     // when both mic features are on), and voice commands don't need to listen
-    // mid-line — "FART start" fires from idle/done and "FART stop" from your
+    // mid-line — "Buddy start" fires from idle/done and "Buddy stop" from your
     // turn. The mic reopens the instant it's your line or the scene stops.
     if (status === 'playing') return;
     let consecutiveErrors = 0;
@@ -311,7 +311,7 @@ export default function RehearseScreen() {
       if (event.type === 'result') {
         // A continuous session keeps appending segments, so the newest command
         // is the LAST non-empty result — not results[0]. Reading results[0]
-        // meant a second command ("FART stop", then "FART start" again) in the
+        // meant a second command ("Buddy stop", then "Buddy start" again) in the
         // same session was never seen. Scan from the end for the latest speech.
         const results = event.results;
         const len = results?.length ?? 0;
@@ -326,7 +326,7 @@ export default function RehearseScreen() {
         if (!transcript || Date.now() < voiceCooldownUntil.current) return;
         consecutiveErrors = 0;
         const state = statusRef.current;
-        // "FART restart" is the one-shot redo: from anywhere, roll again from
+        // "Buddy restart" is the one-shot redo: from anywhere, roll again from
         // the top — so a flub mid-take needs a single command, not stop+start.
         // Checked first (and before START, though the two never overlap).
         if (RESTART_CMD.test(transcript)) {
@@ -581,7 +581,7 @@ export default function RehearseScreen() {
   if (voiceCommandsAllowed && speechSupported)
     tourSteps.push({
       ref: voiceCmdRef,
-      text: '🎙 Go hands-free: say “FART start”, “FART stop”, or “FART restart”.',
+      text: '🎙 Go hands-free: say “Buddy start”, “Buddy stop”, or “Buddy restart”.',
     });
   if (voicesPresent)
     tourSteps.push({

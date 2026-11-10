@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "FART",
+    "name": "Buddy",
     "slug": "fart",
     "version": "1.0.0",
-    "description": "Friendly AI Reader To-Go! - Rehearse scripts with an AI reader. Use the free web version at https://selftapebuddy.com",
+    "description": "Rehearse scripts with an AI reader. Use the free web version at https://selftapebuddy.com",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "fart",
@@ -38,16 +38,16 @@
       [
         "expo-image-picker",
         {
-          "cameraPermission": "FART uses the camera to snap photos of your script pages.",
-          "photosPermission": "FART uses your photos to import script pages."
+          "cameraPermission": "Buddy uses the camera to snap photos of your script pages.",
+          "photosPermission": "Buddy uses your photos to import script pages."
         }
       ],
       "expo-audio",
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "FART uses the microphone to hear voice commands like 'FART start'.",
-          "speechRecognitionPermission": "FART uses speech recognition for hands-free recording commands."
+          "microphonePermission": "Buddy uses the microphone to hear voice commands like 'Buddy start'.",
+          "speechRecognitionPermission": "Buddy uses speech recognition for hands-free recording commands."
         }
       ]
     ],

@@ -1,6 +1,6 @@
 // Offline FAQ "brain" for the helper bot. No API, no per-message cost — answers
 // are matched from this list by keyword overlap. Keep answers short, friendly,
-// and specific to F.A.R.T. Add entries here to teach the bot new topics.
+// and specific to Buddy Add entries here to teach the bot new topics.
 
 export interface FaqEntry {
   id: string;
@@ -12,7 +12,7 @@ export interface FaqEntry {
 }
 
 export const GREETING =
-  "Hi! I'm F.A.R.T.'s helper bot 🤖 Ask me anything about how the app works — or tap a question below to get started.";
+  "Hi! I'm Buddy's helper bot 🤖 Ask me anything about how the app works — or tap a question below to get started.";
 
 export const FALLBACK =
   "Hmm, I don't have an answer for that one yet. Try tapping a suggested question, or ask me about pricing, voices, hands-free commands, importing your script, or getting started.";
@@ -20,21 +20,21 @@ export const FALLBACK =
 export const FAQ_ENTRIES: FaqEntry[] = [
   {
     id: 'what-is',
-    q: 'What is F.A.R.T.?',
-    keywords: ['what is', 'what does', 'about', 'what can you do', 'fart mean', 'purpose'],
-    a: 'F.A.R.T. (Friendly AI Reader To-Go) is your pocket scene partner. It reads every other character’s lines out loud in a natural voice and waits for your cue, so you can rehearse your sides anywhere — no human reader needed.',
+    q: 'What is Buddy?',
+    keywords: ['what is', 'what does', 'about', 'what can you do', 'buddy mean', 'fart mean', 'purpose'],
+    a: 'Buddy is your pocket scene partner. It reads every other character’s lines out loud in a natural voice and waits for your cue, so you can rehearse your sides anywhere — no human reader needed.',
   },
   {
     id: 'how-works',
     q: 'How does it work?',
     keywords: ['how does it work', 'how do i use', 'how to use', 'get started', 'getting started', 'begin', 'steps'],
-    a: 'Three steps: 1) Tap “New Script” and snap a photo or upload a PDF of your sides. 2) Highlight which lines are yours. 3) Hit Play — F.A.R.T. reads the other characters and pauses for your lines.',
+    a: 'Three steps: 1) Tap “New Script” and snap a photo or upload a PDF of your sides. 2) Highlight which lines are yours. 3) Hit Play — Buddy reads the other characters and pauses for your lines.',
   },
   {
     id: 'import',
     q: 'How do I add my script?',
     keywords: ['add script', 'import', 'upload', 'photo', 'pdf', 'scan', 'my sides', 'new script', 'picture'],
-    a: 'Tap “New Script,” then take photos of your pages or drop in a PDF. F.A.R.T. reads the text automatically and lets you mark which lines are yours — no retyping.',
+    a: 'Tap “New Script,” then take photos of your pages or drop in a PDF. Buddy reads the text automatically and lets you mark which lines are yours — no retyping.',
   },
   {
     id: 'voices',
@@ -46,7 +46,7 @@ export const FAQ_ENTRIES: FaqEntry[] = [
     id: 'handsfree',
     q: 'Can I go hands-free?',
     keywords: ['hands free', 'hands-free', 'voice command', 'commands', 'say start', 'without touching', 'mic control'],
-    a: 'Yes! Say “F.A.R.T. start” to roll, “F.A.R.T. stop” to stop, and “F.A.R.T. restart” to run it back — you never have to touch your phone mid-take.',
+    a: 'Yes! Say “Buddy start” to roll, “Buddy stop” to stop, and “Buddy restart” to run it back — you never have to touch your phone mid-take.',
   },
   {
     id: 'improv',
@@ -58,7 +58,7 @@ export const FAQ_ENTRIES: FaqEntry[] = [
     id: 'listen',
     q: 'Will it wait for my cue?',
     keywords: ['wait for', 'my cue', 'cue', 'listen for my lines', 'listen', 'follow along', 'timing', 'pace'],
-    a: 'Turn on “Listen for my lines” and F.A.R.T. listens for you to finish your line, then delivers the next one right on cue — just like a real scene partner.',
+    a: 'Turn on “Listen for my lines” and Buddy listens for you to finish your line, then delivers the next one right on cue — just like a real scene partner.',
   },
   {
     id: 'directions',

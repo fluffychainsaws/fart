@@ -23,7 +23,7 @@ export default function ProfileScreen() {
   const pickPhoto = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      const msg = 'FART needs photo access to set a profile picture.';
+      const msg = 'Buddy needs photo access to set a profile picture.';
       if (Platform.OS === 'web') window.alert(msg);
       else Alert.alert('Photo access needed', msg);
       return;

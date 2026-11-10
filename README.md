@@ -1,13 +1,13 @@
-# FART 💨 — Friendly AI Reader To-Go!
+# Buddy 💨 — your pocket scene partner
 
-Your pocket scene partner. Snap a photo of your audition sides, highlight your lines, and FART reads everyone else's lines out loud while you rehearse yours.
+Your pocket scene partner. Snap a photo of your audition sides, highlight your lines, and Buddy reads everyone else's lines out loud while you rehearse yours.
 
 Built with Expo (React Native) — one codebase for iOS and Android.
 
 ## How it works
 
 1. **📸 New script** — take a photo of each page of your sides (or pick them from your photo library).
-2. FART sends the photos to Claude, which transcribes them into a structured script (dialogue vs. stage directions).
+2. Buddy sends the photos to Claude, which transcribes them into a structured script (dialogue vs. stage directions).
 3. **🎭 Pick your role** — tap your character to highlight all of their lines, or tap individual lines to highlight/un-highlight them.
 4. **▶ Rehearse** — the AI reader speaks the other characters' lines (each role gets a slightly different voice) and pauses at yours. Tap "Said it — continue" when you've delivered your line, or turn on auto-continue.
 

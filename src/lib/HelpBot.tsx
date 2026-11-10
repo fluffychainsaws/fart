@@ -74,7 +74,7 @@ export function HelpBot({ onOpen }: { onOpen?: () => void }) {
     }
   };
 
-  const headerTitle = mode === 'report' ? 'Report an issue' : 'F.A.R.T. Helper';
+  const headerTitle = mode === 'report' ? 'Report an issue' : 'Buddy Helper';
   const headerSub =
     mode === 'report' ? 'Tell us what’s wrong — we read every one' : 'Quick answers to common questions';
 
@@ -83,7 +83,7 @@ export function HelpBot({ onOpen }: { onOpen?: () => void }) {
       <Pressable
         onPress={openChat}
         style={({ pressed }) => [styles.mascotBtn, pressed && { opacity: 0.85 }]}
-        accessibilityLabel="Open the F.A.R.T. helper chat">
+        accessibilityLabel="Open the Buddy helper chat">
         <RobotMascot size={92} />
         <View style={styles.bubble}>
           <Text style={styles.bubbleText}>Need help? Ask me!</Text>
@@ -158,7 +158,7 @@ export function HelpBot({ onOpen }: { onOpen?: () => void }) {
                   <View style={styles.thanks}>
                     <Text style={styles.thanksTitle}>Thank you! 💛</Text>
                     <Text style={styles.thanksText}>
-                      We read every single report — this is exactly how F.A.R.T. gets better. 🙌
+                      We read every single report — this is exactly how Buddy gets better. 🙌
                     </Text>
                     <Pressable onPress={backToChat} style={({ pressed }) => [styles.primaryBtn, pressed && { opacity: 0.85 }]}>
                       <Text style={styles.primaryBtnText}>Back to help</Text>

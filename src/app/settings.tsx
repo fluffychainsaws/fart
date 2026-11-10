@@ -129,7 +129,7 @@ export default function SettingsScreen() {
             <View style={styles.rowText}>
               <Text style={styles.rowTitle}>Show the robot tutorials again</Text>
               <Text style={styles.rowSub}>
-                Bring back F.A.R.T.&apos;s guided walkthroughs on the New Script and Rehearsal
+                Bring back Buddy&apos;s guided walkthroughs on the New Script and Rehearsal
                 screens.
               </Text>
             </View>

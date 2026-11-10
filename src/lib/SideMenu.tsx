@@ -139,7 +139,7 @@ function MenuContent({ onNavigate }: { onNavigate?: () => void }) {
         </Text>
       </Pressable>
 
-      <Text style={styles.brand}>F.A.R.T.</Text>
+      <Text style={styles.brand}>Buddy</Text>
       {LINKS.map((link) => {
         const active = pathname === link.href;
         return (

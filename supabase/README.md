@@ -47,8 +47,8 @@ The app opens Stripe **Payment Links** in the browser (no app-store cut), and
 a Supabase Edge Function flips `profiles.tier` when Stripe reports a payment.
 
 1. Create a Stripe account (stripe.com), then in **Product catalog** create
-   three recurring products matching the app's plans: FART $5/mo,
-   FART PRO $10/mo, SHART STAR $25/mo. Note each price's ID (`price_...`).
+   three recurring products matching the app's plans: Buddy Plus $5/mo,
+   Buddy Pro $10/mo, Buddy Premium $25/mo. Note each price's ID (`price_...`).
 2. Also create a fourth product for the **Audition Credit**: a one-time (not
    recurring) $3.99 price. It grants a permanent `premium_credits` credit
    instead of changing tier — see the `daypass` pseudo-tier in

@@ -90,10 +90,10 @@ export default function RootLayout() {
                         fontFamily: 'Inter_700Bold',
                         color: t.ink,
                       }}>
-                      F.A.R.T.
+                      Buddy
                     </Text>
                     <Text style={{ fontSize: 11, fontWeight: '700', color: t.accent, marginTop: 1 }}>
-                      Friendly AI Reader To-Go!
+                      Your pocket scene partner
                     </Text>
                   </View>
                 ),

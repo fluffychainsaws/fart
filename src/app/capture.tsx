@@ -104,7 +104,7 @@ export default function CaptureScreen() {
     AsyncStorage.setItem(TOUR_SEEN_KEY, '1').catch(() => {});
   };
   const TOUR_TEXTS = [
-    'Hi, I’m F.A.R.T.! First, tap “Test your microphone” — let’s make sure I can hear you loud and clear.',
+    'Hi, I’m Buddy! First, tap “Test your microphone” — let’s make sure I can hear you loud and clear.',
     'Next, upload your sides — snap a photo, pick from your files, or drop in a PDF.',
     'Once your script’s uploaded, this button lights up — hit Create and let’s start auditioning together! 🎬',
   ];
@@ -275,7 +275,7 @@ export default function CaptureScreen() {
   const takePhoto = async () => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
-      setError('FART needs camera access to snap your script pages.');
+      setError('Buddy needs camera access to snap your script pages.');
       return;
     }
     addAssets(
@@ -403,7 +403,7 @@ export default function CaptureScreen() {
               <Text style={styles.micTestButtonText}>Test your microphone</Text>
             </Pressable>
             <Text style={styles.micTestHint}>
-              Do this first — make sure FART can hear you before you upload.
+              Do this first — make sure Buddy can hear you before you upload.
             </Text>
           </View>
         </View>

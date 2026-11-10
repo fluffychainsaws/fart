@@ -1,4 +1,4 @@
--- FART accounts schema. Paste this whole file into the Supabase dashboard
+-- Buddy accounts schema. Paste this whole file into the Supabase dashboard
 -- SQL Editor (or run `supabase db push`) once, right after creating the
 -- project. Safe to re-run.
 --

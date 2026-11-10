@@ -1,7 +1,7 @@
 // Learn more https://docs.expo.dev/router/reference/static-rendering/#root-html
 // Extends Expo's default root HTML (see @expo/cli/static/template/+html.tsx)
 // to add a web-app manifest and iOS home-screen meta tags, so "Add to Home
-// Screen" installs FART as a standalone app instead of a browser tab.
+// Screen" installs Buddy as a standalone app instead of a browser tab.
 
 import { ScrollViewStyleReset, useServerDocumentContext } from 'expo-router/html';
 
@@ -82,7 +82,7 @@ export default function Root({ children }: { children: React.ReactNode }) {
         <meta property="og:image" content="https://selftapebuddy.com/og-image.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
-        <meta property="og:image:alt" content="Self Tape Buddy — Friendly AI Reader To-Go!" />
+        <meta property="og:image:alt" content="Self Tape Buddy — your pocket scene partner" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Self Tape Buddy — your pocket AI scene partner" />
         <meta
@@ -97,7 +97,7 @@ export default function Root({ children }: { children: React.ReactNode }) {
         <link rel="apple-touch-icon" href="icon-180.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="FART" />
+        <meta name="apple-mobile-web-app-title" content="Buddy" />
         <meta name="mobile-web-app-capable" content="yes" />
         {/* Capture the install prompt as early as possible — Chrome can fire
             beforeinstallprompt before the app mounts. The InstallPrompt

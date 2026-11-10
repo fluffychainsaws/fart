@@ -27,7 +27,7 @@ const FEATURES = [
   {
     icon: '🎭',
     title: 'Improv option',
-    desc: 'Forget the lines and say what you want — FART still reads their lines right back.',
+    desc: 'Forget the lines and say what you want — Buddy still reads their lines right back.',
   },
   {
     icon: '🎬',
@@ -37,7 +37,7 @@ const FEATURES = [
   {
     icon: '🎙',
     title: 'Hands-free',
-    desc: 'Say “FART start” to roll and “FART restart” to run it back — never touch your phone.',
+    desc: 'Say “Buddy start” to roll and “Buddy restart” to run it back — never touch your phone.',
   },
   {
     icon: '🌐',
@@ -175,20 +175,20 @@ export default function HomeScreen() {
         <Pressable
           style={({ pressed }) => [styles.webBanner, pressed && styles.pressed]}
           onPress={() => Linking.openURL('https://selftapebuddy.com')}>
-          <Text style={styles.webBannerText}>🌐 Use FART on the web</Text>
+          <Text style={styles.webBannerText}>🌐 Use Buddy on the web</Text>
           <Text style={styles.webBannerSubtext}>Full features, no app install needed</Text>
         </Pressable>
       )}
 
       {/* Hero */}
       <Text style={styles.hero}>
-        Do your friends suck and not have enough time for you?! Well guess what — FART is here for
+        Do your friends suck and not have enough time for you?! Well guess what — Buddy is here for
         you!
       </Text>
       <Text style={styles.subhead}>
         We have changed the game of AI reading to a whole new level! We offer the highest quality
         voices. Hands-free commands, so you can keep acting without delay. We give you the ability to
-        improv and still have a human-like response from our reader, F.A.R.T.
+        improv and still have a human-like response from our reader, Buddy
       </Text>
 
 

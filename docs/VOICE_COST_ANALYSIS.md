@@ -12,8 +12,8 @@ console.anthropic.com, and elevenlabs.io/pricing before committing.
 - **ChatGPT can't do custom voices** (fixed ~11 voices only). Custom voices
   (e.g. Samantha, Carl, cloned voices) require **ElevenLabs**.
 - **Plan:** make ElevenLabs a **premium-tier perk**, routed by plan on the
-  server, dormant until an ElevenLabs API key is set. Scope (SHART STAR only vs
-  also FART Pro) = **decide at switch time**.
+  server, dormant until an ElevenLabs API key is set. Scope (Buddy Premium only vs
+  also Buddy Pro) = **decide at switch time**.
 - **Use ElevenLabs' cheaper Flash model** when switching (~half the per-character
   cost).
 - **Keep the server spend caps** — they're what stop an unlimited tier from ever
@@ -37,12 +37,12 @@ console.anthropic.com, and elevenlabs.io/pricing before committing.
   `supabase/functions/synthesize-voice/index.ts`).
 - **Director notes:** 300/user/month (`DIRECTION_MONTHLY_LIMIT` in
   `supabase/functions/parse-script/index.ts`).
-- **Script parsing:** no monthly cap for SHART STAR (unlimited auditions) — the
+- **Script parsing:** no monthly cap for Buddy Premium (unlimited auditions) — the
   one open-ended cost.
 
 ## Worst-case stress test (everyone maxes every limit)
 
-### 100 maxed FART Pro users ($10/mo)
+### 100 maxed Buddy Pro users ($10/mo)
 Maxed = 14 scripts × 12 pages, ~280 notes, ElevenLabs on every line (~180k chars).
 
 | Cost | × 100/mo |
@@ -57,7 +57,7 @@ Maxed = 14 scripts × 12 pages, ~280 notes, ElevenLabs on every line (~180k char
 Revenue: 100 × $10 = **$1,000/month** → **LOSS of ~$1,500–2,500/mo at max.**
 => ElevenLabs on the $10 tier at heavy usage is upside-down.
 
-### 100 maxed SHART STAR users ($25/mo)
+### 100 maxed Buddy Premium users ($25/mo)
 Maxed = hits the 200k voice cap + 300-note cap + heavy parsing.
 
 | Cost | × 100/mo |
@@ -97,14 +97,14 @@ Realistic cost per user/month (ElevenLabs Flash):
 | **Total** | **~$2/mo** | **~$4/mo** |
 | **Margin on $25** | **~92%** | **~84%** |
 
-**100 realistic SHART STAR users ≈ ~$400/mo cost vs $2,500 revenue → ~$2,100
-profit (~84% margin).** Even FART Pro + ElevenLabs pencils to ~$8 margin on $10
+**100 realistic Buddy Premium users ≈ ~$400/mo cost vs $2,500 revenue → ~$2,100
+profit (~84% margin).** Even Buddy Pro + ElevenLabs pencils to ~$8 margin on $10
 at realistic usage — the "loss" only appears at the rare max-out outlier, which
 the caps contain.
 
 ## Recommendations
 
-1. **ElevenLabs → premium tier only** (SHART STAR $25; decide later whether FART
+1. **ElevenLabs → premium tier only** (Buddy Premium $25; decide later whether Buddy Pro
    Pro also gets it). Keeps it exclusive, costs contained, gives a real reason to
    upgrade.
 2. **Use the Flash model** — roughly half the voice cost; the difference between

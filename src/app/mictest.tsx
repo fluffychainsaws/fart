@@ -15,7 +15,7 @@ export default function MicTestScreen() {
       <MicIcon size={44} />
       <Text style={styles.title}>Mic test is web-only</Text>
       <Text style={styles.text}>
-        Open the website version of FART to run the microphone level test. On this device, rehearsal
+        Open the website version of Buddy to run the microphone level test. On this device, rehearsal
         asks for microphone access directly when a feature needs it.
       </Text>
     </View>

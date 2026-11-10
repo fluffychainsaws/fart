@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Self Tape Buddy — FART",
-  "short_name": "FART",
-  "description": "Snap a photo of your sides, highlight your lines, and FART reads everyone else's.",
+  "name": "Self Tape Buddy",
+  "short_name": "Buddy",
+  "description": "Snap a photo of your sides, highlight your lines, and Buddy reads everyone else's.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

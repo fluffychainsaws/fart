@@ -4,7 +4,7 @@ The promo grants **one-time bonus Audition Credits** the first time a user buys 
 paid tier, during a launch window. It never expires once granted, fires at most
 once per user ever, and is off until you set a start date.
 
-**Bonus amounts:** FART (`$5`) → **1**, FART Pro (`$10`) → **2**, Shart Star (`$25`) → **3**.
+**Bonus amounts:** Buddy Plus (`$5`) → **1**, Buddy Pro (`$10`) → **2**, Buddy Premium (`$25`) → **3**.
 
 There are two independent switches — both must be set:
 
@@ -39,13 +39,13 @@ showing a day off — the real grant is always governed by the server.
 ## Dry run in Stripe test mode (do this before going live)
 
 - [ ] Temporarily set `PROMO_SIGNUP_START` to today (test project / test secret).
-- [ ] Test-mode checkout for **FART** → confirm the account gains **+1** credit
+- [ ] Test-mode checkout for **Buddy Plus** → confirm the account gains **+1** credit
       (Account page "Audition Credits", or `profiles.premium_credits`).
 - [ ] **Idempotency:** in Stripe → Webhooks, **resend** that same
       `checkout.session.completed` event → confirm credits **do not** increase.
 - [ ] **One-time:** have the same test user buy again (or upgrade) → confirm **no**
       additional bonus (`signup_bonus_granted` is already `true`).
-- [ ] Buy **FART Pro** with a fresh test user → **+2**; **Shart Star** → **+3**.
+- [ ] Buy **Buddy Pro** with a fresh test user → **+2**; **Buddy Premium** → **+3**.
 - [ ] Clear the temporary test secret when done.
 
 ## Launch day (turn it on)

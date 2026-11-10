@@ -5,7 +5,7 @@ import { getSpeechRecognitionCtor, type SpeechRecognitionLike } from './webSpeec
 // commands" — which each used to spin up their own — knocked each other out
 // (hence the old "one recognizer at a time" mutual exclusion). This owns a
 // single recognizer and fans its events out to every subscriber, so both
-// features can run at once: the reader can still answer on cue while "FART
+// features can run at once: the reader can still answer on cue while "Buddy
 // cut" is available to restart after a flub.
 //
 // Web-only. Native speech recognition (expo-speech-recognition) has no such
